@@ -128,11 +128,11 @@ HybridSimulatorImpl::Stop()
     }
 }
 
-void
+EventId
 HybridSimulatorImpl::Stop(const Time& delay)
 {
     NS_LOG_FUNCTION(this << delay.GetTimeStep());
-    Simulator::Schedule(delay, &Simulator::Stop);
+    return Simulator::Schedule(delay, &Simulator::Stop);
 }
 
 EventId
