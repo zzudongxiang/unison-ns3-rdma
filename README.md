@@ -7,9 +7,9 @@ A fast and user-transparent parallel simulator implementation for ns-3.
 
 With fine-grained partition and load-adaptive scheduling, Unison allows users to easily simulate models with multithreaded parallelization without further configurations.
 Meanwhile, cache misses are reduced by fine-grained partition, and the mutual waiting time among threads is minimized by load-adaptive scheduling, resulting in efficient parallelization.
-More information about Unison can be found in our EuroSys '24 paper (coming soon).
+More information about Unison can be found in our [EuroSys '24 paper](https://dl.acm.org/doi/10.1145/3627703.3629574).
 
-Supported ns-3 version: [3.36.1](https://github.com/NASA-NJU/UNISON-for-ns-3/tree/unison-3.36.1), [3.37](https://github.com/NASA-NJU/UNISON-for-ns-3/tree/unison-3.37), [3.38](https://github.com/NASA-NJU/UNISON-for-ns-3/tree/unison-3.38), [3.39](https://github.com/NASA-NJU/UNISON-for-ns-3/tree/unison-3.39) and [3.40](https://github.com/NASA-NJU/UNISON-for-ns-3/tree/unison-3.40).
+Supported ns-3 version: >= 3.36.1.
 We are trying to keep Unison updated with the latest version of ns-3.
 You can find each unison-enabled ns-3 version via `unison-*` tags.
 
@@ -253,7 +253,28 @@ GlobalValue::Bind("PartitionSchedulingPeriod", UintegerValue(4));
 
 ## Links
 
-If you find the code useful, please consider citing our paper (coming soon).
+If you find the code useful, please consider citing [our paper](https://dl.acm.org/doi/10.1145/3627703.3629574).
+
+```bibtex
+@inproceedings{10.1145/3627703.3629574,
+author = {Bai, Songyuan and Zheng, Hao and Tian, Chen and Wang, Xiaoliang and Liu, Chang and Jin, Xin and Xiao, Fu and Xiang, Qiao and Dou, Wanchun and Chen, Guihai},
+title = {Unison: A Parallel-Efficient and User-Transparent Network Simulation Kernel},
+year = {2024},
+isbn = {9798400704376},
+publisher = {Association for Computing Machinery},
+address = {New York, NY, USA},
+url = {https://doi.org/10.1145/3627703.3629574},
+doi = {10.1145/3627703.3629574},
+abstract = {Discrete-event simulation (DES) is a prevalent tool for evaluating network designs. Although DES offers full fidelity and generality, its slow performance limits its application. To speed up DES, many network simulators employ parallel discrete-event simulation (PDES). However, adapting existing network simulation models to PDES requires complex reconfigurations and often yields limited performance improvement. In this paper, we address this gap by proposing a parallel-efficient and user-transparent network simulation kernel, Unison, that adopts fine-grained partition and load-adaptive scheduling optimized for network scenarios. We prototype Unison based on ns-3. Existing network simulation models of ns-3 can be seamlessly transitioned to Unison. Testbed experiments on commodity servers demonstrate that Unison can achieve a 40\texttimes{} speedup over DES using 24 CPU cores, and a 10\texttimes{} speedup compared with existing PDES algorithms under the same CPU cores.},
+booktitle = {Proceedings of the Nineteenth European Conference on Computer Systems},
+pages = {115–131},
+numpages = {17},
+keywords = {Data center networks, Network simulation, Parallel discrete-event simulation},
+location = {<conf-loc>, <city>Athens</city>, <country>Greece</country>, </conf-loc>},
+series = {EuroSys '24}
+}
+```
+
 Below are some links that may also be helpful to you:
 
 - [ns-3 Tutorial](https://www.nsnam.org/docs/tutorial/html/index.html)
