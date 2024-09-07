@@ -116,21 +116,18 @@ Node::~Node()
 uint32_t
 Node::GetId() const
 {
-    NS_LOG_FUNCTION(this);
     return m_id;
 }
 
 Time
 Node::GetLocalTime() const
 {
-    NS_LOG_FUNCTION(this);
     return Simulator::Now();
 }
 
 uint32_t
 Node::GetSystemId() const
 {
-    NS_LOG_FUNCTION(this);
     return m_sid;
 }
 
@@ -158,7 +155,6 @@ Node::AddDevice(Ptr<NetDevice> device)
 Ptr<NetDevice>
 Node::GetDevice(uint32_t index) const
 {
-    NS_LOG_FUNCTION(this << index);
     NS_ASSERT_MSG(index < m_devices.size(),
                   "Device index " << index << " is out of range (only have " << m_devices.size()
                                   << " devices).");
@@ -168,7 +164,6 @@ Node::GetDevice(uint32_t index) const
 uint32_t
 Node::GetNDevices() const
 {
-    NS_LOG_FUNCTION(this);
     return m_devices.size();
 }
 
@@ -186,7 +181,6 @@ Node::AddApplication(Ptr<Application> application)
 Ptr<Application>
 Node::GetApplication(uint32_t index) const
 {
-    NS_LOG_FUNCTION(this << index);
     NS_ASSERT_MSG(index < m_applications.size(),
                   "Application index " << index << " is out of range (only have "
                                        << m_applications.size() << " applications).");
@@ -196,7 +190,6 @@ Node::GetApplication(uint32_t index) const
 uint32_t
 Node::GetNApplications() const
 {
-    NS_LOG_FUNCTION(this);
     return m_applications.size();
 }
 
@@ -291,7 +284,6 @@ Node::UnregisterProtocolHandler(ProtocolHandler handler)
 bool
 Node::ChecksumEnabled()
 {
-    NS_LOG_FUNCTION_NOARGS();
     BooleanValue val;
     g_checksumEnabled.GetValue(val);
     return val.Get();
@@ -340,9 +332,6 @@ Node::ReceiveFromDevice(Ptr<NetDevice> device,
                   "Received packet with erroneous context ; "
                       << "make sure the channels in use are correctly updating events context "
                       << "when transferring events from one node to another.");
-    NS_LOG_DEBUG("Node " << GetId() << " ReceiveFromDevice:  dev " << device->GetIfIndex()
-                         << " (type=" << device->GetInstanceTypeId().GetName() << ") Packet UID "
-                         << packet->GetUid());
     bool found = false;
 
     for (auto i = m_handlers.begin(); i != m_handlers.end(); i++)
@@ -359,6 +348,9 @@ Node::ReceiveFromDevice(Ptr<NetDevice> device,
             }
         }
     }
+    NS_LOG_DEBUG("Node " << GetId() << " ReceiveFromDevice:  dev " << device->GetIfIndex()
+                         << " (type=" << device->GetInstanceTypeId().GetName() << ") Packet UID "
+                         << packet->GetUid() << " handler found: " << found);
     return found;
 }
 
