@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2021 DERONNE SOFTWARE ENGINEERING
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Sébastien Deronne <sebastien.deronne@gmail.com>
  */
@@ -255,7 +244,8 @@ class EhtCapabilities : public WifiInformationElement
      * Constructor
      *
      * \param is2_4Ghz indicating whether PHY is operating in 2.4 GHz based on previously serialized
-     * IEs \param heCapabilities the optional HE capabilities contained in the same management frame
+     * IEs
+     * \param heCapabilities the optional HE capabilities contained in the same management frame
      */
     EhtCapabilities(bool is2_4Ghz, const std::optional<HeCapabilities>& heCapabilities);
     // Implementations of pure virtual methods, or overridden from base class.

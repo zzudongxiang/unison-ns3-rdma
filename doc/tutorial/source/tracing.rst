@@ -314,18 +314,7 @@ example of tracing that can be assembled.  You can find this code in
 the tutorial directory as ``fourth.cc``.  Let's walk through it::
 
   /*
-   * This program is free software; you can redistribute it and/or modify
-   * it under the terms of the GNU General Public License version 2 as
-   * published by the Free Software Foundation;
-   *
-   * This program is distributed in the hope that it will be useful,
-   * but WITHOUT ANY WARRANTY; without even the implied warranty of
-   * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   * GNU General Public License for more details.
-   *
-   * You should have received a copy of the GNU General Public License
-   * along with this program; if not, write to the Free Software
-   * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+   * SPDX-License-Identifier: GPL-2.0-only
    */
 
   #include "ns3/object.h"
@@ -625,7 +614,7 @@ for "CourseChange" in your favorite editor.  You should find
   .AddTraceSource("CourseChange",
                   "The value of the position and/or velocity vector changed",
                   MakeTraceSourceAccessor(&MobilityModel::m_courseChangeTrace),
-                  "ns3::MobilityModel::CourseChangeCallback")
+                  "ns3::MobilityModel::TracedCallback");
 
 which should look very familiar at this point.
 
@@ -634,14 +623,14 @@ variable in ``mobility-model.h`` you will find
 
 ::
 
-  TracedCallback<Ptr<const MobilityModel>> m_courseChangeTrace;
+  ns3::TracedCallback<Ptr<const MobilityModel>> m_courseChangeTrace;
 
 The type declaration ``TracedCallback`` identifies
 ``m_courseChangeTrace`` as a special list of Callbacks that can be
 hooked using the Config functions described above.  The ``typedef``
 for the callback function signature is also defined in the header file::
 
-  typedef void (* CourseChangeCallback)(Ptr<const MobilityModel> * model);
+  typedef void (*TracedCallback)(Ptr<const MobilityModel> model);
 
 The ``MobilityModel`` class is designed to be a base class providing a
 common interface for all of the specific subclasses.  If you search
@@ -651,7 +640,7 @@ down to the end of the file, you will see a method defined called
   void
   MobilityModel::NotifyCourseChange() const
   {
-    m_courseChangeTrace(this);
+      m_courseChangeTrace(this);
   }
 
 Derived classes will call into this method whenever they do a course
@@ -1390,18 +1379,7 @@ dissecting the congestion window test.  Open
 see some familiar looking code::
 
   /*
-   * This program is free software; you can redistribute it and/or modify
-   * it under the terms of the GNU General Public License version 2 as
-   * published by the Free Software Foundation;
-   *
-   * This program is distributed in the hope that it will be useful,
-   * but WITHOUT ANY WARRANTY; without even the implied warranty of
-   * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   * GNU General Public License for more details.
-   *
-   * You should have received a copy of the GNU General Public License
-   * along with this program; if not, write to the Free Software
-   * Foundation, Include., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+   * SPDX-License-Identifier: GPL-2.0-only
    */
 
   #include "tutorial-app.h"

@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2010 IITP RAS
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Pavel Boyko <boyko@iitp.ru>
  *
@@ -125,7 +114,8 @@ experiment(bool enableCtsRts, std::string wifiManager)
     cbrApps.Add(onOffHelper.Install(nodes.Get(0)));
 
     // flow 2:  node 2 -> node 1
-    /** \internal
+    /**
+     * \internal
      * The slightly different start times and data rates are a workaround
      * for \bugid{388} and \bugid{912}
      */
@@ -133,7 +123,8 @@ experiment(bool enableCtsRts, std::string wifiManager)
     onOffHelper.SetAttribute("StartTime", TimeValue(Seconds(1.001)));
     cbrApps.Add(onOffHelper.Install(nodes.Get(2)));
 
-    /** \internal
+    /**
+     * \internal
      * We also use separate UDP applications that will send a single
      * packet before the CBR flows start.
      * This is a workaround for the lack of perfect ARP, see \bugid{187}

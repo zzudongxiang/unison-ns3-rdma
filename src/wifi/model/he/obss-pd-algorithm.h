@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2018 University of Washington
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Sébastien Deronne <sebastien.deronne@gmail.com>
  */
@@ -24,6 +13,7 @@
 
 #include "ns3/object.h"
 #include "ns3/traced-callback.h"
+#include "ns3/wifi-units.h"
 
 namespace ns3
 {
@@ -88,13 +78,13 @@ class ObssPdAlgorithm : public Object
                                         double txPowerMaxDbmMimo);
 
     /**
-     * \param level the current OBSS PD level in dBm
+     * \param level the current OBSS PD level
      */
-    void SetObssPdLevel(double level);
+    void SetObssPdLevel(dBm_u level);
     /**
-     * \return the current OBSS PD level in dBm.
+     * \return the current OBSS PD level
      */
-    double GetObssPdLevel() const;
+    dBm_u GetObssPdLevel() const;
 
   protected:
     void DoDispose() override;
@@ -102,11 +92,11 @@ class ObssPdAlgorithm : public Object
     Ptr<WifiNetDevice> m_device; ///< Pointer to the WifiNetDevice
 
   private:
-    double m_obssPdLevel;    ///< Current OBSS PD level (dBm)
-    double m_obssPdLevelMin; ///< Minimum OBSS PD level (dBm)
-    double m_obssPdLevelMax; ///< Maximum OBSS PD level (dBm)
-    double m_txPowerRefSiso; ///< SISO reference TX power level (dBm)
-    double m_txPowerRefMimo; ///< MIMO reference TX power level (dBm)
+    dBm_u m_obssPdLevel;    ///< Current OBSS PD level
+    dBm_u m_obssPdLevelMin; ///< Minimum OBSS PD level
+    dBm_u m_obssPdLevelMax; ///< Maximum OBSS PD level
+    dBm_u m_txPowerRefSiso; ///< SISO reference TX power level
+    dBm_u m_txPowerRefMimo; ///< MIMO reference TX power level
 
     /**
      * TracedCallback signature for PHY reset events.

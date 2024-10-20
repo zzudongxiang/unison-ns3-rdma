@@ -2,18 +2,7 @@
  * Copyright (c) 2007 Georgia Tech Research Corporation
  * Copyright (c) 2010 Adrian Sai-wah Tam
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Adrian Sai-wah Tam <adrian.sw.tam@gmail.com>
  */
@@ -251,6 +240,25 @@ class TcpSocketBase : public TcpSocket
     TcpSocketBase(const TcpSocketBase& sock);
     ~TcpSocketBase() override;
 
+    /**
+     * \brief Tcp Packet Types
+     *
+     * Taxonomy referred from Table 1 of
+     * https://www.ietf.org/archive/id/draft-ietf-tcpm-generalized-ecn-15.txt
+     */
+    enum TcpPacketType_t
+    {
+        SYN,
+        SYN_ACK,
+        PURE_ACK,
+        WINDOW_PROBE,
+        FIN,
+        RST,
+        RE_XMT,
+        DATA,
+        INVALID
+    };
+
     // Set associated Node, TcpL4Protocol, RttEstimator to this socket
 
     /**
@@ -370,6 +378,11 @@ class TcpSocketBase : public TcpSocket
     /**
      * \brief Callback pointer for RTT trace chaining
      */
+    TracedCallback<Time, Time> m_srttTrace;
+
+    /**
+     * \brief Callback pointer for Last RTT trace chaining
+     */
     TracedCallback<Time, Time> m_lastRttTrace;
 
     /**
@@ -443,6 +456,13 @@ class TcpSocketBase : public TcpSocket
      * \param newValue new rtt value
      */
     void UpdateRtt(Time oldValue, Time newValue) const;
+
+    /**
+     * \brief Callback function to hook to TcpSocketState lastRtt
+     * \param oldValue old lastRtt value
+     * \param newValue new lastRtt value
+     */
+    void UpdateLastRtt(Time oldValue, Time newValue) const;
 
     /**
      * \brief Install a congestion control algorithm on this socket
@@ -578,6 +598,20 @@ class TcpSocketBase : public TcpSocket
      */
     void SetPaceInitialWindow(bool paceWindow);
 
+    /**
+     * \brief Checks if a TCP packet should be ECN-capable (ECT) according to the TcpPacketType and
+     * ECN mode.
+     *
+     * Currently, only Classic ECN and DCTCP ECN modes are supported, with
+     * potential extensions for future modes (Ecnpp).
+     *
+     * \param packetType The type of the TCP packet, represented by an enum TcpPacketType.
+     * \return true if the packet is ECN-capable (ECT), false otherwise.
+     *
+     * Reference: https://www.ietf.org/archive/id/draft-ietf-tcpm-generalized-ecn-15.txt (Table 1)
+     */
+    bool IsEct(TcpPacketType_t packetType) const;
+
     // Necessary implementations of null functions from ns3::Socket
     SocketErrno GetErrno() const override;     // returns m_errno
     SocketType GetSocketType() const override; // returns socket type
@@ -608,7 +642,7 @@ class TcpSocketBase : public TcpSocket
     void BindToNetDevice(Ptr<NetDevice> netdevice) override; // NetDevice with my m_endPoint
 
     /**
-     * TracedCallback signature for tcp packet transmission or reception events.
+     * TracedCallback signature for TCP packet transmission or reception events.
      *
      * \param [in] packet The packet.
      * \param [in] header The TcpHeader
@@ -617,6 +651,21 @@ class TcpSocketBase : public TcpSocket
     typedef void (*TcpTxRxTracedCallback)(const Ptr<const Packet> packet,
                                           const TcpHeader& header,
                                           const Ptr<const TcpSocketBase> socket);
+
+    /**
+     * TracedCallback signature for TCP packet retransmission events.
+     *
+     * \param [in] packet The packet.
+     * \param [in] header The TcpHeader
+     * \param [in] localAddr The local address
+     * \param [in] peerAddr The peer/remote address
+     * \param [in] socket This socket
+     */
+    typedef void (*RetransmissionCallback)(const Ptr<const Packet> packet,
+                                           const TcpHeader& header,
+                                           const Address& localAddr,
+                                           const Address& peerAddr,
+                                           const Ptr<const TcpSocketBase> socket);
 
   protected:
     // Implementing ns3::TcpSocket -- Attribute get/set
@@ -1036,11 +1085,13 @@ class TcpSocketBase : public TcpSocket
      * \param oldHeadSequence value of HeadSequence before ack
      * updated with SACK information
      * \param currentDelivered The number of bytes (S)ACKed
+     * \param receivedData if true indicates that data is piggybacked with ACK
      */
     virtual void ProcessAck(const SequenceNumber32& ackNumber,
                             bool scoreboardUpdated,
                             uint32_t currentDelivered,
-                            const SequenceNumber32& oldHeadSequence);
+                            const SequenceNumber32& oldHeadSequence,
+                            bool receivedData);
 
     /**
      * \brief Recv of a data, put into buffer, call L7 to get it if necessary
@@ -1048,6 +1099,20 @@ class TcpSocketBase : public TcpSocket
      * \param tcpHeader the packet's TCP header
      */
     virtual void ReceivedData(Ptr<Packet> packet, const TcpHeader& tcpHeader);
+
+    /**
+     * \brief Calculate RTT sample for the ACKed packet
+     *
+     * Per RFC 6298 (Section 3),
+     * If `m_timestampsEnabled` is true, calculate RTT using timestamps option.
+     * Otherwise, return RTT as the elapsed time since the packet was transmitted.
+     * If ACKed packed was a retrasmitted packet, return zero time.
+     *
+     * \param tcpHeader the packet's TCP header
+     * \param rttHistory the ACKed packet's RTT History
+     * \returns the RTT sample
+     */
+    virtual Time CalculateRttSample(const TcpHeader& tcpHeader, const RttHistory& rttHistory);
 
     /**
      * \brief Take into account the packet for RTT estimation
@@ -1119,7 +1184,8 @@ class TcpSocketBase : public TcpSocket
      */
     void DoRetransmit();
 
-    /** \brief Add options to TcpHeader
+    /**
+     * \brief Add options to TcpHeader
      *
      * Test each option, and if it is enabled on our side, add it
      * to the header
@@ -1206,7 +1272,8 @@ class TcpSocketBase : public TcpSocket
      */
     void AddOptionSack(TcpHeader& header);
 
-    /** \brief Process the timestamp option from other side
+    /**
+     * \brief Process the timestamp option from other side
      *
      * Get the timestamp and the echo, then save timestamp (which will
      * be the echo value in our out-packets) and save the echoed timestamp,
@@ -1257,8 +1324,9 @@ class TcpSocketBase : public TcpSocket
     /**
      * \brief Add Tags for the Socket
      * \param p Packet
+     * \param isEct Whether the packet is allowed to be ECT capable
      */
-    void AddSocketTags(const Ptr<Packet>& p) const;
+    void AddSocketTags(const Ptr<Packet>& p, bool isEct) const;
 
     /**
      * Get the current value of the receiver's offered window (RCV.WND)
@@ -1371,11 +1439,18 @@ class TcpSocketBase : public TcpSocket
     // Guesses over the other connection end
     bool m_isFirstPartialAck{true}; //!< First partial ACK during RECOVERY
 
-    // The following two traces pass a packet with a TCP header
+    // The following three traces pass a packet with a TCP header
     TracedCallback<Ptr<const Packet>,
                    const TcpHeader&,
                    Ptr<const TcpSocketBase>>
         m_txTrace; //!< Trace of transmitted packets
+
+    TracedCallback<Ptr<const Packet>,
+                   const TcpHeader&,
+                   const Address&,
+                   const Address&,
+                   Ptr<const TcpSocketBase>>
+        m_retransmissionTrace; //!< Trace of retransmitted packets
 
     TracedCallback<Ptr<const Packet>,
                    const TcpHeader&,

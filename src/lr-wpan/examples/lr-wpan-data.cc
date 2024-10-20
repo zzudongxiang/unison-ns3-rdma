@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2011 The Boeing Company
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author:  Tom Henderson <thomas.r.henderson@boeing.com>
  */
@@ -91,10 +80,11 @@ main(int argc, char* argv[])
 
     cmd.Parse(argc, argv);
 
-    LrWpanHelper lrWpanHelper;
     if (verbose)
     {
-        lrWpanHelper.EnableLogComponents();
+        LogComponentEnableAll(LogLevel(LOG_PREFIX_TIME | LOG_PREFIX_FUNC));
+        LogComponentEnable("LrWpanPhy", LOG_LEVEL_ALL);
+        LogComponentEnable("LrWpanMac", LOG_LEVEL_ALL);
     }
 
     // Enable calculation of FCS in the trailers. Only necessary when interacting with real devices
@@ -106,19 +96,6 @@ main(int argc, char* argv[])
 
     Ptr<LrWpanNetDevice> dev0 = CreateObject<LrWpanNetDevice>();
     Ptr<LrWpanNetDevice> dev1 = CreateObject<LrWpanNetDevice>();
-
-    if (!extended)
-    {
-        dev0->SetAddress(Mac16Address("00:01"));
-        dev1->SetAddress(Mac16Address("00:02"));
-    }
-    else
-    {
-        Ptr<LrWpanMac> mac0 = dev0->GetMac();
-        Ptr<LrWpanMac> mac1 = dev1->GetMac();
-        mac0->SetExtendedAddress(Mac64Address("00:00:00:00:00:00:00:01"));
-        mac1->SetExtendedAddress(Mac64Address("00:00:00:00:00:00:00:02"));
-    }
 
     // Each device must be attached to the same channel
     Ptr<SingleModelSpectrumChannel> channel = CreateObject<SingleModelSpectrumChannel>();
@@ -135,6 +112,33 @@ main(int argc, char* argv[])
     // To complete configuration, a LrWpanNetDevice must be added to a node
     n0->AddDevice(dev0);
     n1->AddDevice(dev1);
+
+    // Note: This setup, which has been done manually here, can be simplified using the LrWpanHelper
+    // class. The LrWpanHelper can be used to set up the propagation loss and delay models in many
+    // devices in a simpler way. The following is an equivalent, simplified setup:
+    //
+    //    LrWpanHelper lrWpanHelper;
+    //    lrWpanHelper.SetPropagationDelayModel("ns3::ConstantSpeedPropagationDelayModel");
+    //    lrWpanHelper.AddPropagationLossModel("ns3::LogDistancePropagationLossModel");
+    //    NodeContainer nodes;
+    //    nodes.Create(2);
+    //    NetDeviceContainer devices = lrWpanHelper.Install(nodes);
+    //    Ptr<LrWpanNetDevice> dev0 = devices.Get(0)->GetObject<LrWpanNetDevice>();
+    //    Ptr<LrWpanNetDevice> dev1 = devices.Get(1)->GetObject<LrWpanNetDevice>();
+
+    // Set 16-bit short addresses if extended is false, otherwise use 64-bit extended addresses
+    if (!extended)
+    {
+        dev0->SetAddress(Mac16Address("00:01"));
+        dev1->SetAddress(Mac16Address("00:02"));
+    }
+    else
+    {
+        Ptr<LrWpanMac> mac0 = dev0->GetMac();
+        Ptr<LrWpanMac> mac1 = dev1->GetMac();
+        mac0->SetExtendedAddress(Mac64Address("00:00:00:00:00:00:00:01"));
+        mac1->SetExtendedAddress(Mac64Address("00:00:00:00:00:00:00:02"));
+    }
 
     // Trace state changes in the phy
     dev0->GetPhy()->TraceConnect("TrxState",
@@ -169,12 +173,6 @@ main(int argc, char* argv[])
     McpsDataIndicationCallback cb3;
     cb3 = MakeCallback(&DataIndication);
     dev1->GetMac()->SetMcpsDataIndicationCallback(cb3);
-
-    // Tracing
-    lrWpanHelper.EnablePcapAll(std::string("lr-wpan-data"), true);
-    AsciiTraceHelper ascii;
-    Ptr<OutputStreamWrapper> stream = ascii.CreateFileStream("lr-wpan-data.tr");
-    lrWpanHelper.EnableAsciiAll(stream);
 
     // The below should trigger two callbacks when end-to-end data is working
     // 1) DataConfirm callback is called

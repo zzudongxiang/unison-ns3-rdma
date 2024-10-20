@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2007 INRIA
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Mathieu Lacage <mathieu.lacage@sophia.inria.fr>
  */
@@ -394,25 +383,25 @@ Ptr<const AttributeChecker> MakeVectorChecker();
 
 // Document these by hand so they go in group attribute_Vector3D
 
-/*!
-\ingroup attribute_Vector3D
-\fn ns3::Ptr<const ns3::AttributeAccessor> ns3::MakeVectorAccessor (T1 a1)
-\copydoc ns3::MakeAccessorHelper(T1)
-\see AttributeAccessor
-*/
+/**
+ * \ingroup attribute_Vector3D
+ * \fn ns3::Ptr<const ns3::AttributeAccessor> ns3::MakeVectorAccessor (T1 a1)
+ * \copydoc ns3::MakeAccessorHelper(T1)
+ * \see AttributeAccessor
+ */
 
-/*!
-\ingroup attribute_Vector3D
-\fn ns3::Ptr<const ns3::AttributeAccessor> ns3::MakeVectorAccessor (T1 a1, T2 a2)
-\copydoc ns3::MakeAccessorHelper(T1,T2)
-\see AttributeAccessor
-*/
+/**
+ * \ingroup attribute_Vector3D
+ * \fn ns3::Ptr<const ns3::AttributeAccessor> ns3::MakeVectorAccessor (T1 a1, T2 a2)
+ * \copydoc ns3::MakeAccessorHelper(T1,T2)
+ * \see AttributeAccessor
+ */
 
-/*!
-\ingroup attribute_Vector3D
-\fn ns3::Ptr<const ns3::AttributeChecker> ns3::MakeVectorChecker ()
-\returns The AttributeChecker.
-\see AttributeChecker
-*/
+/**
+ * \ingroup attribute_Vector3D
+ * \fn ns3::Ptr<const ns3::AttributeChecker> ns3::MakeVectorChecker ()
+ * \returns The AttributeChecker.
+ * \see AttributeChecker
+ */
 
 #endif /* NS3_VECTOR_H */

@@ -2,18 +2,7 @@
  * Copyright (c) 2023 SIGNET Lab, Department of Information Engineering,
  * University of Padova
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  */
 
 /**
@@ -58,7 +47,8 @@ using namespace ns3;
 static Ptr<ThreeGppPropagationLossModel>
     m_propagationLossModel; //!< the PropagationLossModel object
 static Ptr<ThreeGppSpectrumPropagationLossModel>
-    m_spectrumLossModel; //!< the SpectrumPropagationLossModel object
+    m_spectrumLossModel;          //!< the SpectrumPropagationLossModel object
+static std::ofstream resultsFile; //!< The results file
 
 /**
  * @brief Create the PSD for the TX
@@ -298,12 +288,10 @@ ComputeSnr(ComputeSnrParams& params)
     // compute the SNR
     NS_LOG_DEBUG("Average SNR " << 10 * log10(Sum(*rxSsp->psd) / Sum(*noisePsd)) << " dB");
 
-    // print the SNR and pathloss values in the ntn-snr-trace.txt file
-    std::ofstream f;
-    f.open("ntn-snr-trace.txt", std::ios::out | std::ios::app);
-    f << Simulator::Now().GetSeconds() << " " << 10 * log10(Sum(*rxSsp->psd) / Sum(*noisePsd))
-      << " " << propagationGainDb << std::endl;
-    f.close();
+    // print the SNR and pathloss values in the output file
+    resultsFile << Simulator::Now().GetSeconds() << " "
+                << 10 * log10(Sum(*rxSsp->psd) / Sum(*noisePsd)) << " " << propagationGainDb
+                << std::endl;
 }
 
 int
@@ -482,6 +470,10 @@ main(int argc, char* argv[])
     DoBeamforming(rxDev, rxAntenna, txDev);
     DoBeamforming(txDev, txAntenna, rxDev);
 
+    // Open the output results file
+    resultsFile.open("ntn-snr-trace.txt", std::ios::out);
+    NS_ASSERT_MSG(resultsFile.is_open(), "Results file could not be created");
+
     for (int i = 0; i < floor(simTimeMs / timeResMs); i++)
     {
         Simulator::Schedule(MilliSeconds(timeResMs * i),
@@ -499,5 +491,8 @@ main(int argc, char* argv[])
 
     Simulator::Run();
     Simulator::Destroy();
+
+    resultsFile.close();
+
     return 0;
 }

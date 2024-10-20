@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2017 Orange Labs
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Rediet <getachew.redieteab@orange.com>
  */
@@ -21,10 +10,12 @@
 #include "ns3/log.h"
 #include "ns3/test.h"
 #include "ns3/wifi-phy-band.h"
+#include "ns3/wifi-phy-common.h"
 #include "ns3/wifi-spectrum-value-helper.h"
 #include "ns3/wifi-standards.h"
 
 #include <cmath>
+#include <vector>
 
 using namespace ns3;
 
@@ -41,12 +32,12 @@ class WifiOfdmMaskSlopesTestCase : public TestCase
 {
   public:
     /**
-     * typedef for a pair of sub-band index and relative power value (dBr)
+     * typedef for a pair of sub-band index and relative power value
      */
-    typedef std::pair<uint32_t, double> IndexPowerPair;
+    typedef std::pair<uint32_t, dBr_u> IndexPowerPair;
 
     /**
-     * typedef for a vector of pairs of sub-band index and relative power value (dBr)
+     * typedef for a vector of pairs of sub-band index and relative power value
      */
     typedef std::vector<IndexPowerPair> IndexPowerVect;
 
@@ -56,10 +47,11 @@ class WifiOfdmMaskSlopesTestCase : public TestCase
      * \param name test reference name
      * \param standard selected standard
      * \param band selected PHY band
-     * \param channelWidth channel width (in MHz)
+     * \param channelWidth total channel width
+     * \param centerFrequencies the center frequency per contiguous segment
      * \param maskRefs vector of expected power values and corresponding indexes of generated PSD
      *                     (only start and stop indexes/values given)
-     * \param tolerance tolerance (in dB)
+     * \param tolerance tolerance
      * \param precision precision (in decimals)
      * \param puncturedSubchannels bitmap indicating whether a 20 MHz subchannel is punctured or not
      * (only for 802.11ax and later)
@@ -67,9 +59,10 @@ class WifiOfdmMaskSlopesTestCase : public TestCase
     WifiOfdmMaskSlopesTestCase(const std::string& name,
                                WifiStandard standard,
                                WifiPhyBand band,
-                               uint16_t channelWidth,
+                               MHz_u channelWidth,
+                               const std::vector<MHz_u>& centerFrequencies,
                                const IndexPowerVect& maskRefs,
-                               double tolerance,
+                               dB_u tolerance,
                                std::size_t precision,
                                const std::vector<bool>& puncturedSubchannels = std::vector<bool>{});
     ~WifiOfdmMaskSlopesTestCase() override = default;
@@ -84,22 +77,23 @@ class WifiOfdmMaskSlopesTestCase : public TestCase
      *
      * \param vect vector of sub-band index and relative power value pairs to which interpolated
      values should be appended
-     * \param start pair of sub-band index and relative power value (dBr) for interval start
-     * \param stop pair of sub-band index and relative power value (dBr) for interval stop
+     * \param start pair of sub-band index and relative power value for interval start
+     * \param stop pair of sub-band index and relative power value for interval stop
     */
     void InterpolateAndAppendValues(IndexPowerVect& vect,
                                     IndexPowerPair start,
                                     IndexPowerPair stop) const;
 
-    WifiStandard m_standard; ///< the wifi standard to use for the test
-    WifiPhyBand m_band;      ///< the wifi PHY band to use for the test
-    uint16_t m_channelWidth; ///< the channel width in MHz to use for the test
+    WifiStandard m_standard;          ///< the wifi standard to test
+    WifiPhyBand m_band;               ///< the wifi PHY band to test
+    MHz_u m_channelWidth;             ///< the total channel width to test
+    std::vector<MHz_u> m_centerFreqs; ///< the center frequency per contiguous segment to test
     std::vector<bool>
         m_puncturedSubchannels; ///< bitmap indicating whether a 20 MHz subchannel is punctured or
                                 ///< not (only used for 802.11ax and later)
     Ptr<SpectrumValue> m_actualSpectrum; ///< actual spectrum value
     IndexPowerVect m_expectedPsd;        ///< expected power values
-    double m_tolerance;                  ///< tolerance (in dB)
+    dB_u m_tolerance;                    ///< tolerance
     std::size_t m_precision;             ///< precision for double calculations (in decimals)
 };
 
@@ -107,15 +101,17 @@ WifiOfdmMaskSlopesTestCase::WifiOfdmMaskSlopesTestCase(
     const std::string& name,
     WifiStandard standard,
     WifiPhyBand band,
-    uint16_t channelWidth,
+    MHz_u channelWidth,
+    const std::vector<MHz_u>& centerFrequencies,
     const IndexPowerVect& maskRefs,
-    double tolerance,
+    dB_u tolerance,
     std::size_t precision,
     const std::vector<bool>& puncturedSubchannels)
     : TestCase(std::string("SpectrumValue ") + name),
       m_standard{standard},
       m_band{band},
       m_channelWidth{channelWidth},
+      m_centerFreqs{centerFrequencies},
       m_puncturedSubchannels{puncturedSubchannels},
       m_actualSpectrum{},
       m_expectedPsd{maskRefs},
@@ -130,38 +126,34 @@ void
 WifiOfdmMaskSlopesTestCase::DoSetup()
 {
     NS_LOG_FUNCTION(this);
+    NS_ASSERT(!m_centerFreqs.empty());
     NS_ASSERT(m_expectedPsd.size() % 2 == 0); // start/stop pairs expected
 
-    uint16_t freq = 0;
-    double outerBandMaximumRejection = 0.0;
+    dBr_u outerBandMaximumRejection = 0.0;
     switch (m_band)
     {
     default:
     case WIFI_PHY_BAND_5GHZ:
-        freq = 5170 + (m_channelWidth / 2); // so as to have 5180/5190/5210/5250 for 20/40/80/160
-        outerBandMaximumRejection = -40;    // in dBr
+        outerBandMaximumRejection = -40;
         break;
     case WIFI_PHY_BAND_2_4GHZ:
-        freq = 2402 + (m_channelWidth / 2); // so as to have 2412/2422 for 20/40
-        outerBandMaximumRejection = (m_standard >= WIFI_STANDARD_80211n) ? -45 : -40; // in dBr
+        outerBandMaximumRejection = (m_standard >= WIFI_STANDARD_80211n) ? -45 : -40;
         break;
     case WIFI_PHY_BAND_6GHZ:
-        freq = 5945 + (m_channelWidth / 2); // so as to have 5945/5955/5975/6015 for 20/40/80/160
-        outerBandMaximumRejection = -40;    // in dBr
+        outerBandMaximumRejection = -40;
         break;
     }
 
-    double refTxPowerW = 1; // have to work in dBr when comparing though
+    Watt_u refTxPower{1}; // have to work in dBr when comparing though
     switch (m_standard)
     {
     case WIFI_STANDARD_80211p:
         NS_ASSERT(m_band == WIFI_PHY_BAND_5GHZ);
         NS_ASSERT((m_channelWidth == 5) || (m_channelWidth == 10));
-        freq = 5860;
         m_actualSpectrum =
-            WifiSpectrumValueHelper::CreateOfdmTxPowerSpectralDensity(freq,
+            WifiSpectrumValueHelper::CreateOfdmTxPowerSpectralDensity(m_centerFreqs.front(),
                                                                       m_channelWidth,
-                                                                      refTxPowerW,
+                                                                      refTxPower,
                                                                       m_channelWidth,
                                                                       -20.0,
                                                                       -28.0,
@@ -172,9 +164,9 @@ WifiOfdmMaskSlopesTestCase::DoSetup()
         NS_ASSERT(m_band == WIFI_PHY_BAND_2_4GHZ);
         NS_ASSERT(m_channelWidth == 20);
         m_actualSpectrum =
-            WifiSpectrumValueHelper::CreateOfdmTxPowerSpectralDensity(freq,
+            WifiSpectrumValueHelper::CreateOfdmTxPowerSpectralDensity(m_centerFreqs.front(),
                                                                       m_channelWidth,
-                                                                      refTxPowerW,
+                                                                      refTxPower,
                                                                       m_channelWidth,
                                                                       -20.0,
                                                                       -28.0,
@@ -185,9 +177,9 @@ WifiOfdmMaskSlopesTestCase::DoSetup()
         NS_ASSERT(m_band == WIFI_PHY_BAND_5GHZ);
         NS_ASSERT(m_channelWidth == 20);
         m_actualSpectrum =
-            WifiSpectrumValueHelper::CreateOfdmTxPowerSpectralDensity(freq,
+            WifiSpectrumValueHelper::CreateOfdmTxPowerSpectralDensity(m_centerFreqs.front(),
                                                                       m_channelWidth,
-                                                                      refTxPowerW,
+                                                                      refTxPower,
                                                                       m_channelWidth,
                                                                       -20.0,
                                                                       -28.0,
@@ -197,9 +189,9 @@ WifiOfdmMaskSlopesTestCase::DoSetup()
     case WIFI_STANDARD_80211n:
         NS_ASSERT(m_channelWidth == 20 || m_channelWidth == 40);
         m_actualSpectrum =
-            WifiSpectrumValueHelper::CreateHtOfdmTxPowerSpectralDensity(freq,
+            WifiSpectrumValueHelper::CreateHtOfdmTxPowerSpectralDensity(m_centerFreqs,
                                                                         m_channelWidth,
-                                                                        refTxPowerW,
+                                                                        refTxPower,
                                                                         m_channelWidth,
                                                                         -20.0,
                                                                         -28.0,
@@ -211,9 +203,9 @@ WifiOfdmMaskSlopesTestCase::DoSetup()
         NS_ASSERT(m_channelWidth == 20 || m_channelWidth == 40 || m_channelWidth == 80 ||
                   m_channelWidth == 160);
         m_actualSpectrum =
-            WifiSpectrumValueHelper::CreateHtOfdmTxPowerSpectralDensity(freq,
+            WifiSpectrumValueHelper::CreateHtOfdmTxPowerSpectralDensity(m_centerFreqs,
                                                                         m_channelWidth,
-                                                                        refTxPowerW,
+                                                                        refTxPower,
                                                                         m_channelWidth,
                                                                         -20.0,
                                                                         -28.0,
@@ -222,13 +214,13 @@ WifiOfdmMaskSlopesTestCase::DoSetup()
 
     case WIFI_STANDARD_80211ax:
         NS_ASSERT((m_band != WIFI_PHY_BAND_2_4GHZ) ||
-                  (m_channelWidth != 160)); // not enough space in 2.4 GHz bands
+                  (m_channelWidth < 80)); // not enough space in 2.4 GHz bands
         NS_ASSERT(m_channelWidth == 20 || m_channelWidth == 40 || m_channelWidth == 80 ||
                   m_channelWidth == 160);
         m_actualSpectrum =
-            WifiSpectrumValueHelper::CreateHeOfdmTxPowerSpectralDensity(freq,
+            WifiSpectrumValueHelper::CreateHeOfdmTxPowerSpectralDensity(m_centerFreqs,
                                                                         m_channelWidth,
-                                                                        refTxPowerW,
+                                                                        refTxPower,
                                                                         m_channelWidth,
                                                                         -20.0,
                                                                         -28.0,
@@ -284,22 +276,22 @@ void
 WifiOfdmMaskSlopesTestCase::DoRun()
 {
     NS_LOG_FUNCTION(this);
-    double currentPowerDbr = 0.0; // have to work in dBr so as to compare with expected slopes
-    double maxPowerW = (*m_actualSpectrum)[0];
+    dBr_u currentPower = 0.0; // have to work in dBr so as to compare with expected slopes
+    Watt_u maxPower = (*m_actualSpectrum)[0];
     for (auto&& vit = m_actualSpectrum->ConstValuesBegin();
          vit != m_actualSpectrum->ConstValuesEnd();
          ++vit)
     {
-        maxPowerW = std::max(maxPowerW, *vit);
+        maxPower = std::max(maxPower, *vit);
     }
 
     NS_LOG_INFO("Compare expected PSD");
     for (const auto& [subcarrier, expectedValue] : m_expectedPsd)
     {
-        currentPowerDbr = 10.0 * std::log10((*m_actualSpectrum)[subcarrier] / maxPowerW);
+        currentPower = 10.0 * std::log10((*m_actualSpectrum)[subcarrier] / maxPower);
         NS_LOG_LOGIC("For " << subcarrier << ", expected: " << expectedValue
-                            << " vs obtained: " << currentPowerDbr);
-        NS_TEST_EXPECT_MSG_EQ_TOL(currentPowerDbr,
+                            << " vs obtained: " << currentPower);
+        NS_TEST_EXPECT_MSG_EQ_TOL(currentPower,
                                   expectedValue,
                                   m_tolerance,
                                   "Spectrum value mismatch for subcarrier " << subcarrier);
@@ -330,8 +322,8 @@ WifiTransmitMaskTestSuite::WifiTransmitMaskTestSuite()
     NS_LOG_INFO("Creating WifiTransmitMaskTestSuite");
 
     WifiOfdmMaskSlopesTestCase::IndexPowerVect maskSlopes;
-    double tol = 10e-2; // in dB
-    double prec = 10;   // in decimals
+    dB_u tol = 10e-2;
+    double prec = 10; // in decimals
 
     // ============================================================================================
     // 11p 5MHz
@@ -359,6 +351,7 @@ WifiTransmitMaskTestSuite::WifiTransmitMaskTestSuite()
                                                WIFI_STANDARD_80211p,
                                                WIFI_PHY_BAND_5GHZ,
                                                5,
+                                               {5860},
                                                maskSlopes,
                                                tol,
                                                prec),
@@ -390,6 +383,7 @@ WifiTransmitMaskTestSuite::WifiTransmitMaskTestSuite()
                                                WIFI_STANDARD_80211p,
                                                WIFI_PHY_BAND_5GHZ,
                                                10,
+                                               {5860},
                                                maskSlopes,
                                                tol,
                                                prec),
@@ -421,6 +415,7 @@ WifiTransmitMaskTestSuite::WifiTransmitMaskTestSuite()
                                                WIFI_STANDARD_80211a,
                                                WIFI_PHY_BAND_5GHZ,
                                                20,
+                                               {5180},
                                                maskSlopes,
                                                tol,
                                                prec),
@@ -434,6 +429,7 @@ WifiTransmitMaskTestSuite::WifiTransmitMaskTestSuite()
                                                WIFI_STANDARD_80211g,
                                                WIFI_PHY_BAND_2_4GHZ,
                                                20,
+                                               {2412},
                                                maskSlopes,
                                                tol,
                                                prec),
@@ -465,6 +461,7 @@ WifiTransmitMaskTestSuite::WifiTransmitMaskTestSuite()
                                                WIFI_STANDARD_80211n,
                                                WIFI_PHY_BAND_2_4GHZ,
                                                20,
+                                               {2412},
                                                maskSlopes,
                                                tol,
                                                prec),
@@ -496,6 +493,7 @@ WifiTransmitMaskTestSuite::WifiTransmitMaskTestSuite()
                                                WIFI_STANDARD_80211n,
                                                WIFI_PHY_BAND_5GHZ,
                                                20,
+                                               {5180},
                                                maskSlopes,
                                                tol,
                                                prec),
@@ -527,6 +525,7 @@ WifiTransmitMaskTestSuite::WifiTransmitMaskTestSuite()
                                                WIFI_STANDARD_80211n,
                                                WIFI_PHY_BAND_2_4GHZ,
                                                40,
+                                               {2422},
                                                maskSlopes,
                                                tol,
                                                prec),
@@ -558,6 +557,7 @@ WifiTransmitMaskTestSuite::WifiTransmitMaskTestSuite()
                                                WIFI_STANDARD_80211n,
                                                WIFI_PHY_BAND_5GHZ,
                                                40,
+                                               {5190},
                                                maskSlopes,
                                                tol,
                                                prec),
@@ -589,6 +589,7 @@ WifiTransmitMaskTestSuite::WifiTransmitMaskTestSuite()
                                                WIFI_STANDARD_80211ac,
                                                WIFI_PHY_BAND_5GHZ,
                                                20,
+                                               {5180},
                                                maskSlopes,
                                                tol,
                                                prec),
@@ -620,6 +621,7 @@ WifiTransmitMaskTestSuite::WifiTransmitMaskTestSuite()
                                                WIFI_STANDARD_80211ac,
                                                WIFI_PHY_BAND_5GHZ,
                                                40,
+                                               {5190},
                                                maskSlopes,
                                                tol,
                                                prec),
@@ -651,6 +653,7 @@ WifiTransmitMaskTestSuite::WifiTransmitMaskTestSuite()
                                                WIFI_STANDARD_80211ac,
                                                WIFI_PHY_BAND_5GHZ,
                                                80,
+                                               {5210},
                                                maskSlopes,
                                                tol,
                                                prec),
@@ -682,6 +685,67 @@ WifiTransmitMaskTestSuite::WifiTransmitMaskTestSuite()
                                                WIFI_STANDARD_80211ac,
                                                WIFI_PHY_BAND_5GHZ,
                                                160,
+                                               {5250},
+                                               maskSlopes,
+                                               tol,
+                                               prec),
+                TestCase::Duration::QUICK);
+
+    // ============================================================================================
+    // 11ac 80+80MHz
+    NS_LOG_FUNCTION("Check slopes for 11ac 80+80MHz");
+    maskSlopes = {
+        std::make_pair(0, -40.0),     // Outer band left (start)
+        std::make_pair(127, -28.094), // Outer band left (stop)
+        std::make_pair(128, -28.000), // Middle band left (start)
+        std::make_pair(252, -20.064), // Middle band left (stop)
+        std::make_pair(253, -20.0),   // Flat junction band left (start)
+        std::make_pair(253, -20.0),   // Flat junction band left (stop)
+        std::make_pair(254, -20.0),   // Inner band left for first segment (start)
+        std::make_pair(259, -3.333),  // Inner band left for first segment (stop)
+        std::make_pair(509, -3.333),  // Inner band right for first segment (start)
+        std::make_pair(514, -20.0),   // Inner band right for first segment (stop)
+        std::make_pair(515, -20.0),   // Flat junction band right for first segment (start)
+        std::make_pair(515, -20.0),   // Flat junction band right for first segment (stop)
+        std::make_pair(516, -20.01),  // start linear sum region left (no interpolation possible, so
+                                      // provide 2 times the same point)
+        std::make_pair(516, -20.01),  // start linear sum region left (no interpolation possible, so
+                                      // provide 2 times the same point)
+        std::make_pair(639, -24.99),  // stop linear sum region left (no interpolation possible, so
+                                      // provide 2 times the same point)
+        std::make_pair(639, -24.99),  // stop linear sum region left (no interpolation possible, so
+                                      // provide 2 times the same point)
+        std::make_pair(640, -25.0),   // middle linear sum region (no interpolation possible, so
+                                      // provide 2 times the same point)
+        std::make_pair(640, -25.0),   // middle linear sum region (no interpolation possible, so
+                                      // provide 2 times the same point)
+        std::make_pair(641, -24.99), // start linear sum region right (no interpolation possible, so
+                                     // provide 2 times the same point)
+        std::make_pair(641, -24.99), // start linear sum region right (no interpolation possible, so
+                                     // provide 2 times the same point)
+        std::make_pair(764, -20.01), // stop linear sum region right (no interpolation possible, so
+                                     // provide 2 times the same point)
+        std::make_pair(764, -20.01), // stop linear sum region right (no interpolation possible, so
+                                     // provide 2 times the same point)
+        std::make_pair(765, -20.0),  // Flat junction band left (start)
+        std::make_pair(765, -20.0),  // Flat junction band left (stop)
+        std::make_pair(766, -20.0),  // Inner band left for second segment (start)
+        std::make_pair(771, -3.333), // Inner band left for second segment (stop)
+        std::make_pair(1021, -3.333),  // Inner band right for second segment (start)
+        std::make_pair(1026, -20.0),   // Inner band right for second segment (stop)
+        std::make_pair(1027, -20.0),   // Flat junction band right (start)
+        std::make_pair(1027, -20.0),   // Flat junction band right (stop)
+        std::make_pair(1028, -20.016), // Middle band right (start)
+        std::make_pair(1152, -28.000), // Middle band right (stop)
+        std::make_pair(1153, -28.023), // Outer band right (start)
+        std::make_pair(1280, -40.0),   // Outer band right (stop)
+    };
+
+    AddTestCase(new WifiOfdmMaskSlopesTestCase("11ac 80+80MHz",
+                                               WIFI_STANDARD_80211ac,
+                                               WIFI_PHY_BAND_5GHZ,
+                                               160,
+                                               {5530, 5690},
                                                maskSlopes,
                                                tol,
                                                prec),
@@ -719,6 +783,7 @@ WifiTransmitMaskTestSuite::WifiTransmitMaskTestSuite()
                                                WIFI_STANDARD_80211ax,
                                                WIFI_PHY_BAND_2_4GHZ,
                                                20,
+                                               {2412},
                                                maskSlopes,
                                                tol,
                                                prec),
@@ -756,6 +821,7 @@ WifiTransmitMaskTestSuite::WifiTransmitMaskTestSuite()
                                                WIFI_STANDARD_80211ax,
                                                WIFI_PHY_BAND_5GHZ,
                                                20,
+                                               {5180},
                                                maskSlopes,
                                                tol,
                                                prec),
@@ -793,6 +859,7 @@ WifiTransmitMaskTestSuite::WifiTransmitMaskTestSuite()
                                                WIFI_STANDARD_80211ax,
                                                WIFI_PHY_BAND_2_4GHZ,
                                                40,
+                                               {2422},
                                                maskSlopes,
                                                tol,
                                                prec),
@@ -830,43 +897,7 @@ WifiTransmitMaskTestSuite::WifiTransmitMaskTestSuite()
                                                WIFI_STANDARD_80211ax,
                                                WIFI_PHY_BAND_5GHZ,
                                                40,
-                                               maskSlopes,
-                                               tol,
-                                               prec),
-                TestCase::Duration::QUICK);
-
-    // ============================================================================================
-    // 11ax 80MHz @ 2.4GHz
-    NS_LOG_FUNCTION("Check slopes for 11ax 80MHz @ 2.4GHz");
-    maskSlopes = {
-        std::make_pair(0, -45.000),    // Outer band left (start)
-        std::make_pair(511, -28.033),  // Outer band left (stop)
-        std::make_pair(512, -28.000),  // Middle band left (start)
-        std::make_pair(1017, -20.016), // Middle band left (stop)
-        std::make_pair(1018, -20.0),   // Flat junction band left (start)
-        std::make_pair(1022, -20.0),   // Flat junction band left (stop)
-        std::make_pair(1023, -20.0),   // Inner band left (start)
-        std::make_pair(1035, -1.538),  // Inner band left (stop)
-        std::make_pair(1036, 0.0),     // allocated band left (start)
-        std::make_pair(1533, 0.0),     // allocated band left (stop)
-        std::make_pair(1534, -20.0),   // DC band (start)
-        std::make_pair(1538, -20.0),   // DC band (stop)
-        std::make_pair(1539, 0.0),     // allocated band right (start)
-        std::make_pair(2036, 0.0),     // allocated band right (stop)
-        std::make_pair(2037, -1.538),  // Inner band right (start)
-        std::make_pair(2049, -20.0),   // Inner band right (stop)
-        std::make_pair(2050, -20.0),   // Flat junction band right (start)
-        std::make_pair(2054, -20.0),   // Flat junction band right (stop)
-        std::make_pair(2055, -20.016), // Middle band right (start)
-        std::make_pair(2560, -28.000), // Middle band right (stop)
-        std::make_pair(2561, -28.033), // Outer band right (start)
-        std::make_pair(3072, -45.000), // Outer band right (stop)
-    };
-
-    AddTestCase(new WifiOfdmMaskSlopesTestCase("11ax_2.4GHz 80MHz",
-                                               WIFI_STANDARD_80211ax,
-                                               WIFI_PHY_BAND_2_4GHZ,
-                                               80,
+                                               {5190},
                                                maskSlopes,
                                                tol,
                                                prec),
@@ -904,13 +935,11 @@ WifiTransmitMaskTestSuite::WifiTransmitMaskTestSuite()
                                                WIFI_STANDARD_80211ax,
                                                WIFI_PHY_BAND_5GHZ,
                                                80,
+                                               {5210},
                                                maskSlopes,
                                                tol,
                                                prec),
                 TestCase::Duration::QUICK);
-
-    // ============================================================================================
-    // 11ax 160MHz @ 2.4GHz -> not enough space so skip
 
     // ============================================================================================
     // 11ax 160MHz @ 5GHz
@@ -952,6 +981,152 @@ WifiTransmitMaskTestSuite::WifiTransmitMaskTestSuite()
                                                WIFI_STANDARD_80211ax,
                                                WIFI_PHY_BAND_5GHZ,
                                                160,
+                                               {5250},
+                                               maskSlopes,
+                                               tol,
+                                               prec),
+                TestCase::Duration::QUICK);
+
+    // ============================================================================================
+    // 11ax 80+80MHz @ 5GHz
+    NS_LOG_FUNCTION("Check slopes for 11ax 80+80MHz @ 5GHz");
+    maskSlopes = {
+        std::make_pair(0, -40.0),      // Outer band left (start)
+        std::make_pair(511, -28.023),  // Outer band left (stop)
+        std::make_pair(512, -28.000),  // Middle band left (start)
+        std::make_pair(1017, -20.016), // Middle band left (stop)
+        std::make_pair(1018, -20.0),   // Flat junction band left (start)
+        std::make_pair(1022, -20.0),   // Flat junction band left (stop)
+        std::make_pair(1023, -20.0),   // Inner band left for first segment (start)
+        std::make_pair(1035, -1.538),  // Inner band left for first segment (stop)
+        std::make_pair(1036, 0.0),     // allocated band left for first segment (start)
+        std::make_pair(1533, 0.0),     // allocated band left for first segment (stop)
+        std::make_pair(1534, -20.0),   // DC band for first segment (start)
+        std::make_pair(1538, -20.0),   // DC band for first segment (stop)
+        std::make_pair(1539, 0.0),     // allocated band right for first segment (start)
+        std::make_pair(2036, 0.0),     // allocated band right for first segment (stop)
+        std::make_pair(2037, -1.538),  // Inner band right for first segment (start)
+        std::make_pair(2049, -20.0),   // Inner band right for first segment (stop)
+        std::make_pair(2050, -20.0),   // Flat junction band right for first segment (start)
+        std::make_pair(2054, -20.0),   // Flat junction band right for first segment (stop)
+        std::make_pair(2055, -20.01), // start linear sum region left (no interpolation possible, so
+                                      // provide 2 times the same point)
+        std::make_pair(2055, -20.01), // start linear sum region left (no interpolation possible, so
+                                      // provide 2 times the same point)
+        std::make_pair(2559, -24.99), // stop linear sum region left (no interpolation possible, so
+                                      // provide 2 times the same point)
+        std::make_pair(2559, -24.99), // stop linear sum region left (no interpolation possible, so
+                                      // provide 2 times the same point)
+        std::make_pair(2560, -25.0),  // middle linear sum region (no interpolation possible, so
+                                      // provide 2 times the same point)
+        std::make_pair(2560, -25.0),  // middle linear sum region (no interpolation possible, so
+                                      // provide 2 times the same point)
+        std::make_pair(2561, -24.99), // start linear sum region right (no interpolation possible,
+                                      // so provide 2 times the same point)
+        std::make_pair(2561, -24.99), // start linear sum region right (no interpolation possible,
+                                      // so provide 2 times the same point)
+        std::make_pair(3065, -20.01), // stop linear sum region right (no interpolation possible, so
+                                      // provide 2 times the same point)
+        std::make_pair(3065, -20.01), // stop linear sum region right (no interpolation possible, so
+                                      // provide 2 times the same point)
+        std::make_pair(3066, -20.0),  // Flat junction band left (start)
+        std::make_pair(3070, -20.0),  // Flat junction band left (stop)
+        std::make_pair(3071, -20.0),  // Inner band left for second segment (start)
+        std::make_pair(3083, -1.538), // Inner band left for second segment (stop)
+        std::make_pair(3084, 0.0),    // allocated band left for second segment (start)
+        std::make_pair(3581, 0.0),    // allocated band left for second segment (stop)
+        std::make_pair(3582, -20.0),  // DC band for second segment (start)
+        std::make_pair(3586, -20.0),  // DC band for second segment (stop)
+        std::make_pair(3587, 0.0),    // allocated band right for second segment (start)
+        std::make_pair(4084, 0.0),    // allocated band right for second segment (stop)
+        std::make_pair(4085, -1.538), // Inner band right for second segment (start)
+        std::make_pair(4097, -20.0),  // Inner band right for second segment (stop)
+        std::make_pair(4098, -20.0),  // Flat junction band right (start)
+        std::make_pair(4102, -20.0),  // Flat junction band right (stop)
+        std::make_pair(4103, -20.016), // Middle band right (start)
+        std::make_pair(4608, -28.000), // Middle band right (stop)
+        std::make_pair(4609, -28.023), // Outer band right (start)
+        std::make_pair(5120, -40.0),   // Outer band right (stop)
+    };
+
+    AddTestCase(new WifiOfdmMaskSlopesTestCase("11ax_5GHz 80+80MHz",
+                                               WIFI_STANDARD_80211ax,
+                                               WIFI_PHY_BAND_5GHZ,
+                                               160,
+                                               {5530, 5690},
+                                               maskSlopes,
+                                               tol,
+                                               prec),
+                TestCase::Duration::QUICK);
+
+    // ============================================================================================
+    // 11ax 80+80MHz @ 5GHz
+    NS_LOG_FUNCTION("Check slopes for 11ax 80+80MHz @ 5GHz with larger frequency separation "
+                    "between the two PSDs");
+    maskSlopes = {
+        std::make_pair(0, -40.0),      // Outer band left (start)
+        std::make_pair(511, -28.023),  // Outer band left (stop)
+        std::make_pair(512, -28.000),  // Middle band left (start)
+        std::make_pair(1017, -20.016), // Middle band left (stop)
+        std::make_pair(1018, -20.0),   // Flat junction band left (start)
+        std::make_pair(1022, -20.0),   // Flat junction band left (stop)
+        std::make_pair(1023, -20.0),   // Inner band left for first segment (start)
+        std::make_pair(1035, -1.538),  // Inner band left for first segment (stop)
+        std::make_pair(1036, 0.0),     // allocated band left for first segment (start)
+        std::make_pair(1533, 0.0),     // allocated band left for first segment (stop)
+        std::make_pair(1534, -20.0),   // DC band for first segment (start)
+        std::make_pair(1538, -20.0),   // DC band for first segment (stop)
+        std::make_pair(1539, 0.0),     // allocated band right for first segment (start)
+        std::make_pair(2036, 0.0),     // allocated band right for first segment (stop)
+        std::make_pair(2037, -1.538),  // Inner band right for first segment (start)
+        std::make_pair(2049, -20.0),   // Inner band right for first segment (stop)
+        std::make_pair(2050, -20.0),   // Flat junction band right for first segment (start)
+        std::make_pair(2054, -20.0),   // Flat junction band right for first segment (stop)
+        std::make_pair(2055, -20.01), // start linear sum region left (no interpolation possible, so
+                                      // provide 2 times the same point)
+        std::make_pair(2055, -20.01), // start linear sum region left (no interpolation possible, so
+                                      // provide 2 times the same point)
+        std::make_pair(3583, -24.99), // stop linear sum region left (no interpolation possible, so
+                                      // provide 2 times the same point)
+        std::make_pair(3583, -24.99), // stop linear sum region left (no interpolation possible, so
+                                      // provide 2 times the same point)
+        std::make_pair(3584, -25.0),  // middle linear sum region (no interpolation possible, so
+                                      // provide 2 times the same point)
+        std::make_pair(3584, -25.0),  // middle linear sum region (no interpolation possible, so
+                                      // provide 2 times the same point)
+        std::make_pair(3585, -24.99), // start linear sum region right (no interpolation possible,
+                                      // so provide 2 times the same point)
+        std::make_pair(3585, -24.99), // start linear sum region right (no interpolation possible,
+                                      // so provide 2 times the same point)
+        std::make_pair(5113, -20.01), // stop linear sum region right (no interpolation possible, so
+                                      // provide 2 times the same point)
+        std::make_pair(5113, -20.01), // stop linear sum region right (no interpolation possible, so
+                                      // provide 2 times the same point)
+        std::make_pair(5114, -20.0),  // Flat junction band left (start)
+        std::make_pair(5118, -20.0),  // Flat junction band left (stop)
+        std::make_pair(5119, -20.0),  // Inner band left for second segment (start)
+        std::make_pair(5131, -1.538), // Inner band left for second segment (stop)
+        std::make_pair(5132, 0.0),    // allocated band left for second segment (start)
+        std::make_pair(5629, 0.0),    // allocated band left for second segment (stop)
+        std::make_pair(5630, -20.0),  // DC band for second segment (start)
+        std::make_pair(5634, -20.0),  // DC band for second segment (stop)
+        std::make_pair(5635, 0.0),    // allocated band right for second segment (start)
+        std::make_pair(6132, 0.0),    // allocated band right for second segment (stop)
+        std::make_pair(6133, -1.538), // Inner band right for second segment (start)
+        std::make_pair(6145, -20.0),  // Inner band right for second segment (stop)
+        std::make_pair(6146, -20.0),  // Flat junction band right (start)
+        std::make_pair(6150, -20.0),  // Flat junction band right (stop)
+        std::make_pair(6151, -20.016), // Middle band right (start)
+        std::make_pair(6656, -28.000), // Middle band right (stop)
+        std::make_pair(6657, -28.023), // Outer band right (start)
+        std::make_pair(7168, -40.0),   // Outer band right (stop)
+    };
+
+    AddTestCase(new WifiOfdmMaskSlopesTestCase("11ax_5GHz 80+80MHz large separation",
+                                               WIFI_STANDARD_80211ax,
+                                               WIFI_PHY_BAND_5GHZ,
+                                               160,
+                                               {5210, 5530},
                                                maskSlopes,
                                                tol,
                                                prec),
@@ -991,6 +1166,7 @@ WifiTransmitMaskTestSuite::WifiTransmitMaskTestSuite()
                                                WIFI_STANDARD_80211ax,
                                                WIFI_PHY_BAND_5GHZ,
                                                80,
+                                               {5210},
                                                maskSlopes,
                                                tol,
                                                prec,
@@ -1035,6 +1211,7 @@ WifiTransmitMaskTestSuite::WifiTransmitMaskTestSuite()
                                                WIFI_STANDARD_80211ax,
                                                WIFI_PHY_BAND_5GHZ,
                                                80,
+                                               {5210},
                                                maskSlopes,
                                                tol,
                                                prec,
@@ -1079,6 +1256,7 @@ WifiTransmitMaskTestSuite::WifiTransmitMaskTestSuite()
                                                WIFI_STANDARD_80211ax,
                                                WIFI_PHY_BAND_5GHZ,
                                                80,
+                                               {5210},
                                                maskSlopes,
                                                tol,
                                                prec,
@@ -1119,6 +1297,7 @@ WifiTransmitMaskTestSuite::WifiTransmitMaskTestSuite()
                                                WIFI_STANDARD_80211ax,
                                                WIFI_PHY_BAND_5GHZ,
                                                80,
+                                               {5210},
                                                maskSlopes,
                                                tol,
                                                prec,
@@ -1167,6 +1346,7 @@ WifiTransmitMaskTestSuite::WifiTransmitMaskTestSuite()
                                        WIFI_STANDARD_80211ax,
                                        WIFI_PHY_BAND_5GHZ,
                                        160,
+                                       {5250},
                                        maskSlopes,
                                        tol,
                                        prec,
@@ -1217,6 +1397,7 @@ WifiTransmitMaskTestSuite::WifiTransmitMaskTestSuite()
                                        WIFI_STANDARD_80211ax,
                                        WIFI_PHY_BAND_5GHZ,
                                        160,
+                                       {5250},
                                        maskSlopes,
                                        tol,
                                        prec,
@@ -1267,6 +1448,7 @@ WifiTransmitMaskTestSuite::WifiTransmitMaskTestSuite()
                                        WIFI_STANDARD_80211ax,
                                        WIFI_PHY_BAND_5GHZ,
                                        160,
+                                       {5250},
                                        maskSlopes,
                                        tol,
                                        prec,
@@ -1315,6 +1497,7 @@ WifiTransmitMaskTestSuite::WifiTransmitMaskTestSuite()
                                        WIFI_STANDARD_80211ax,
                                        WIFI_PHY_BAND_5GHZ,
                                        160,
+                                       {5250},
                                        maskSlopes,
                                        tol,
                                        prec,

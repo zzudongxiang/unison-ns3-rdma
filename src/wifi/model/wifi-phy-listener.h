@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2005,2006 INRIA
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Authors: Mathieu Lacage <mathieu.lacage@sophia.inria.fr>
  *          Sébastien Deronne <sebastien.deronne@gmail.com>
@@ -69,7 +58,7 @@ class WifiPhyListener
     virtual void NotifyRxEndError() = 0;
     /**
      * \param duration the expected transmission duration.
-     * \param txPowerDbm the nominal TX power in dBm
+     * \param txPower the nominal TX power
      *
      * We are about to send the first bit of the packet.
      * We do not send any event to notify the end of
@@ -77,7 +66,7 @@ class WifiPhyListener
      * channel implicitly reverts to the idle state
      * unless they have received a CCA busy report.
      */
-    virtual void NotifyTxStart(Time duration, double txPowerDbm) = 0;
+    virtual void NotifyTxStart(Time duration, dBm_u txPower) = 0;
     /**
      * \param duration the expected busy duration.
      * \param channelType the channel type for which the CCA busy state is reported.

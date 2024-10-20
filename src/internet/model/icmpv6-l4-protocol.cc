@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2007-2009 Strasbourg University
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Sebastien Vincent <vincent@clarinet.u-strasbg.fr>
  *         David Gross <gdavid.devel@gmail.com>
@@ -142,7 +131,16 @@ Icmpv6L4Protocol::GetTypeId()
                           "Multicast RS maximum retransmission duration (0 means unbound).",
                           TimeValue(Seconds(0)),
                           MakeTimeAccessor(&Icmpv6L4Protocol::m_rsMaxRetransmissionDuration),
-                          MakeTimeChecker());
+                          MakeTimeChecker())
+            .AddTraceSource("DadFailure",
+                            "Duplicate Address detected during DAD, the address is now INVALID",
+                            MakeTraceSourceAccessor(&Icmpv6L4Protocol::m_dadFailureAddressTrace),
+                            "ns3::Ipv6Address::TracedCallback")
+            .AddTraceSource(
+                "DadSuccess",
+                "Duplicate Address not detected during DAD, the address is now PREFERRED",
+                MakeTraceSourceAccessor(&Icmpv6L4Protocol::m_dadSuccessAddressTrace),
+                "ns3::Ipv6Address::TracedCallback");
     return tid;
 }
 
@@ -440,6 +438,15 @@ Icmpv6L4Protocol::HandleRA(Ptr<Packet> packet,
     Ipv6Address defaultRouter = Ipv6Address::GetZero();
 
     p->RemoveHeader(raHeader);
+
+    // If 'M' flag is set, we need to start DHCPv6.
+    if (raHeader.GetFlagM())
+    {
+        if (!m_startDhcpv6.IsNull())
+        {
+            m_startDhcpv6(ipv6->GetInterfaceForDevice(interface->GetDevice()));
+        }
+    }
 
     if (raHeader.GetLifeTime())
     {
@@ -873,6 +880,7 @@ Icmpv6L4Protocol::HandleNA(Ptr<Packet> packet,
             if (ifaddr.GetState() == Ipv6InterfaceAddress::TENTATIVE ||
                 ifaddr.GetState() == Ipv6InterfaceAddress::TENTATIVE_OPTIMISTIC)
             {
+                m_dadFailureAddressTrace(ifaddr.GetAddress());
                 interface->SetState(ifaddr.GetAddress(), Ipv6InterfaceAddress::INVALID);
             }
         }
@@ -1853,6 +1861,7 @@ Icmpv6L4Protocol::FunctionDadTimeout(Ipv6Interface* interface, Ipv6Address addr)
      */
     if (found && ifaddr.GetState() != Ipv6InterfaceAddress::INVALID)
     {
+        m_dadSuccessAddressTrace(ifaddr.GetAddress());
         interface->SetState(ifaddr.GetAddress(), Ipv6InterfaceAddress::PREFERRED);
         NS_LOG_LOGIC("DAD OK, interface in state PREFERRED");
 

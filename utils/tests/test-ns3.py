@@ -2,18 +2,7 @@
 #
 # Copyright (c) 2021-2023 Universidade de Brasília
 #
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation;
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Author: Gabriel Ferreira <gabrielcarvfer@gmail.com>
 
@@ -23,6 +12,7 @@ Test suite for the ns3 wrapper script
 
 import glob
 import os
+import platform
 import re
 import shutil
 import subprocess
@@ -52,8 +42,10 @@ cmake_build_target_command = partial(
     cmake_cache=os.path.abspath(os.path.join(ns3_path, "cmake-cache")),
 )
 win32 = sys.platform == "win32"
+macos = sys.platform == "darwin"
 platform_makefiles = "MinGW Makefiles" if win32 else "Unix Makefiles"
 ext = ".exe" if win32 else ""
+arch = platform.machine()
 
 
 def run_ns3(args, env=None, generator=platform_makefiles):
@@ -99,7 +91,7 @@ def run_program(program, args, python=False, cwd=ns3_path, env=None):
         arguments = [program]
 
     if args != "":
-        arguments.extend(re.findall('(?:".*?"|\S)+', args))  # noqa
+        arguments.extend(re.findall(r'(?:".*?"|\S)+', args))  # noqa
 
     for i in range(len(arguments)):
         arguments[i] = arguments[i].replace('"', "")
@@ -216,10 +208,11 @@ class DockerContainerManager:
         # Import rootless docker settings from .bashrc
         with open(os.path.expanduser("~/.bashrc"), "r", encoding="utf-8") as f:
             docker_settings = re.findall("(DOCKER_.*=.*)", f.read())
-            for setting in docker_settings:
-                key, value = setting.split("=")
-                os.environ[key] = value
-            del docker_settings, setting, key, value
+            if docker_settings:
+                for setting in docker_settings:
+                    key, value = setting.split("=")
+                    os.environ[key] = value
+                    del setting, key, value
 
         # Create Docker client instance and start it
         ## The Python-on-whales container instance
@@ -292,6 +285,10 @@ class NS3UnusedSourcesTestCase(unittest.TestCase):
         for example_directory in self.directory_and_files.keys():
             # Skip non-example directories
             if os.sep + "examples" not in example_directory:
+                continue
+
+            # Skip directories without a CMakeLists.txt
+            if not os.path.exists(os.path.join(example_directory, "CMakeLists.txt")):
                 continue
 
             # Open the examples CMakeLists.txt and read it
@@ -452,7 +449,7 @@ class NS3DependenciesTestCase(unittest.TestCase):
 
             # Extract libraries linked to the module
             modules[module_name_nodir]["libraries"].update(
-                re.findall("\${lib(.*?)}", "".join(cmake_contents))
+                re.findall(r"\${lib(.*?)}", "".join(cmake_contents))
             )
             modules[module_name_nodir]["libraries"] = list(
                 filter(
@@ -691,7 +688,7 @@ class NS3ConfigureBuildProfileTestCase(unittest.TestCase):
         # Build core to check if profile suffixes match the expected.
         return_code, stdout, stderr = run_ns3("build core")
         self.assertEqual(return_code, 0)
-        self.assertIn("Built target libcore", stdout)
+        self.assertIn("Built target core", stdout)
 
         libraries = get_libraries_list()
         self.assertGreater(len(libraries), 0)
@@ -722,7 +719,7 @@ class NS3ConfigureBuildProfileTestCase(unittest.TestCase):
         # Build core to check if profile suffixes match the expected
         return_code, stdout, stderr = run_ns3("build core")
         self.assertEqual(return_code, 0)
-        self.assertIn("Built target libcore", stdout)
+        self.assertIn("Built target core", stdout)
 
         libraries = get_libraries_list()
         self.assertGreater(len(libraries), 0)
@@ -884,7 +881,7 @@ class NS3ConfigureTestCase(NS3BaseTestCase):
 
         # If nothing went wrong, this should have worked
         self.assertEqual(return_code, 0)
-        self.assertIn("Built target libcore-test", stdout)
+        self.assertIn("Built target core-test", stdout)
 
         # Now we disabled the tests
         return_code, stdout, stderr = run_ns3('configure -G "{generator}" --disable-tests')
@@ -1075,7 +1072,9 @@ class NS3ConfigureTestCase(NS3BaseTestCase):
             self.assertLess(len(get_enabled_modules()), len(self.ns3_modules))
             self.assertIn("ns3-lte", enabled_modules)
             self.assertTrue(get_test_enabled())
-            self.assertLessEqual(len(get_programs_list()), len(self.ns3_executables))
+            self.assertLessEqual(
+                len(get_programs_list()), len(self.ns3_executables) + (win32 or macos)
+            )
 
             # Replace the ns3rc file with the wifi module, enabling examples and disabling tests
             with open(ns3rc_script, "w", encoding="utf-8") as f:
@@ -1283,7 +1282,7 @@ class NS3ConfigureTestCase(NS3BaseTestCase):
             )
         return_code, stdout, stderr = run_ns3("run abort")
         if win32:
-            self.assertEqual(return_code, 3)
+            self.assertNotEqual(return_code, 0)
             self.assertIn("abort-default.exe' returned non-zero exit status", stdout)
         else:
             self.assertEqual(return_code, 250)
@@ -1355,6 +1354,14 @@ class NS3ConfigureTestCase(NS3BaseTestCase):
                     f.write("")
 
         # Reload the cmake cache to pick them up
+        # It will fail because the empty scratch has no main function
+        return_code, stdout, stderr = run_ns3('configure -G "{generator}"')
+        self.assertEqual(return_code, 1)
+
+        # Remove the empty.cc file and try again
+        empty = "scratch/empty.cc"
+        os.remove(empty)
+        test_files.remove(empty)
         return_code, stdout, stderr = run_ns3('configure -G "{generator}"')
         self.assertEqual(return_code, 0)
 
@@ -1384,7 +1391,7 @@ class NS3ConfigureTestCase(NS3BaseTestCase):
                 self.assertEqual(return_code, 1)
 
         run_ns3("clean")
-        with DockerContainerManager(self, "ubuntu:20.04") as container:
+        with DockerContainerManager(self, "ubuntu:22.04") as container:
             container.execute("apt-get update")
             container.execute("apt-get install -y python3 cmake g++ ninja-build")
             try:
@@ -1531,6 +1538,10 @@ class NS3ConfigureTestCase(NS3BaseTestCase):
                     )
                 elif "mold" in stdout + stderr:
                     self.assertIn("library not found: %s" % invalid_or_nonexistent_library, stderr)
+                elif macos:
+                    self.assertIn(
+                        "library not found for -l%s" % invalid_or_nonexistent_library, stderr
+                    )
                 else:
                     self.assertIn("cannot find -l%s" % invalid_or_nonexistent_library, stderr)
             else:
@@ -1628,7 +1639,7 @@ class NS3ConfigureTestCase(NS3BaseTestCase):
         # Check if we can build this library
         return_code, stdout, stderr = run_ns3("build calibre")
         self.assertEqual(return_code, 0)
-        self.assertIn(cmake_build_target_command(target="libcalibre"), stdout)
+        self.assertIn(cmake_build_target_command(target="calibre"), stdout)
 
         shutil.rmtree("contrib/calibre", ignore_errors=True)
 
@@ -1812,12 +1823,12 @@ class NS3ConfigureTestCase(NS3BaseTestCase):
                 self.assertTrue(False, "Build with lld failed")
 
             # Now add mold to the PATH
-            if not os.path.exists("./mold-1.4.2-x86_64-linux.tar.gz"):
+            if not os.path.exists(f"./mold-1.4.2-{arch}-linux.tar.gz"):
                 container.execute(
-                    "wget https://github.com/rui314/mold/releases/download/v1.4.2/mold-1.4.2-x86_64-linux.tar.gz"
+                    f"wget https://github.com/rui314/mold/releases/download/v1.4.2/mold-1.4.2-{arch}-linux.tar.gz"
                 )
             container.execute(
-                "tar xzfC mold-1.4.2-x86_64-linux.tar.gz /usr/local --strip-components=1"
+                f"tar xzfC mold-1.4.2-{arch}-linux.tar.gz /usr/local --strip-components=1"
             )
 
             # Configure should detect and use mold
@@ -1838,7 +1849,7 @@ class NS3ConfigureTestCase(NS3BaseTestCase):
                 self.assertTrue(False, "Build with mold failed")
 
             # Delete mold leftovers
-            os.remove("./mold-1.4.2-x86_64-linux.tar.gz")
+            os.remove(f"./mold-1.4.2-{arch}-linux.tar.gz")
 
             # Disable use of fast linkers
             container.execute("./ns3 configure -G Ninja -- -DNS3_FAST_LINKERS=OFF")
@@ -1858,14 +1869,14 @@ class NS3ConfigureTestCase(NS3BaseTestCase):
         """
 
         run_ns3("clean")
-        with DockerContainerManager(self, "ubuntu:20.04") as container:
+        with DockerContainerManager(self, "ubuntu:22.04") as container:
             container.execute("apt-get update")
-            container.execute("apt-get install -y python3 ninja-build cmake clang-10")
+            container.execute("apt-get install -y python3 ninja-build cmake clang-12")
 
             # Enable ClangTimeTrace without git (it should fail)
             try:
                 container.execute(
-                    "./ns3 configure -G Ninja --enable-modules=core --enable-examples --enable-tests -- -DCMAKE_CXX_COMPILER=/usr/bin/clang++-10 -DNS3_CLANG_TIMETRACE=ON"
+                    "./ns3 configure -G Ninja --enable-modules=core --enable-examples --enable-tests -- -DCMAKE_CXX_COMPILER=/usr/bin/clang++-12 -DNS3_CLANG_TIMETRACE=ON"
                 )
             except DockerException as e:
                 self.assertIn("could not find git for clone of ClangBuildAnalyzer", e.stderr)
@@ -1875,7 +1886,7 @@ class NS3ConfigureTestCase(NS3BaseTestCase):
             # Enable ClangTimeTrace without git (it should succeed)
             try:
                 container.execute(
-                    "./ns3 configure -G Ninja --enable-modules=core --enable-examples --enable-tests -- -DCMAKE_CXX_COMPILER=/usr/bin/clang++-10 -DNS3_CLANG_TIMETRACE=ON"
+                    "./ns3 configure -G Ninja --enable-modules=core --enable-examples --enable-tests -- -DCMAKE_CXX_COMPILER=/usr/bin/clang++-12 -DNS3_CLANG_TIMETRACE=ON"
                 )
             except DockerException as e:
                 self.assertIn("could not find git for clone of ClangBuildAnalyzer", e.stderr)
@@ -1897,7 +1908,7 @@ class NS3ConfigureTestCase(NS3BaseTestCase):
             # Now try with GCC, which should fail during the configuration
             run_ns3("clean")
             container.execute("apt-get install -y g++")
-            container.execute("apt-get remove -y clang-10")
+            container.execute("apt-get remove -y clang-12")
 
             try:
                 container.execute(
@@ -1920,12 +1931,13 @@ class NS3ConfigureTestCase(NS3BaseTestCase):
         run_ns3("clean")
         with DockerContainerManager(self, "ubuntu:20.04") as container:
             container.execute("apt-get update")
-            container.execute("apt-get install -y python3 cmake clang-10")
+            container.execute("apt-get remove -y g++")
+            container.execute("apt-get install -y python3 cmake g++-10 clang-11")
 
             # Enable Ninja tracing without using the Ninja generator
             try:
                 container.execute(
-                    "./ns3 configure --enable-modules=core --enable-ninja-tracing -- -DCMAKE_CXX_COMPILER=/usr/bin/clang++-10"
+                    "./ns3 configure --enable-modules=core --enable-ninja-tracing -- -DCMAKE_CXX_COMPILER=/usr/bin/clang++-11"
                 )
             except DockerException as e:
                 self.assertIn("Ninjatracing requires the Ninja generator", e.stderr)
@@ -1937,7 +1949,7 @@ class NS3ConfigureTestCase(NS3BaseTestCase):
             # Enable Ninjatracing support without git (should fail)
             try:
                 container.execute(
-                    "./ns3 configure -G Ninja --enable-modules=core --enable-ninja-tracing -- -DCMAKE_CXX_COMPILER=/usr/bin/clang++-10"
+                    "./ns3 configure -G Ninja --enable-modules=core --enable-ninja-tracing -- -DCMAKE_CXX_COMPILER=/usr/bin/clang++-11"
                 )
             except DockerException as e:
                 self.assertIn("could not find git for clone of NinjaTracing", e.stderr)
@@ -1946,7 +1958,7 @@ class NS3ConfigureTestCase(NS3BaseTestCase):
             # Enable Ninjatracing support with git (it should succeed)
             try:
                 container.execute(
-                    "./ns3 configure -G Ninja --enable-modules=core --enable-ninja-tracing -- -DCMAKE_CXX_COMPILER=/usr/bin/clang++-10"
+                    "./ns3 configure -G Ninja --enable-modules=core --enable-ninja-tracing -- -DCMAKE_CXX_COMPILER=/usr/bin/clang++-11"
                 )
             except DockerException as e:
                 self.assertTrue(False, "Failed to configure with Ninjatracing")
@@ -1975,7 +1987,7 @@ class NS3ConfigureTestCase(NS3BaseTestCase):
             # Enable Clang TimeTrace feature for more detailed traces
             try:
                 container.execute(
-                    "./ns3 configure -G Ninja --enable-modules=core --enable-ninja-tracing -- -DCMAKE_CXX_COMPILER=/usr/bin/clang++-10 -DNS3_CLANG_TIMETRACE=ON"
+                    "./ns3 configure -G Ninja --enable-modules=core --enable-ninja-tracing -- -DCMAKE_CXX_COMPILER=/usr/bin/clang++-11 -DNS3_CLANG_TIMETRACE=ON"
                 )
             except DockerException as e:
                 self.assertTrue(False, "Failed to configure Ninjatracing with Clang's TimeTrace")
@@ -2002,18 +2014,6 @@ class NS3ConfigureTestCase(NS3BaseTestCase):
         @return None
         """
 
-        run_ns3("clean")
-
-        # Ubuntu 20.04 ships with:
-        # - cmake 3.16: does support PCH
-        # - ccache 3.7: incompatible with pch
-        with DockerContainerManager(self, "ubuntu:20.04") as container:
-            container.execute("apt-get update")
-            container.execute("apt-get install -y python3 cmake ccache g++")
-            try:
-                container.execute("./ns3 configure")
-            except DockerException as e:
-                self.assertIn("incompatible with ccache", e.stderr)
         run_ns3("clean")
 
         # Ubuntu 22.04 ships with:
@@ -2050,7 +2050,7 @@ class NS3ConfigureTestCase(NS3BaseTestCase):
 
         run_ns3("clean")
 
-        with DockerContainerManager(self, "ubuntu:20.04") as container:
+        with DockerContainerManager(self, "ubuntu:22.04") as container:
             container.execute("apt-get update")
             container.execute("apt-get install -y python3 cmake g++")
             return_code = 0
@@ -2085,7 +2085,7 @@ class NS3BuildBaseTestCase(NS3BaseTestCase):
         """
         return_code, stdout, stderr = run_ns3("build core")
         self.assertEqual(return_code, 0)
-        self.assertIn("Built target libcore", stdout)
+        self.assertIn("Built target core", stdout)
 
     def test_02_BuildNonExistingTargets(self):
         """!
@@ -2336,8 +2336,8 @@ class NS3BuildBaseTestCase(NS3BaseTestCase):
             # Import ns-3 libraries with as a CMake package
             cmake_find_package_import = """
                                   list(APPEND CMAKE_PREFIX_PATH ./{lib}/cmake/ns3)
-                                  find_package(ns3 {version} COMPONENTS libcore)
-                                  target_link_libraries(test PRIVATE ns3::libcore)
+                                  find_package(ns3 {version} COMPONENTS core)
+                                  target_link_libraries(test PRIVATE ns3::core)
                                   """.format(
                 lib=("lib64" if lib64 else "lib"), version=version
             )
@@ -2390,7 +2390,7 @@ class NS3BuildBaseTestCase(NS3BaseTestCase):
                             stderr.replace("\n", ""),
                         )
                     elif import_method == pkgconfig_import:
-                        self.assertIn("A required package was not found", stderr.replace("\n", ""))
+                        self.assertIn("not found", stderr.replace("\n", ""))
                     else:
                         raise Exception("Unknown import type")
                 else:
@@ -2401,7 +2401,7 @@ class NS3BuildBaseTestCase(NS3BaseTestCase):
                 return_code, stdout, stderr = run_program("cmake", "--build .", cwd=install_prefix)
 
                 if version == "3.00":
-                    self.assertEqual(return_code, 2)
+                    self.assertEqual(return_code, 2, msg=stdout + stderr)
                     self.assertGreater(len(stderr), 0)
                 else:
                     self.assertEqual(return_code, 0)
@@ -2520,6 +2520,14 @@ class NS3BuildBaseTestCase(NS3BaseTestCase):
         Test if we can build a static ns-3 library and link it to static programs
         @return None
         """
+        if (not win32) and (arch == "aarch64"):
+            if platform.libc_ver()[0] == "glibc":
+                from packaging.version import Version
+
+                if Version(platform.libc_ver()[1]) < Version("2.37"):
+                    self.skipTest(
+                        "Static linking on ARM64 requires glibc 2.37 where fPIC was enabled (fpic is limited in number of GOT entries)"
+                    )
 
         # First enable examples and static build
         return_code, stdout, stderr = run_ns3(
@@ -2582,6 +2590,9 @@ class NS3BuildBaseTestCase(NS3BaseTestCase):
         """
         if shutil.which("git") is None:
             self.skipTest("Missing git")
+
+        if win32:
+            self.skipTest("Optional components are not supported on Windows")
 
         # First enable automatic components fetching
         return_code, stdout, stderr = run_ns3("configure -- -DNS3_FETCH_OPTIONAL_COMPONENTS=ON")
@@ -3146,29 +3157,30 @@ class NS3ExpectedUseTestCase(NS3BaseTestCase):
             return_code, stdout, stderr = run_ns3("clean")
             self.assertEqual(return_code, 0)
 
-            # Install VcPkg dependencies
-            container.execute("apt-get install -y zip unzip tar curl")
+            if arch != "aarch64":
+                # Install VcPkg dependencies
+                container.execute("apt-get install -y zip unzip tar curl")
 
-            # Install Armadillo dependencies
-            container.execute("apt-get install -y pkg-config gfortran")
+                # Install Armadillo dependencies
+                container.execute("apt-get install -y pkg-config gfortran")
 
-            # Install VcPkg
-            try:
-                container.execute("./ns3 configure -- -DNS3_VCPKG=ON")
-            except DockerException as e:
-                self.fail()
+                # Install VcPkg
+                try:
+                    container.execute("./ns3 configure -- -DNS3_VCPKG=ON")
+                except DockerException as e:
+                    self.fail()
 
-            # Install Armadillo with VcPkg
-            try:
-                container.execute("./ns3 configure -- -DTEST_PACKAGE_MANAGER:STRING=VCPKG")
-            except DockerException as e:
-                self.fail()
+                # Install Armadillo with VcPkg
+                try:
+                    container.execute("./ns3 configure -- -DTEST_PACKAGE_MANAGER:STRING=VCPKG")
+                except DockerException as e:
+                    self.fail()
 
-            # Try to build module using VcPkg's Armadillo
-            try:
-                container.execute("./ns3 build test-package-managers")
-            except DockerException as e:
-                self.fail()
+                # Try to build module using VcPkg's Armadillo
+                try:
+                    container.execute("./ns3 build test-package-managers")
+                except DockerException as e:
+                    self.fail()
 
         # Remove test module
         if os.path.exists(destination_src):
@@ -3409,6 +3421,23 @@ class NS3QualityControlTestCase(unittest.TestCase):
                 "Image darker than threshold (%d < %d): %s"
                 % (brightness, brightness_threshold, image),
             )
+
+    def test_04_CheckForBrokenLogs(self):
+        """!
+        Check if one of the log statements of examples/tests contains/exposes a bug.
+        @return None
+        """
+        # First enable examples and tests with sanitizers
+        return_code, stdout, stderr = run_ns3(
+            'configure -G "{generator}" -d release --enable-examples --enable-tests --enable-sanitizers'
+        )
+        self.assertEqual(return_code, 0)
+
+        # Then build and run tests setting the environment variable
+        return_code, stdout, stderr = run_program(
+            "test.py", "", python=True, env={"TEST_LOGS": "1"}
+        )
+        self.assertEqual(return_code, 0)
 
 
 def main():

@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2007-2009 Strasbourg University
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Sebastien Vincent <vincent@clarinet.u-strasbg.fr>
  *         David Gross <gdavid.devel@gmail.com>
@@ -28,6 +17,7 @@
 
 #include "ns3/ipv6-address.h"
 #include "ns3/random-variable-stream.h"
+#include "ns3/traced-callback.h"
 
 #include <list>
 
@@ -423,6 +413,16 @@ class Icmpv6L4Protocol : public IpL4Protocol
      */
     Time GetDadTimeout() const;
 
+    /**
+     * Set DHCPv6 callback.
+     * Invoked when an RA is received with the M flag set.
+     * \param cb the callback function
+     */
+    void SetDhcpv6Callback(Callback<void, uint32_t> cb)
+    {
+        m_startDhcpv6 = cb;
+    }
+
   protected:
     /**
      * \brief Dispose this object.
@@ -697,6 +697,25 @@ class Icmpv6L4Protocol : public IpL4Protocol
     EventId m_handleRsTimeoutEvent;
 
     IpL4Protocol::DownTargetCallback6 m_downTarget; //!< callback to Ipv6::Send
+
+    /**
+     * The trace fired when a DAD fails, changing the address state to INVALID.
+     * Includes the address whose state has been changed.
+     */
+    ns3::TracedCallback<const Ipv6Address&> m_dadFailureAddressTrace;
+
+    /**
+     * The trace fired when a DAD completes and no duplicate address has
+     * been detected. The address state changes to PREFERRED.
+     * Includes the address whose state has been changed.
+     */
+    ns3::TracedCallback<const Ipv6Address&> m_dadSuccessAddressTrace;
+
+    /**
+     * The DHCPv6 callback when the M flag is set in a Router Advertisement.
+     * Includes the interface on which the RA was received.
+     */
+    Callback<void, uint32_t> m_startDhcpv6;
 };
 
 } /* namespace ns3 */

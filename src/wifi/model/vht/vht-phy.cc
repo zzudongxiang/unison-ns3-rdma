@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2020 Orange Labs
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Authors: Rediet <getachew.redieteab@orange.com>
  *          Sébastien Deronne <sebastien.deronne@gmail.com> (for logic ported from wifi-phy)
@@ -76,10 +65,12 @@ const VhtPhy::NesExceptionMap VhtPhy::m_exceptionsMap {
     { std::make_tuple (160, 7, 9), 12 }, // instead of 10
 };
 
+// clang-format on
+
 /**
- * \brief map a given channel list type to the corresponding scaling factor in dBm
+ * \brief map a given channel list type to the corresponding scaling factor
  */
-const std::map<WifiChannelListType, double> channelTypeToScalingFactorDbm {
+const std::map<WifiChannelListType, dBm_u> channelTypeToScalingFactor{
     {WIFI_CHANLIST_PRIMARY, 0.0},
     {WIFI_CHANLIST_SECONDARY, 0.0},
     {WIFI_CHANLIST_SECONDARY40, 3.0},
@@ -89,13 +80,11 @@ const std::map<WifiChannelListType, double> channelTypeToScalingFactorDbm {
 /**
  * \brief map a given secondary channel width to its channel list type
  */
-const std::map<uint16_t, WifiChannelListType> secondaryChannels {
+const std::map<MHz_u, WifiChannelListType> secondaryChannels{
     {20, WIFI_CHANLIST_SECONDARY},
     {40, WIFI_CHANLIST_SECONDARY40},
     {80, WIFI_CHANLIST_SECONDARY80},
 };
-
-// clang-format on
 
 VhtPhy::VhtPhy(bool buildModeList /* = true */)
     : HtPhy(1, false) // don't add HT modes to list
@@ -234,7 +223,7 @@ VhtPhy::GetNumberBccEncoders(const WifiTxVector& txVector) const
      * 21-30 to 21-61 of IEEE 802.11-2016.
      * These values are the last values before changing encoders.
      */
-    double maxRatePerCoder = (txVector.GetGuardInterval() == 800) ? 540e6 : 600e6;
+    double maxRatePerCoder = (txVector.GetGuardInterval().GetNanoSeconds() == 800) ? 540e6 : 600e6;
     uint8_t nes = ceil(payloadMode.GetDataRate(txVector) / maxRatePerCoder);
 
     // Handle exceptions to the rule
@@ -430,7 +419,7 @@ VhtPhy::GetConstellationSize(uint8_t mcsValue)
 }
 
 uint64_t
-VhtPhy::GetPhyRate(uint8_t mcsValue, uint16_t channelWidth, uint16_t guardInterval, uint8_t nss)
+VhtPhy::GetPhyRate(uint8_t mcsValue, MHz_u channelWidth, Time guardInterval, uint8_t nss)
 {
     WifiCodeRate codeRate = GetCodeRate(mcsValue);
     uint64_t dataRate = GetDataRate(mcsValue, channelWidth, guardInterval, nss);
@@ -456,14 +445,15 @@ VhtPhy::GetDataRateFromTxVector(const WifiTxVector& txVector, uint16_t /* staId 
 }
 
 uint64_t
-VhtPhy::GetDataRate(uint8_t mcsValue, uint16_t channelWidth, uint16_t guardInterval, uint8_t nss)
+VhtPhy::GetDataRate(uint8_t mcsValue, MHz_u channelWidth, Time guardInterval, uint8_t nss)
 {
-    NS_ASSERT(guardInterval == 800 || guardInterval == 400);
+    [[maybe_unused]] const auto gi = guardInterval.GetNanoSeconds();
+    NS_ASSERT((gi == 800) || (gi == 400));
     NS_ASSERT(nss <= 8);
     NS_ASSERT_MSG(IsCombinationAllowed(mcsValue, channelWidth, nss),
                   "VHT MCS " << +mcsValue << " forbidden at " << channelWidth << " MHz when NSS is "
                              << +nss);
-    return HtPhy::CalculateDataRate(GetSymbolDuration(NanoSeconds(guardInterval)),
+    return HtPhy::CalculateDataRate(GetSymbolDuration(guardInterval),
                                     GetUsableSubcarriers(channelWidth),
                                     static_cast<uint16_t>(log2(GetConstellationSize(mcsValue))),
                                     HtPhy::GetCodeRatio(GetCodeRate(mcsValue)),
@@ -471,9 +461,9 @@ VhtPhy::GetDataRate(uint8_t mcsValue, uint16_t channelWidth, uint16_t guardInter
 }
 
 uint16_t
-VhtPhy::GetUsableSubcarriers(uint16_t channelWidth)
+VhtPhy::GetUsableSubcarriers(MHz_u channelWidth)
 {
-    switch (channelWidth)
+    switch (static_cast<uint16_t>(channelWidth))
     {
     case 80:
         return 234;
@@ -487,8 +477,8 @@ VhtPhy::GetUsableSubcarriers(uint16_t channelWidth)
 uint64_t
 VhtPhy::GetNonHtReferenceRate(uint8_t mcsValue)
 {
-    WifiCodeRate codeRate = GetCodeRate(mcsValue);
-    uint16_t constellationSize = GetConstellationSize(mcsValue);
+    const auto codeRate = GetCodeRate(mcsValue);
+    const auto constellationSize = GetConstellationSize(mcsValue);
     return CalculateNonHtReferenceRate(codeRate, constellationSize);
 }
 
@@ -524,7 +514,7 @@ VhtPhy::IsAllowed(const WifiTxVector& txVector)
 }
 
 bool
-VhtPhy::IsCombinationAllowed(uint8_t mcsValue, uint16_t channelWidth, uint8_t nss)
+VhtPhy::IsCombinationAllowed(uint8_t mcsValue, MHz_u channelWidth, uint8_t nss)
 {
     if (mcsValue == 9 && channelWidth == 20 && nss != 3)
     {
@@ -543,12 +533,12 @@ VhtPhy::GetMaxPsduSize() const
     return 4692480;
 }
 
-double
+dBm_u
 VhtPhy::GetCcaThreshold(const Ptr<const WifiPpdu> ppdu, WifiChannelListType channelType) const
 {
     if (ppdu)
     {
-        const uint16_t ppduBw = ppdu->GetTxVector().GetChannelWidth();
+        const auto ppduBw = ppdu->GetTxVector().GetChannelWidth();
         switch (channelType)
         {
         case WIFI_CHANLIST_PRIMARY: {
@@ -577,8 +567,8 @@ VhtPhy::GetCcaThreshold(const Ptr<const WifiPpdu> ppdu, WifiChannelListType chan
     }
     else
     {
-        const auto it = channelTypeToScalingFactorDbm.find(channelType);
-        NS_ASSERT_MSG(it != std::end(channelTypeToScalingFactorDbm), "Invalid channel list type");
+        const auto it = channelTypeToScalingFactor.find(channelType);
+        NS_ASSERT_MSG(it != std::end(channelTypeToScalingFactor), "Invalid channel list type");
         return m_wifiPhy->GetCcaEdThreshold() + it->second;
     }
 }
@@ -591,8 +581,8 @@ VhtPhy::GetCcaIndication(const Ptr<const WifiPpdu> ppdu)
         return HtPhy::GetCcaIndication(ppdu);
     }
 
-    double ccaThresholdDbm = GetCcaThreshold(ppdu, WIFI_CHANLIST_PRIMARY);
-    Time delayUntilCcaEnd = GetDelayUntilCcaEnd(ccaThresholdDbm, GetPrimaryBand(20));
+    auto ccaThreshold = GetCcaThreshold(ppdu, WIFI_CHANLIST_PRIMARY);
+    auto delayUntilCcaEnd = GetDelayUntilCcaEnd(ccaThreshold, GetPrimaryBand(20));
     if (delayUntilCcaEnd.IsStrictlyPositive())
     {
         return std::make_pair(
@@ -602,11 +592,11 @@ VhtPhy::GetCcaIndication(const Ptr<const WifiPpdu> ppdu)
 
     if (ppdu)
     {
-        const uint16_t primaryWidth = 20;
-        uint16_t p20MinFreq =
+        const MHz_u primaryWidth = 20;
+        const MHz_u p20MinFreq =
             m_wifiPhy->GetOperatingChannel().GetPrimaryChannelCenterFrequency(primaryWidth) -
             (primaryWidth / 2);
-        uint16_t p20MaxFreq =
+        const MHz_u p20MaxFreq =
             m_wifiPhy->GetOperatingChannel().GetPrimaryChannelCenterFrequency(primaryWidth) +
             (primaryWidth / 2);
         if (ppdu->DoesOverlapChannel(p20MinFreq, p20MaxFreq))
@@ -619,17 +609,17 @@ VhtPhy::GetCcaIndication(const Ptr<const WifiPpdu> ppdu)
         }
     }
 
-    std::vector<uint16_t> secondaryWidthsToCheck;
+    std::vector<MHz_u> secondaryWidthsToCheck;
     if (ppdu)
     {
         for (const auto& secondaryChannel : secondaryChannels)
         {
-            uint16_t secondaryWidth = secondaryChannel.first;
-            uint16_t secondaryMinFreq =
+            const auto secondaryWidth = secondaryChannel.first;
+            const MHz_u secondaryMinFreq =
                 m_wifiPhy->GetOperatingChannel().GetSecondaryChannelCenterFrequency(
                     secondaryWidth) -
                 (secondaryWidth / 2);
-            uint16_t secondaryMaxFreq =
+            const MHz_u secondaryMaxFreq =
                 m_wifiPhy->GetOperatingChannel().GetSecondaryChannelCenterFrequency(
                     secondaryWidth) +
                 (secondaryWidth / 2);
@@ -653,8 +643,8 @@ VhtPhy::GetCcaIndication(const Ptr<const WifiPpdu> ppdu)
     for (auto secondaryWidth : secondaryWidthsToCheck)
     {
         auto channelType = secondaryChannels.at(secondaryWidth);
-        ccaThresholdDbm = GetCcaThreshold(ppdu, channelType);
-        delayUntilCcaEnd = GetDelayUntilCcaEnd(ccaThresholdDbm, GetSecondaryBand(secondaryWidth));
+        ccaThreshold = GetCcaThreshold(ppdu, channelType);
+        delayUntilCcaEnd = GetDelayUntilCcaEnd(ccaThreshold, GetSecondaryBand(secondaryWidth));
         if (delayUntilCcaEnd.IsStrictlyPositive())
         {
             return std::make_pair(delayUntilCcaEnd, channelType);

@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2020 Universita' degli Studi di Napoli Federico II
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Stefano Avallone <stavallo@unina.it>
  */
@@ -220,7 +209,7 @@ HtFrameExchangeManager::SendAddBaRequest(Mac48Address dest,
 }
 
 void
-HtFrameExchangeManager::SendAddBaResponse(const MgtAddBaRequestHeader* reqHdr,
+HtFrameExchangeManager::SendAddBaResponse(const MgtAddBaRequestHeader& reqHdr,
                                           Mac48Address originator)
 {
     NS_LOG_FUNCTION(this << originator);
@@ -237,9 +226,9 @@ HtFrameExchangeManager::SendAddBaResponse(const MgtAddBaRequestHeader* reqHdr,
     code.SetSuccess();
     respHdr.SetStatusCode(code);
     // Here a control about queues type?
-    respHdr.SetAmsduSupport(reqHdr->IsAmsduSupported());
+    respHdr.SetAmsduSupport(reqHdr.IsAmsduSupported());
 
-    if (reqHdr->IsImmediateBlockAck())
+    if (reqHdr.IsImmediateBlockAck())
     {
         respHdr.SetImmediateBlockAck();
     }
@@ -247,12 +236,12 @@ HtFrameExchangeManager::SendAddBaResponse(const MgtAddBaRequestHeader* reqHdr,
     {
         respHdr.SetDelayedBlockAck();
     }
-    auto tid = reqHdr->GetTid();
+    auto tid = reqHdr.GetTid();
     respHdr.SetTid(tid);
 
     auto bufferSize = std::min(m_mac->GetMpduBufferSize(), m_mac->GetMaxBaBufferSize(originator));
     respHdr.SetBufferSize(bufferSize);
-    respHdr.SetTimeout(reqHdr->GetTimeout());
+    respHdr.SetTimeout(reqHdr.GetTimeout());
 
     WifiActionHeader actionHdr;
     WifiActionHeader::ActionValue action;
@@ -270,7 +259,7 @@ HtFrameExchangeManager::SendAddBaResponse(const MgtAddBaRequestHeader* reqHdr,
     }
     GetBaManager(tid)->CreateRecipientAgreement(respHdr,
                                                 originator,
-                                                reqHdr->GetStartingSequence(),
+                                                reqHdr.GetStartingSequence(),
                                                 m_rxMiddle);
 
     auto agreement = GetBaManager(tid)->GetAgreementAsRecipient(originator, tid);
@@ -810,7 +799,13 @@ HtFrameExchangeManager::NotifyPacketDiscarded(Ptr<const WifiMpdu> mpdu)
             }
         }
     }
-    QosFrameExchangeManager::NotifyPacketDiscarded(mpdu);
+    // the MPDU may have been dropped (and dequeued) by the above call to the NotifyDiscardedMpdu
+    // method of the BlockAckManager with reason WIFI_MAC_DROP_QOS_OLD_PACKET; in such a case, we
+    // must not fire the dropped callback again (with reason WIFI_MAC_DROP_REACHED_RETRY_LIMIT)
+    if (mpdu->IsQueued())
+    {
+        QosFrameExchangeManager::NotifyPacketDiscarded(mpdu);
+    }
 }
 
 void
@@ -1101,7 +1096,8 @@ HtFrameExchangeManager::FinalizeMacHeader(Ptr<const WifiPsdu> psdu)
                 // set the Queue Size subfield of the QoS Control field
                 if (!queueSizeForTid[tid].has_value())
                 {
-                    queueSizeForTid[tid] = edca->GetQosQueueSize(tid, hdr.GetAddr1());
+                    queueSizeForTid[tid] =
+                        edca->GetQosQueueSize(tid, mpdu->GetOriginal()->GetHeader().GetAddr1());
                 }
 
                 hdr.SetQosEosp();
@@ -1662,7 +1658,102 @@ HtFrameExchangeManager::ReceiveMpdu(Ptr<const WifiMpdu> mpdu,
         // to a Block Ack agreement
     }
 
+    if (hdr.IsMgt() && hdr.IsAction())
+    {
+        ReceiveMgtAction(mpdu, txVector);
+    }
+
     QosFrameExchangeManager::ReceiveMpdu(mpdu, rxSignalInfo, txVector, inAmpdu);
+}
+
+void
+HtFrameExchangeManager::ReceiveMgtAction(Ptr<const WifiMpdu> mpdu, const WifiTxVector& txVector)
+{
+    NS_LOG_FUNCTION(this << *mpdu << txVector);
+
+    NS_ASSERT(mpdu->GetHeader().IsAction());
+    const auto from = mpdu->GetOriginal()->GetHeader().GetAddr2();
+
+    WifiActionHeader actionHdr;
+    auto packet = mpdu->GetPacket()->Copy();
+    packet->RemoveHeader(actionHdr);
+
+    // compute the time to transmit the Ack
+    const auto ackTxVector =
+        GetWifiRemoteStationManager()->GetAckTxVector(mpdu->GetHeader().GetAddr2(), txVector);
+    const auto ackTxTime =
+        WifiPhy::CalculateTxDuration(GetAckSize(), ackTxVector, m_phy->GetPhyBand());
+
+    switch (actionHdr.GetCategory())
+    {
+    case WifiActionHeader::BLOCK_ACK:
+
+        switch (actionHdr.GetAction().blockAck)
+        {
+        case WifiActionHeader::BLOCK_ACK_ADDBA_REQUEST: {
+            MgtAddBaRequestHeader reqHdr;
+            packet->RemoveHeader(reqHdr);
+
+            // We've received an ADDBA Request. Our policy here is to automatically accept it,
+            // so we get the ADDBA Response on its way as soon as we finish transmitting the Ack,
+            // to avoid to concurrently send Ack and ADDBA Response in case of multi-link devices
+            Simulator::Schedule(m_phy->GetSifs() + ackTxTime,
+                                &HtFrameExchangeManager::SendAddBaResponse,
+                                this,
+                                reqHdr,
+                                from);
+            // This frame is now completely dealt with, so we're done.
+            return;
+        }
+        case WifiActionHeader::BLOCK_ACK_ADDBA_RESPONSE: {
+            MgtAddBaResponseHeader respHdr;
+            packet->RemoveHeader(respHdr);
+
+            // We've received an ADDBA Response. Wait until we finish transmitting the Ack before
+            // unblocking transmissions to the recipient, otherwise for multi-link devices the Ack
+            // may be sent concurrently with a data frame containing an A-MPDU
+            Simulator::Schedule(m_phy->GetSifs() + ackTxTime, [=, this]() {
+                const auto recipient =
+                    GetWifiRemoteStationManager()->GetMldAddress(from).value_or(from);
+                m_mac->GetQosTxop(respHdr.GetTid())->GotAddBaResponse(respHdr, recipient);
+                GetBaManager(respHdr.GetTid())
+                    ->SetBlockAckInactivityCallback(
+                        MakeCallback(&HtFrameExchangeManager::SendDelbaFrame, this));
+            });
+            // This frame is now completely dealt with, so we're done.
+            return;
+        }
+        case WifiActionHeader::BLOCK_ACK_DELBA: {
+            MgtDelBaHeader delBaHdr;
+            packet->RemoveHeader(delBaHdr);
+            auto recipient = GetWifiRemoteStationManager()->GetMldAddress(from).value_or(from);
+
+            if (delBaHdr.IsByOriginator())
+            {
+                // This DELBA frame was sent by the originator, so
+                // this means that an ingoing established
+                // agreement exists in BlockAckManager and we need to
+                // destroy it.
+                GetBaManager(delBaHdr.GetTid())
+                    ->DestroyRecipientAgreement(recipient, delBaHdr.GetTid());
+            }
+            else
+            {
+                // We must have been the originator. We need to
+                // tell the correct queue that the agreement has
+                // been torn down
+                m_mac->GetQosTxop(delBaHdr.GetTid())->GotDelBaFrame(&delBaHdr, recipient);
+            }
+            // This frame is now completely dealt with, so we're done.
+            return;
+        }
+        default:
+            NS_FATAL_ERROR("Unsupported Action field in Block Ack Action frame");
+        }
+    default:
+        // Other action frames are not processed here
+        ;
+    }
 }
 
 void

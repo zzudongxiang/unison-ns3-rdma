@@ -2,18 +2,7 @@
 /*
  * Copyright (c) 2009 Drexel University
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Tom Wambold <tom5760@gmail.com>
  */
@@ -432,6 +421,17 @@ class PbbPacket : public SimpleRefCount<PbbPacket, Header>
      */
     bool HasSequenceNumber() const;
 
+    /**
+     * \brief Forces a packet to write a TLV list even if it's empty, ignoring
+     * the phastlv bit.
+     *
+     * This is mainly used to check the Deserialization of a questionable
+     * but correct packet (see test 3).
+     *
+     * \param forceTlv true will force TLV to be written even if no TLV is set.
+     */
+    void ForceTlv(bool forceTlv);
+
     /* Manipulating Packet TLVs */
 
     /**
@@ -683,6 +683,7 @@ class PbbPacket : public SimpleRefCount<PbbPacket, Header>
 
     bool m_hasseqnum;  //!< Sequence number present
     uint16_t m_seqnum; //!< Sequence number
+    bool m_forceTlv;   //!< Force writing a TLV list (even if it's empty)
 };
 
 /**

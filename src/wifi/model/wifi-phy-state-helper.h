@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2005,2006 INRIA
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Mathieu Lacage <mathieu.lacage@sophia.inria.fr>
  */
@@ -182,12 +171,12 @@ class WifiPhyStateHelper : public Object
      *
      * \param txDuration the duration of the PPDU to transmit
      * \param psdus the PSDUs in the transmitted PPDU (only one unless it is a MU PPDU)
-     * \param txPowerDbm the nominal TX power in dBm
+     * \param txPower the nominal TX power
      * \param txVector the TX vector for the transmission
      */
     void SwitchToTx(Time txDuration,
-                    WifiConstPsduMap psdus,
-                    double txPowerDbm,
+                    const WifiConstPsduMap& psdus,
+                    dBm_u txPower,
                     const WifiTxVector& txVector);
     /**
      * Switch state to RX for the given duration.
@@ -257,9 +246,9 @@ class WifiPhyStateHelper : public Object
     void SwitchFromRxEndError();
     /**
      * Abort current reception following a CCA reset request.
-     * \param operatingWidth the channel width the PHY is operating on (in MHz)
+     * \param operatingWidth the channel width the PHY is operating on
      */
-    void SwitchFromRxAbort(uint16_t operatingWidth);
+    void SwitchFromRxAbort(MHz_u operatingWidth);
     /**
      * Switch to CCA busy.
      *

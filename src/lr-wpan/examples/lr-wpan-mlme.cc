@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2019 Ritsumeikan University, Shiga, Japan.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author:  Alberto Gallegos Ramonet <ramonet@fc.ritsumei.ac.jp>
  */
@@ -98,28 +87,19 @@ main(int argc, char* argv[])
     LrWpanHelper lrWpanHelper;
 
     // Create 2 nodes, and a NetDevice for each one
-    Ptr<Node> n0 = CreateObject<Node>();
-    Ptr<Node> n1 = CreateObject<Node>();
 
-    Ptr<LrWpanNetDevice> dev0 = CreateObject<LrWpanNetDevice>();
-    Ptr<LrWpanNetDevice> dev1 = CreateObject<LrWpanNetDevice>();
+    NodeContainer nodes;
+    nodes.Create(2);
+
+    // Use LrWpanHelper to create devices and assign them to nodes
+    lrWpanHelper.SetPropagationDelayModel("ns3::ConstantSpeedPropagationDelayModel");
+    lrWpanHelper.AddPropagationLossModel("ns3::LogDistancePropagationLossModel");
+    NetDeviceContainer devices = lrWpanHelper.Install(nodes);
+    Ptr<LrWpanNetDevice> dev0 = devices.Get(0)->GetObject<LrWpanNetDevice>();
+    Ptr<LrWpanNetDevice> dev1 = devices.Get(1)->GetObject<LrWpanNetDevice>();
 
     dev0->SetAddress(Mac16Address("00:01"));
     dev1->SetAddress(Mac16Address("00:02"));
-
-    Ptr<SingleModelSpectrumChannel> channel = CreateObject<SingleModelSpectrumChannel>();
-    Ptr<LogDistancePropagationLossModel> propModel =
-        CreateObject<LogDistancePropagationLossModel>();
-    Ptr<ConstantSpeedPropagationDelayModel> delayModel =
-        CreateObject<ConstantSpeedPropagationDelayModel>();
-    channel->AddPropagationLossModel(propModel);
-    channel->SetPropagationDelayModel(delayModel);
-
-    dev0->SetChannel(channel);
-    dev1->SetChannel(channel);
-
-    n0->AddDevice(dev0);
-    n1->AddDevice(dev1);
 
     ///////////////// Mobility   ///////////////////////
     Ptr<ConstantPositionMobilityModel> sender0Mobility =

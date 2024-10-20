@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2020 Universita' degli Studi di Napoli Federico II
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Stefano Avallone <stavallo@unina.it>
  */
@@ -106,27 +95,27 @@ WifiDefaultAckManager::GetMaxDistFromStartingSeq(Ptr<const WifiMpdu> mpdu,
                     "An established Block Ack agreement is required");
 
     uint16_t startingSeq = edca->GetBaStartingSequence(origReceiver, tid);
-    uint16_t maxDistFromStartingSeq =
-        (mpdu->GetHeader().GetSequenceNumber() - startingSeq + SEQNO_SPACE_SIZE) % SEQNO_SPACE_SIZE;
-    NS_ABORT_MSG_IF(maxDistFromStartingSeq >= SEQNO_SPACE_HALF_SIZE,
-                    "The given QoS data frame is too old");
+    uint16_t maxDistFromStartingSeq = 0;
 
     const auto* psduInfo = txParams.GetPsduInfo(receiver);
-
     NS_ASSERT_MSG(psduInfo && psduInfo->seqNumbers.contains(tid),
                   "There must be at least an MPDU with tid " << +tid);
 
-    for (const auto& seqNumber : psduInfo->seqNumbers.at(tid))
-    {
-        if (!QosUtilsIsOldPacket(startingSeq, seqNumber))
-        {
-            uint16_t currDistToStartingSeq =
-                (seqNumber - startingSeq + SEQNO_SPACE_SIZE) % SEQNO_SPACE_SIZE;
+    const auto& seqNumbers = psduInfo->seqNumbers.at(tid);
+    NS_ASSERT_MSG(seqNumbers.contains(mpdu->GetHeader().GetSequenceNumber()),
+                  "The sequence number of the given MPDU is not included in the TX parameters");
 
-            if (currDistToStartingSeq > maxDistFromStartingSeq)
-            {
-                maxDistFromStartingSeq = currDistToStartingSeq;
-            }
+    for (const auto& seqNumber : seqNumbers)
+    {
+        NS_ASSERT_MSG(!QosUtilsIsOldPacket(startingSeq, seqNumber),
+                      "QoS data frame SeqN=" << seqNumber << " is too old");
+
+        uint16_t currDistToStartingSeq =
+            (seqNumber - startingSeq + SEQNO_SPACE_SIZE) % SEQNO_SPACE_SIZE;
+
+        if (currDistToStartingSeq > maxDistFromStartingSeq)
+        {
+            maxDistFromStartingSeq = currDistToStartingSeq;
         }
     }
 
@@ -141,27 +130,53 @@ WifiDefaultAckManager::IsResponseNeeded(Ptr<const WifiMpdu> mpdu,
     NS_LOG_FUNCTION(this << *mpdu << &txParams);
 
     uint8_t tid = mpdu->GetHeader().GetQosTid();
-    Mac48Address receiver = mpdu->GetOriginal()->GetHeader().GetAddr1();
+    auto receiver = mpdu->GetHeader().GetAddr1();
+    auto origReceiver = mpdu->GetOriginal()->GetHeader().GetAddr1();
     Ptr<QosTxop> edca = m_mac->GetQosTxop(tid);
+    const auto& seqNumbers = txParams.GetPsduInfo(receiver)->seqNumbers.at(tid);
 
     // An immediate response (Ack or Block Ack) is needed if any of the following holds:
+    // * the BA threshold is set to zero
+    if (m_baThreshold == 0.0)
+    {
+        return true;
+    }
     // * the maximum distance between the sequence number of an MPDU to transmit
     //   and the starting sequence number of the transmit window is greater than
     //   or equal to the window size multiplied by the BaThreshold
+    if (GetMaxDistFromStartingSeq(mpdu, txParams) >=
+        m_baThreshold * edca->GetBaBufferSize(origReceiver, tid))
+    {
+        return true;
+    }
     // * no other frame belonging to this BA agreement is queued (because, in such
     //   a case, a Block Ack is not going to be requested anytime soon)
+    if (auto queueId = WifiContainerQueueId(WIFI_QOSDATA_QUEUE, WIFI_UNICAST, origReceiver, tid);
+        edca->GetWifiMacQueue()->GetNPackets(queueId) -
+            edca->GetBaManager()->GetNBufferedPackets(origReceiver, tid) - seqNumbers.size() <
+        1)
+    {
+        return true;
+    }
+    // * the block ack TX window cannot advance because all the MPDUs in the TX window other than
+    //   those being transmitted have been already acknowledged
+    if (m_mac->GetBaAgreementEstablishedAsOriginator(origReceiver, tid)
+            ->get()
+            .AllAckedMpdusInTxWindow(seqNumbers))
+    {
+        return true;
+    }
+
     // * this is the initial frame of a transmission opportunity and it is not
     //   protected by RTS/CTS (see Annex G.3 of IEEE 802.11-2016)
-    return !(
-        m_baThreshold > 0 &&
-        GetMaxDistFromStartingSeq(mpdu, txParams) <
-            m_baThreshold * edca->GetBaBufferSize(receiver, tid) &&
-        (edca->GetWifiMacQueue()->GetNPackets({WIFI_QOSDATA_QUEUE, WIFI_UNICAST, receiver, tid}) -
-             edca->GetBaManager()->GetNBufferedPackets(receiver, tid) >
-         1) &&
-        !(edca->GetTxopLimit(m_linkId).IsStrictlyPositive() &&
-          edca->GetRemainingTxop(m_linkId) == edca->GetTxopLimit(m_linkId) &&
-          !(txParams.m_protection && txParams.m_protection->method == WifiProtection::RTS_CTS)));
+    if (edca->GetTxopLimit(m_linkId).IsStrictlyPositive() &&
+        edca->GetRemainingTxop(m_linkId) == edca->GetTxopLimit(m_linkId) &&
+        !(txParams.m_protection && txParams.m_protection->method == WifiProtection::RTS_CTS))
+    {
+        return true;
+    }
+
+    return false;
 }
 
 bool
@@ -547,7 +562,7 @@ WifiDefaultAckManager::GetAckInfoIfTfMuBar(Ptr<const WifiMpdu> mpdu,
         blockAckTxVector.SetChannelWidth(txParams.m_txVector.GetChannelWidth());
         // 800ns GI is not allowed for HE TB
         blockAckTxVector.SetGuardInterval(
-            std::max<uint16_t>(txParams.m_txVector.GetGuardInterval(), 1600));
+            std::max(txParams.m_txVector.GetGuardInterval(), NanoSeconds(1600)));
         const auto& userInfo = txParams.m_txVector.GetHeMuUserInfo(staId);
         blockAckTxVector.SetHeMuUserInfo(
             staId,
@@ -635,7 +650,7 @@ WifiDefaultAckManager::GetAckInfoIfAggregatedMuBar(Ptr<const WifiMpdu> mpdu,
         blockAckTxVector.SetChannelWidth(txParams.m_txVector.GetChannelWidth());
         // 800ns GI is not allowed for HE TB
         blockAckTxVector.SetGuardInterval(
-            std::max<uint16_t>(txParams.m_txVector.GetGuardInterval(), 1600));
+            std::max(txParams.m_txVector.GetGuardInterval(), NanoSeconds(1600)));
         const auto& userInfo = txParams.m_txVector.GetHeMuUserInfo(staId);
         blockAckTxVector.SetHeMuUserInfo(
             staId,

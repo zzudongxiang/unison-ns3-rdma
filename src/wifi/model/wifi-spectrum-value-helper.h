@@ -2,18 +2,7 @@
  * Copyright (c) 2009 CTTC
  * Copyright (c) 2017 Orange Labs
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Authors: Nicola Baldo <nbaldo@cttc.es>
  *          Rediet <getachew.redieteab@orange.com>
@@ -22,7 +11,11 @@
 #ifndef WIFI_SPECTRUM_VALUE_HELPER_H
 #define WIFI_SPECTRUM_VALUE_HELPER_H
 
+#include "wifi-units.h"
+
 #include <ns3/spectrum-value.h>
+
+#include <vector>
 
 namespace ns3
 {
@@ -53,18 +46,17 @@ class WifiSpectrumValueHelper
      * +/- the guard bands (i.e. the model will span (channelWidth +
      * 2 * guardBandwidth) MHz of bandwidth).
      *
-     * \param centerFrequency center frequency (MHz)
-     * \param channelWidth channel width (MHz)
-     * \param carrierSpacing carrier spacing (Hz)
-     * \param guardBandwidth width of the guard band (MHz)
-     *
+     * \param centerFrequencies center frequency per segment
+     * \param channelWidth total allocated channel width over all segments
+     * \param carrierSpacing carrier spacing
+     * \param guardBandwidth total width of the guard band, which will be split over the segments
      * \return the static SpectrumModel instance corresponding to the
      * given carrier frequency and channel width configuration.
      */
-    static Ptr<SpectrumModel> GetSpectrumModel(uint32_t centerFrequency,
-                                               uint16_t channelWidth,
-                                               uint32_t carrierSpacing,
-                                               uint16_t guardBandwidth);
+    static Ptr<SpectrumModel> GetSpectrumModel(const std::vector<MHz_u>& centerFrequencies,
+                                               MHz_u channelWidth,
+                                               Hz_u carrierSpacing,
+                                               MHz_u guardBandwidth);
 
     /**
      * Create a transmit power spectral density corresponding to DSSS
@@ -74,164 +66,159 @@ class WifiSpectrumValueHelper
      *
      * \note There is no channel width parameter; this method assumes 22 MHz
      *
-     * \param centerFrequency center frequency (MHz)
-     * \param txPowerW  transmit power (W) to allocate
-     * \param guardBandwidth width of the guard band (MHz)
+     * \param centerFrequency center frequency
+     * \param txPower transmit power to allocate
+     * \param guardBandwidth width of the guard band
      * \returns a pointer to a newly allocated SpectrumValue representing the DSSS Transmit Power
      * Spectral Density in W/Hz
      */
-    static Ptr<SpectrumValue> CreateDsssTxPowerSpectralDensity(uint32_t centerFrequency,
-                                                               double txPowerW,
-                                                               uint16_t guardBandwidth);
+    static Ptr<SpectrumValue> CreateDsssTxPowerSpectralDensity(MHz_u centerFrequency,
+                                                               Watt_u txPower,
+                                                               MHz_u guardBandwidth);
 
     /**
      * Create a transmit power spectral density corresponding to OFDM
      * (802.11a/g).  Channel width may vary between 20, 10, and 5 MHz.
      * Guard bandwidth also typically varies with channel width.
      *
-     * \param centerFrequency center frequency (MHz)
-     * \param channelWidth channel width (MHz)
-     * \param txPowerW  transmit power (W) to allocate
-     * \param guardBandwidth width of the guard band (MHz)
-     * \param minInnerBandDbr the minimum relative power in the inner band (in dBr)
-     * \param minOuterbandDbr the minimum relative power in the outer band (in dBr)
-     * \param lowestPointDbr maximum relative power of the outermost subcarriers of the guard band
-     * (in dBr)
+     * \param centerFrequency center frequency
+     * \param channelWidth channel width
+     * \param txPower transmit power to allocate
+     * \param guardBandwidth width of the guard band
+     * \param minInnerBand the minimum relative power in the inner band
+     * \param minOuterband the minimum relative power in the outer band
+     * \param lowestPoint maximum relative power of the outermost subcarriers of the guard band
      * \return a pointer to a newly allocated SpectrumValue representing the OFDM Transmit Power
      * Spectral Density in W/Hz for each Band
      */
-    static Ptr<SpectrumValue> CreateOfdmTxPowerSpectralDensity(uint32_t centerFrequency,
-                                                               uint16_t channelWidth,
-                                                               double txPowerW,
-                                                               uint16_t guardBandwidth,
-                                                               double minInnerBandDbr = -20,
-                                                               double minOuterbandDbr = -28,
-                                                               double lowestPointDbr = -40);
+    static Ptr<SpectrumValue> CreateOfdmTxPowerSpectralDensity(MHz_u centerFrequency,
+                                                               MHz_u channelWidth,
+                                                               Watt_u txPower,
+                                                               MHz_u guardBandwidth,
+                                                               dBr_u minInnerBand = -20,
+                                                               dBr_u minOuterband = -28,
+                                                               dBr_u lowestPoint = -40);
 
     /**
      * Create a transmit power spectral density corresponding to OFDM duplicated over multiple 20
      * MHz subchannels. Channel width may vary between 20, 40, 80, and 160 MHz.
      *
-     * \param centerFrequency center frequency (MHz)
-     * \param channelWidth channel width (MHz)
-     * \param txPowerW  transmit power (W) to allocate
-     * \param guardBandwidth width of the guard band (MHz)
-     * \param minInnerBandDbr the minimum relative power in the inner band (in dBr)
-     * \param minOuterbandDbr the minimum relative power in the outer band (in dBr)
-     * \param lowestPointDbr maximum relative power of the outermost subcarriers of the guard band
-     * (in dBr)
+     * \param centerFrequencies center frequency per segment
+     * \param channelWidth total allocated channel width over all segments
+     * \param txPower transmit power to allocate
+     * \param guardBandwidth width of the guard band
+     * \param minInnerBand the minimum relative power in the inner band
+     * \param minOuterband the minimum relative power in the outer band
+     * \param lowestPoint maximum relative power of the outermost subcarriers of the guard band
      * \param puncturedSubchannels bitmap indicating whether a 20 MHz subchannel is punctured or not
      * \return a pointer to a newly allocated SpectrumValue representing the duplicated 20 MHz OFDM
      * Transmit Power Spectral Density in W/Hz for each Band
      */
     static Ptr<SpectrumValue> CreateDuplicated20MhzTxPowerSpectralDensity(
-        uint32_t centerFrequency,
-        uint16_t channelWidth,
-        double txPowerW,
-        uint16_t guardBandwidth,
-        double minInnerBandDbr = -20,
-        double minOuterbandDbr = -28,
-        double lowestPointDbr = -40,
-        const std::vector<bool>& puncturedSubchannels = std::vector<bool>{});
+        const std::vector<MHz_u>& centerFrequencies,
+        MHz_u channelWidth,
+        Watt_u txPower,
+        MHz_u guardBandwidth,
+        dBr_u minInnerBand = -20,
+        dBr_u minOuterband = -28,
+        dBr_u lowestPoint = -40,
+        const std::vector<bool>& puncturedSubchannels = {});
 
     /**
      * Create a transmit power spectral density corresponding to OFDM
      * High Throughput (HT) (802.11n/ac).  Channel width may vary between
      * 20, 40, 80, and 160 MHz.
      *
-     * \param centerFrequency center frequency (MHz)
-     * \param channelWidth channel width (MHz)
-     * \param txPowerW  transmit power (W) to allocate
-     * \param guardBandwidth width of the guard band (MHz)
-     * \param minInnerBandDbr the minimum relative power in the inner band (in dBr)
-     * \param minOuterbandDbr the minimum relative power in the outer band (in dBr)
-     * \param lowestPointDbr maximum relative power of the outermost subcarriers of the guard band
-     * (in dBr)
+     * \param centerFrequencies center frequency per segment
+     * \param channelWidth total allocated channel width over all segments
+     * \param txPower transmit power to allocate
+     * \param guardBandwidth width of the guard band
+     * \param minInnerBand the minimum relative power in the inner band
+     * \param minOuterband the minimum relative power in the outer band
+     * \param lowestPoint maximum relative power of the outermost subcarriers of the guard band
      * \return a pointer to a newly allocated SpectrumValue representing the HT OFDM Transmit Power
      * Spectral Density in W/Hz for each Band
      */
-    static Ptr<SpectrumValue> CreateHtOfdmTxPowerSpectralDensity(uint32_t centerFrequency,
-                                                                 uint16_t channelWidth,
-                                                                 double txPowerW,
-                                                                 uint16_t guardBandwidth,
-                                                                 double minInnerBandDbr = -20,
-                                                                 double minOuterbandDbr = -28,
-                                                                 double lowestPointDbr = -40);
+    static Ptr<SpectrumValue> CreateHtOfdmTxPowerSpectralDensity(
+        const std::vector<MHz_u>& centerFrequencies,
+        MHz_u channelWidth,
+        Watt_u txPower,
+        MHz_u guardBandwidth,
+        dBr_u minInnerBand = -20,
+        dBr_u minOuterband = -28,
+        dBr_u lowestPoint = -40);
 
     /**
      * Create a transmit power spectral density corresponding to OFDM
-     * High Efficiency (HE) (802.11ax).  Channel width may vary between
-     * 20, 40, 80, and 160 MHz.
+     * High Efficiency (HE) (802.11ax) for contiguous channels.
+     * Channel width may vary between 20, 40, 80, and 160 MHz.
      *
-     * \param centerFrequency center frequency (MHz)
-     * \param channelWidth channel width (MHz)
-     * \param txPowerW  transmit power (W) to allocate
-     * \param guardBandwidth width of the guard band (MHz)
-     * \param minInnerBandDbr the minimum relative power in the inner band (in dBr)
-     * \param minOuterbandDbr the minimum relative power in the outer band (in dBr)
-     * \param lowestPointDbr maximum relative power of the outermost subcarriers of the guard band
-     * (in dBr)
+     * \param centerFrequency center frequency
+     * \param channelWidth channel width
+     * \param txPower transmit power to allocate
+     * \param guardBandwidth width of the guard band
+     * \param minInnerBand the minimum relative power in the inner band
+     * \param minOuterband the minimum relative power in the outer band
+     * \param lowestPoint maximum relative power of the outermost subcarriers of the guard band
      * \param puncturedSubchannels bitmap indicating whether a 20 MHz subchannel is punctured or not
      * \return a pointer to a newly allocated SpectrumValue representing the HE OFDM Transmit Power
      * Spectral Density in W/Hz for each Band
      */
     static Ptr<SpectrumValue> CreateHeOfdmTxPowerSpectralDensity(
-        uint32_t centerFrequency,
-        uint16_t channelWidth,
-        double txPowerW,
-        uint16_t guardBandwidth,
-        double minInnerBandDbr = -20,
-        double minOuterbandDbr = -28,
-        double lowestPointDbr = -40,
-        const std::vector<bool>& puncturedSubchannels = std::vector<bool>{});
+        MHz_u centerFrequency,
+        MHz_u channelWidth,
+        Watt_u txPower,
+        MHz_u guardBandwidth,
+        dBr_u minInnerBand = -20,
+        dBr_u minOuterband = -28,
+        dBr_u lowestPoint = -40,
+        const std::vector<bool>& puncturedSubchannels = {});
+
+    /**
+     * Create a transmit power spectral density corresponding to OFDM
+     * High Efficiency (HE) (802.11ax) made of one or more frequency segment(s).
+     * Channel width may vary between 20, 40, 80, and 160 MHz.
+     *
+     * \param centerFrequencies center frequency per segment
+     * \param channelWidth total allocated channel width over all segments
+     * \param txPower transmit power to allocate
+     * \param guardBandwidth width of the guard band
+     * \param minInnerBand the minimum relative power in the inner band
+     * \param minOuterband the minimum relative power in the outer band
+     * \param lowestPoint maximum relative power of the outermost subcarriers of the guard band
+     * \param puncturedSubchannels bitmap indicating whether a 20 MHz subchannel is punctured or not
+     * \return a pointer to a newly allocated SpectrumValue representing the HE OFDM Transmit Power
+     * Spectral Density in W/Hz for each Band
+     */
+    static Ptr<SpectrumValue> CreateHeOfdmTxPowerSpectralDensity(
+        const std::vector<MHz_u>& centerFrequencies,
+        MHz_u channelWidth,
+        Watt_u txPower,
+        MHz_u guardBandwidth,
+        dBr_u minInnerBand = -20,
+        dBr_u minOuterband = -28,
+        dBr_u lowestPoint = -40,
+        const std::vector<bool>& puncturedSubchannels = {});
 
     /**
      * Create a transmit power spectral density corresponding to the OFDMA part
      * of HE TB PPDUs for a given RU.
      * An ideal (i.e. rectangular) spectral mask is considered for the time being.
      *
-     * \param centerFrequency center frequency (MHz)
-     * \param channelWidth channel width (MHz)
-     * \param txPowerW  transmit power (W) to allocate
-     * \param guardBandwidth width of the guard band (MHz)
+     * \param centerFrequencies center frequency per segment
+     * \param channelWidth total allocated channel width over all segments
+     * \param txPower transmit power to allocate
+     * \param guardBandwidth width of the guard band
      * \param ru the RU band used by the STA
      * \return a pointer to a newly allocated SpectrumValue representing the HE OFDM Transmit Power
      * Spectral Density on the RU used by the STA in W/Hz for each Band
      */
     static Ptr<SpectrumValue> CreateHeMuOfdmTxPowerSpectralDensity(
-        uint32_t centerFrequency,
-        uint16_t channelWidth,
-        double txPowerW,
-        uint16_t guardBandwidth,
-        const WifiSpectrumBandIndices& ru);
-
-    /**
-     * Create a power spectral density corresponding to the noise
-     *
-     * \param centerFrequency center frequency (MHz)
-     * \param channelWidth channel width (MHz)
-     * \param carrierSpacing carrier spacing (Hz)
-     * \param noiseFigure the noise figure in dB w.r.t. a reference temperature of 290K
-     * \param guardBandwidth width of the guard band (MHz)
-     * \return a pointer to a newly allocated SpectrumValue representing the noise Power Spectral
-     * Density in W/Hz for each Band
-     */
-    static Ptr<SpectrumValue> CreateNoisePowerSpectralDensity(uint32_t centerFrequency,
-                                                              uint16_t channelWidth,
-                                                              uint32_t carrierSpacing,
-                                                              double noiseFigure,
-                                                              uint16_t guardBandwidth);
-
-    /**
-     * Create a thermal noise power spectral density
-     *
-     * \param noiseFigure the noise figure
-     * \param spectrumModel the spectrum model
-     * \return a pointer to a newly allocated SpectrumValue representing the noise Power Spectral
-     * Density in W/Hz corresponding to thermal noise, for each Band
-     */
-    static Ptr<SpectrumValue> CreateNoisePowerSpectralDensity(double noiseFigure,
-                                                              Ptr<SpectrumModel> spectrumModel);
+        const std::vector<MHz_u>& centerFrequencies,
+        MHz_u channelWidth,
+        Watt_u txPower,
+        MHz_u guardBandwidth,
+        const std::vector<WifiSpectrumBandIndices>& ru);
 
     /**
      * Create a transmit power spectral density corresponding to OFDM
@@ -262,36 +249,34 @@ class WifiSpectrumValueHelper
      *
      * \param c spectrumValue to allocate according to transmit power spectral density mask (in W/Hz
      * for each band)
-     * \param allocatedSubBands vector of start and stop subcarrier indexes of the allocated sub
-     * bands
+     * \param allocatedSubBandsPerSegment vector of start and stop subcarrier indexes of the
+     * allocated sub bands, for each segment
      * \param maskBand start and stop subcarrier indexes of transmit mask (in case signal doesn't
      * cover whole SpectrumModel)
-     * \param txPowerPerBandW power allocated to each subcarrier in the allocated sub bands
+     * \param txPowerPerBand power allocated to each subcarrier in the allocated sub bands
      * \param nGuardBands size (in number of subcarriers) of the guard band (left and right)
      * \param innerSlopeWidth size (in number of subcarriers) of the inner band (i.e. slope going
      * from 0 dBr to -20 dBr in the figure above)
-     * \param minInnerBandDbr the minimum relative power in the inner band (i.e., -20 dBr in the
+     * \param minInnerBand the minimum relative power in the inner band (i.e., -20 dBr in the
      * figure above)
-     * \param minOuterbandDbr the minimum relative power in the outer band (i.e., -28 dBr in the
+     * \param minOuterband the minimum relative power in the outer band (i.e., -28 dBr in the
      * figure above)
-     * \param lowestPointDbr maximum relative power of the outermost subcarriers of the guard band
-     * (in dBr)
+     * \param lowestPoint maximum relative power of the outermost subcarriers of the guard band
      * \param puncturedSubBands vector of start and stop subcarrier indexes of the punctured sub
-     * bands
+     * bands, for each segment
      * \param puncturedSlopeWidth size (in number of subcarriers) of the punctured band slope
      */
     static void CreateSpectrumMaskForOfdm(
         Ptr<SpectrumValue> c,
-        const std::vector<WifiSpectrumBandIndices>& allocatedSubBands,
+        const std::vector<std::vector<WifiSpectrumBandIndices>>& allocatedSubBandsPerSegment,
         const WifiSpectrumBandIndices& maskBand,
-        double txPowerPerBandW,
+        Watt_u txPowerPerBand,
         uint32_t nGuardBands,
         uint32_t innerSlopeWidth,
-        double minInnerBandDbr,
-        double minOuterbandDbr,
-        double lowestPointDbr,
-        const std::vector<WifiSpectrumBandIndices>& puncturedSubBands =
-            std::vector<WifiSpectrumBandIndices>{},
+        dBr_u minInnerBand,
+        dBr_u minOuterband,
+        dBr_u lowestPoint,
+        const std::vector<std::vector<WifiSpectrumBandIndices>>& puncturedSubBands = {},
         uint32_t puncturedSlopeWidth = 0);
 
     /**
@@ -299,40 +284,31 @@ class WifiSpectrumValueHelper
      * so that the total transmitted power corresponds to the input value.
      *
      * \param c spectrumValue to normalize (in W/Hz for each band)
-     * \param txPowerW total transmit power (W) to allocate
+     * \param txPower total transmit power to allocate
      */
-    static void NormalizeSpectrumMask(Ptr<SpectrumValue> c, double txPowerW);
-
-    /**
-     * Convert from dBm to Watts.
-     * Taken from wifi-utils since the original method couldn't be called from here
-     * due to resulting circular dependencies of spectrum and wifi modules.
-     *
-     * \param dbm the power in dBm
-     *
-     * \return the equivalent Watts for the given dBm
-     */
-    static double DbmToW(double dbm);
+    static void NormalizeSpectrumMask(Ptr<SpectrumValue> c, Watt_u txPower);
 
     /**
      * Calculate the power of the specified band composed of uniformly-sized sub-bands.
      *
      * \param psd received Power Spectral Density in W/Hz
-     * \param band a pair of start and stop indexes that defines the band
+     * \param segments a vector of pair of start and stop indexes that defines each segment of the
+     * band
      *
-     * \return band power in W
+     * \return band power
      */
-    static double GetBandPowerW(Ptr<SpectrumValue> psd, const WifiSpectrumBandIndices& band);
+    static Watt_u GetBandPowerW(Ptr<SpectrumValue> psd,
+                                const std::vector<WifiSpectrumBandIndices>& segments);
 };
 
 /**
  * \ingroup spectrum
- * Struct defining a frequency range between minFrequency (MHz) and maxFrequency (MHz).
+ * Struct defining a frequency range between minFrequency and maxFrequency.
  */
 struct FrequencyRange
 {
-    uint16_t minFrequency{0}; ///< the minimum frequency in MHz
-    uint16_t maxFrequency{0}; ///< the maximum frequency in MHz
+    MHz_u minFrequency{0}; ///< the minimum frequency
+    MHz_u maxFrequency{0}; ///< the maximum frequency
 };
 
 /**

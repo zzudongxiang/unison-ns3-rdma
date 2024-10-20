@@ -1,25 +1,16 @@
 /*
  * Copyright (c) 2010 INRIA
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
+ * SPDX-License-Identifier: GPL-2.0-only
  */
 
-#include "ns3/core-config.h"
-#if !defined(INT64X64_CAIRO_H) && defined(INT64X64_USE_CAIRO) && !defined(PYTHON_SCAN)
-/** Using the ns3::int64x64_t based on Cairo 128-bit integers. */
+#ifndef INT64X64_CAIRO_H
 #define INT64X64_CAIRO_H
+
+#include "ns3/core-config.h"
+
+#if defined(INT64X64_USE_CAIRO) && !defined(PYTHON_SCAN)
+/** Using the ns3::int64x64_t based on Cairo 128-bit integers. */
 
 #include "cairo-wideint-private.h"
 
@@ -44,21 +35,11 @@ class int64x64_t
     static const uint64_t HPCAIRO_MASK_HI_BIT = (((uint64_t)1) << 63);
     /// Mask for fraction part
     static const uint64_t HP_MASK_LO = 0xffffffffffffffffULL;
-    /**
-     * Floating point value of HP_MASK_LO + 1
-     * We really want:
-     * \code
-     *   static const long double HP_MAX_64 = std:pow (2.0L, 64);
-     * \endcode
-     * but we can't call functions in const definitions,
-     * We could make this a static and initialize in int64x64-cairo.cc or
-     * int64x64.cc, but this requires handling static initialization order
-     * when most of the implementation is inline.  Instead, we resort to
-     * this define.
-     */
-#define HP_MAX_64 (std::pow(2.0L, 64))
 
   public:
+    /// Floating point value of HP_MASK_LO + 1
+    static constexpr long double HP_MAX_64 = (static_cast<uint64_t>(1) << 63) * 2.0L;
+
     /**
      * Type tag for the underlying implementation.
      *
@@ -453,4 +434,5 @@ class int64x64_t
 
 } // namespace ns3
 
+#endif /* defined(INT64X64_USE_CAIRO) && !defined(PYTHON_SCAN) */
 #endif /* INT64X64_CAIRO_H */

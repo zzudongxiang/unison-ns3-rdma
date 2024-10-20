@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2011 The Boeing Company
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Authors:
  *  Gary Pei <guangyu.pei@boeing.com>
@@ -27,8 +16,6 @@
 #include <ns3/lr-wpan-net-device.h>
 #include <ns3/mobility-model.h>
 #include <ns3/multi-model-spectrum-channel.h>
-#include <ns3/propagation-delay-model.h>
-#include <ns3/propagation-loss-model.h>
 #include <ns3/single-model-spectrum-channel.h>
 
 namespace ns3
@@ -64,34 +51,12 @@ AsciiLrWpanMacTransmitSinkWithoutContext(Ptr<OutputStreamWrapper> stream, Ptr<co
 
 LrWpanHelper::LrWpanHelper()
 {
-    m_channel = CreateObject<SingleModelSpectrumChannel>();
-
-    Ptr<LogDistancePropagationLossModel> lossModel =
-        CreateObject<LogDistancePropagationLossModel>();
-    m_channel->AddPropagationLossModel(lossModel);
-
-    Ptr<ConstantSpeedPropagationDelayModel> delayModel =
-        CreateObject<ConstantSpeedPropagationDelayModel>();
-    m_channel->SetPropagationDelayModel(delayModel);
+    m_useMultiModelSpectrumChannel = false;
 }
 
 LrWpanHelper::LrWpanHelper(bool useMultiModelSpectrumChannel)
 {
-    if (useMultiModelSpectrumChannel)
-    {
-        m_channel = CreateObject<MultiModelSpectrumChannel>();
-    }
-    else
-    {
-        m_channel = CreateObject<SingleModelSpectrumChannel>();
-    }
-    Ptr<LogDistancePropagationLossModel> lossModel =
-        CreateObject<LogDistancePropagationLossModel>();
-    m_channel->AddPropagationLossModel(lossModel);
-
-    Ptr<ConstantSpeedPropagationDelayModel> delayModel =
-        CreateObject<ConstantSpeedPropagationDelayModel>();
-    m_channel->SetPropagationDelayModel(delayModel);
+    m_useMultiModelSpectrumChannel = useMultiModelSpectrumChannel;
 }
 
 LrWpanHelper::~LrWpanHelper()
@@ -178,6 +143,45 @@ LrWpanHelper::AddMobility(Ptr<lrwpan::LrWpanPhy> phy, Ptr<MobilityModel> m)
 NetDeviceContainer
 LrWpanHelper::Install(NodeContainer c)
 {
+    if (!m_channel)
+    {
+        if (m_useMultiModelSpectrumChannel)
+        {
+            m_channel = CreateObject<MultiModelSpectrumChannel>();
+        }
+        else
+        {
+            m_channel = CreateObject<SingleModelSpectrumChannel>();
+        }
+        if (!m_propagationDelay.IsTypeIdSet())
+        {
+            SetPropagationDelayModel("ns3::ConstantSpeedPropagationDelayModel");
+        }
+        if (m_propagationLoss.empty())
+        {
+            AddPropagationLossModel("ns3::LogDistancePropagationLossModel");
+        }
+
+        for (auto i = m_propagationLoss.begin(); i != m_propagationLoss.end(); ++i)
+        {
+            Ptr<PropagationLossModel> cur = (*i).Create<PropagationLossModel>();
+            m_channel->AddPropagationLossModel(cur);
+        }
+        Ptr<PropagationDelayModel> delay = m_propagationDelay.Create<PropagationDelayModel>();
+        m_channel->SetPropagationDelayModel(delay);
+    }
+    else
+    {
+        if (!m_channel->GetPropagationDelayModel())
+        {
+            NS_FATAL_ERROR("No propagation delay model added to the channel");
+        }
+        if (!m_channel->GetPropagationLossModel())
+        {
+            NS_FATAL_ERROR("No propagation loss model added to the channel");
+        }
+    }
+
     NetDeviceContainer devices;
     for (auto i = c.Begin(); i != c.End(); i++)
     {
@@ -342,7 +346,7 @@ LrWpanHelper::EnablePcapInternal(std::string prefix,
     if (!device)
     {
         NS_LOG_INFO("LrWpanHelper::EnablePcapInternal(): Device "
-                    << device << " not of type ns3::LrWpanNetDevice");
+                    << device << " not of type ns3::lrwpan::LrWpanNetDevice");
         return;
     }
 
@@ -464,7 +468,7 @@ LrWpanHelper::EnableAsciiInternal(Ptr<OutputStreamWrapper> stream,
 
     oss.str("");
     oss << "/NodeList/" << nodeid << "/DeviceList/" << deviceid
-        << "/$ns3::LrWpanNetDevice/Mac/MacRx";
+        << "/$ns3::lrwpan::LrWpanNetDevice/Mac/MacRx";
     device->GetMac()->TraceConnect(
         "MacRx",
         oss.str(),
@@ -472,7 +476,7 @@ LrWpanHelper::EnableAsciiInternal(Ptr<OutputStreamWrapper> stream,
 
     oss.str("");
     oss << "/NodeList/" << nodeid << "/DeviceList/" << deviceid
-        << "/$ns3::LrWpanNetDevice/Mac/MacTx";
+        << "/$ns3::lrwpan::LrWpanNetDevice/Mac/MacTx";
     device->GetMac()->TraceConnect(
         "MacTx",
         oss.str(),
@@ -480,7 +484,7 @@ LrWpanHelper::EnableAsciiInternal(Ptr<OutputStreamWrapper> stream,
 
     oss.str("");
     oss << "/NodeList/" << nodeid << "/DeviceList/" << deviceid
-        << "/$ns3::LrWpanNetDevice/Mac/MacTxEnqueue";
+        << "/$ns3::lrwpan::LrWpanNetDevice/Mac/MacTxEnqueue";
     device->GetMac()->TraceConnect(
         "MacTxEnqueue",
         oss.str(),
@@ -488,7 +492,7 @@ LrWpanHelper::EnableAsciiInternal(Ptr<OutputStreamWrapper> stream,
 
     oss.str("");
     oss << "/NodeList/" << nodeid << "/DeviceList/" << deviceid
-        << "/$ns3::LrWpanNetDevice/Mac/MacTxDequeue";
+        << "/$ns3::lrwpan::LrWpanNetDevice/Mac/MacTxDequeue";
     device->GetMac()->TraceConnect(
         "MacTxDequeue",
         oss.str(),
@@ -496,7 +500,7 @@ LrWpanHelper::EnableAsciiInternal(Ptr<OutputStreamWrapper> stream,
 
     oss.str("");
     oss << "/NodeList/" << nodeid << "/DeviceList/" << deviceid
-        << "/$ns3::LrWpanNetDevice/Mac/MacTxDrop";
+        << "/$ns3::lrwpan::LrWpanNetDevice/Mac/MacTxDrop";
     device->GetMac()->TraceConnect(
         "MacTxDrop",
         oss.str(),

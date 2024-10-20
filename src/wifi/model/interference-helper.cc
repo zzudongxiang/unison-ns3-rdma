@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2005,2006 INRIA
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Authors: Mathieu Lacage <mathieu.lacage@sophia.inria.fr>
  *          Sébastien Deronne <sebastien.deronne@gmail.com>
@@ -77,8 +66,8 @@ Event::GetDuration() const
     return m_endTime - m_startTime;
 }
 
-double
-Event::GetRxPowerW() const
+Watt_u
+Event::GetRxPower() const
 {
     NS_ASSERT(!m_rxPowerW.empty());
     // The total RX power corresponds to the maximum over all the bands
@@ -89,8 +78,8 @@ Event::GetRxPowerW() const
     return it->second;
 }
 
-double
-Event::GetRxPowerW(const WifiSpectrumBandInfo& band) const
+Watt_u
+Event::GetRxPower(const WifiSpectrumBandInfo& band) const
 {
     const auto it = m_rxPowerW.find(band);
     NS_ASSERT(it != m_rxPowerW.cend());
@@ -98,7 +87,7 @@ Event::GetRxPowerW(const WifiSpectrumBandInfo& band) const
 }
 
 const RxPowerWattPerChannelBand&
-Event::GetRxPowerWPerBand() const
+Event::GetRxPowerPerBand() const
 {
     return m_rxPowerW;
 }
@@ -129,7 +118,7 @@ std::ostream&
 operator<<(std::ostream& os, const Event& event)
 {
     os << "start=" << event.GetStartTime() << ", end=" << event.GetEndTime()
-       << ", power=" << event.GetRxPowerW() << "W"
+       << ", power=" << event.GetRxPower() << "W"
        << ", PPDU=" << event.GetPpdu();
     return os;
 }
@@ -139,7 +128,7 @@ operator<<(std::ostream& os, const Event& event)
  *       short period of time.
  ****************************************************************/
 
-InterferenceHelper::NiChange::NiChange(double power, Ptr<Event> event)
+InterferenceHelper::NiChange::NiChange(Watt_u power, Ptr<Event> event)
     : m_power(power),
       m_event(event)
 {
@@ -150,14 +139,14 @@ InterferenceHelper::NiChange::~NiChange()
     m_event = nullptr;
 }
 
-double
+Watt_u
 InterferenceHelper::NiChange::GetPower() const
 {
     return m_power;
 }
 
 void
-InterferenceHelper::NiChange::AddPower(double power)
+InterferenceHelper::NiChange::AddPower(Watt_u power)
 {
     m_power += power;
 }
@@ -262,15 +251,27 @@ InterferenceHelper::AddBand(const WifiSpectrumBandInfo& band)
 }
 
 void
+InterferenceHelper::RemoveBand(const WifiSpectrumBandInfo& band)
+{
+    NS_LOG_FUNCTION(this << band);
+    NS_ASSERT(m_firstPowers.count(band) != 0);
+    m_firstPowers.erase(band);
+    auto it = m_niChanges.find(band);
+    NS_ASSERT(it != std::end(m_niChanges));
+    it->second.clear();
+    m_niChanges.erase(it);
+}
+
+void
 InterferenceHelper::UpdateBands(const std::vector<WifiSpectrumBandInfo>& bands,
                                 const FrequencyRange& freqRange)
 {
     NS_LOG_FUNCTION(this << freqRange);
-    for (auto it = m_niChanges.begin(); it != m_niChanges.end();)
+    std::vector<WifiSpectrumBandInfo> bandsToRemove{};
+    for (auto it = m_niChanges.begin(); it != m_niChanges.end(); ++it)
     {
         if (!IsBandInFrequencyRange(it->first, freqRange))
         {
-            it++;
             continue;
         }
         const auto frequencies = it->first.frequencies;
@@ -281,14 +282,12 @@ InterferenceHelper::UpdateBands(const std::vector<WifiSpectrumBandInfo>& bands,
         if (!found)
         {
             // band does not belong to the new bands, erase it
-            m_firstPowers.erase(it->first);
-            it->second.clear();
-            it = m_niChanges.erase(it);
+            bandsToRemove.emplace_back(it->first);
         }
-        else
-        {
-            it++;
-        }
+    }
+    for (const auto& band : bandsToRemove)
+    {
+        RemoveBand(band);
     }
     for (const auto& band : bands)
     {
@@ -325,9 +324,9 @@ InterferenceHelper::SetNumberOfReceiveAntennas(uint8_t rx)
 }
 
 Time
-InterferenceHelper::GetEnergyDuration(double energyW, const WifiSpectrumBandInfo& band)
+InterferenceHelper::GetEnergyDuration(Watt_u energy, const WifiSpectrumBandInfo& band)
 {
-    NS_LOG_FUNCTION(this << energyW << band);
+    NS_LOG_FUNCTION(this << energy << band);
     Time now = Simulator::Now();
     auto niIt = m_niChanges.find(band);
     NS_ABORT_IF(niIt == m_niChanges.end());
@@ -335,14 +334,14 @@ InterferenceHelper::GetEnergyDuration(double energyW, const WifiSpectrumBandInfo
     Time end = i->first;
     for (; i != niIt->second.end(); ++i)
     {
-        double noiseInterferenceW = i->second.GetPower();
+        const auto noiseInterference = i->second.GetPower();
         end = i->first;
-        if (noiseInterferenceW < energyW)
+        if (noiseInterference < energy)
         {
             break;
         }
     }
-    return end > now ? end - now : MicroSeconds(0);
+    return end > now ? end - now : Time{0};
 }
 
 void
@@ -351,12 +350,12 @@ InterferenceHelper::AppendEvent(Ptr<Event> event,
                                 bool isStartHePortionRxing)
 {
     NS_LOG_FUNCTION(this << event << freqRange << isStartHePortionRxing);
-    for (const auto& [band, power] : event->GetRxPowerWPerBand())
+    for (const auto& [band, power] : event->GetRxPowerPerBand())
     {
         auto niIt = m_niChanges.find(band);
         NS_ABORT_IF(niIt == m_niChanges.end());
-        double previousPowerStart = 0;
-        double previousPowerEnd = 0;
+        Watt_u previousPowerStart = 0;
+        Watt_u previousPowerEnd = 0;
         auto previousPowerPosition = GetPreviousPosition(event->GetStartTime(), niIt);
         previousPowerStart = previousPowerPosition->second.GetPower();
         previousPowerEnd = GetPreviousPosition(event->GetEndTime(), niIt)->second.GetPower();
@@ -403,20 +402,20 @@ InterferenceHelper::UpdateEvent(Ptr<Event> event, const RxPowerWattPerChannelBan
 }
 
 double
-InterferenceHelper::CalculateSnr(double signal,
-                                 double noiseInterference,
-                                 uint16_t channelWidth,
+InterferenceHelper::CalculateSnr(Watt_u signal,
+                                 Watt_u noiseInterference,
+                                 MHz_u channelWidth,
                                  uint8_t nss) const
 {
     NS_LOG_FUNCTION(this << signal << noiseInterference << channelWidth << +nss);
     // thermal noise at 290K in J/s = W
     static const double BOLTZMANN = 1.3803e-23;
     // Nt is the power of thermal noise in W
-    double Nt = BOLTZMANN * 290 * channelWidth * 1e6;
-    // receiver noise Floor (W) which accounts for thermal noise and non-idealities of the receiver
-    double noiseFloor = m_noiseFigure * Nt;
-    double noise = noiseFloor + noiseInterference;
-    double snr = signal / noise; // linear scale
+    const auto Nt = BOLTZMANN * 290 * channelWidth * 1e6;
+    // receiver noise Floor which accounts for thermal noise and non-idealities of the receiver
+    Watt_u noiseFloor = m_noiseFigure * Nt;
+    Watt_u noise = noiseFloor + noiseInterference;
+    auto snr = signal / noise; // linear scale
     NS_LOG_DEBUG("bandwidth=" << channelWidth << "MHz, signal=" << signal << "W, noise="
                               << noiseFloor << "W, interference=" << noiseInterference
                               << "W, snr=" << RatioToDb(snr) << "dB");
@@ -434,7 +433,7 @@ InterferenceHelper::CalculateSnr(double signal,
     return snr;
 }
 
-double
+Watt_u
 InterferenceHelper::CalculateNoiseInterferenceW(Ptr<Event> event,
                                                 NiChangesPerBand& nis,
                                                 const WifiSpectrumBandInfo& band) const
@@ -442,14 +441,14 @@ InterferenceHelper::CalculateNoiseInterferenceW(Ptr<Event> event,
     NS_LOG_FUNCTION(this << band);
     auto firstPower_it = m_firstPowers.find(band);
     NS_ABORT_IF(firstPower_it == m_firstPowers.end());
-    double noiseInterferenceW = firstPower_it->second;
+    auto noiseInterference = firstPower_it->second;
     auto niIt = m_niChanges.find(band);
     NS_ABORT_IF(niIt == m_niChanges.end());
     const auto now = Simulator::Now();
     auto it = niIt->second.find(event->GetStartTime());
-    double muMimoPowerW = (event->GetPpdu()->GetType() == WIFI_PPDU_TYPE_UL_MU)
-                              ? CalculateMuMimoPowerW(event, band)
-                              : 0.0;
+    const auto muMimoPower = (event->GetPpdu()->GetType() == WIFI_PPDU_TYPE_UL_MU)
+                                 ? CalculateMuMimoPowerW(event, band)
+                                 : 0.0;
     for (; it != niIt->second.end() && it->first < now; ++it)
     {
         if (IsSameMuMimoTransmission(event, it->second.GetEvent()) &&
@@ -459,11 +458,11 @@ InterferenceHelper::CalculateNoiseInterferenceW(Ptr<Event> event,
             // unless this is the same event
             continue;
         }
-        noiseInterferenceW = it->second.GetPower() - event->GetRxPowerW(band) - muMimoPowerW;
-        if (std::abs(noiseInterferenceW) < std::numeric_limits<double>::epsilon())
+        noiseInterference = it->second.GetPower() - event->GetRxPower(band) - muMimoPower;
+        if (std::abs(noiseInterference) < std::numeric_limits<double>::epsilon())
         {
             // fix some possible rounding issues with double values
-            noiseInterferenceW = 0.0;
+            noiseInterference = 0.0;
         }
     }
     it = niIt->second.find(event->GetStartTime());
@@ -480,12 +479,12 @@ InterferenceHelper::CalculateNoiseInterferenceW(Ptr<Event> event,
     }
     ni.emplace(event->GetEndTime(), NiChange(0, event));
     nis.insert({band, ni});
-    NS_ASSERT_MSG(noiseInterferenceW >= 0.0,
-                  "CalculateNoiseInterferenceW returns negative value " << noiseInterferenceW);
-    return noiseInterferenceW;
+    NS_ASSERT_MSG(noiseInterference >= 0.0,
+                  "CalculateNoiseInterferenceW returns negative value " << noiseInterference);
+    return noiseInterference;
 }
 
-double
+Watt_u
 InterferenceHelper::CalculateMuMimoPowerW(Ptr<const Event> event,
                                           const WifiSpectrumBandInfo& band) const
 {
@@ -493,7 +492,7 @@ InterferenceHelper::CalculateMuMimoPowerW(Ptr<const Event> event,
     NS_ASSERT(niIt != m_niChanges.end());
     auto it = niIt->second.begin();
     ++it;
-    double muMimoPowerW = 0.0;
+    Watt_u muMimoPower{0.0};
     for (; it != niIt->second.end() && it->first < Simulator::Now(); ++it)
     {
         if (IsSameMuMimoTransmission(event, it->second.GetEvent()))
@@ -515,11 +514,11 @@ InterferenceHelper::CalculateMuMimoPowerW(Ptr<const Event> event,
                 {
                     break;
                 }
-                muMimoPowerW += it->second.GetEvent()->GetRxPowerW(band);
+                muMimoPower += it->second.GetEvent()->GetRxPower(band);
             }
         }
     }
-    return muMimoPowerW;
+    return muMimoPower;
 }
 
 double
@@ -533,9 +532,9 @@ InterferenceHelper::CalculateChunkSuccessRate(double snir,
     {
         return 1.0;
     }
-    uint64_t rate = mode.GetDataRate(txVector.GetChannelWidth());
+    const auto rate = mode.GetDataRate(txVector.GetChannelWidth());
     auto nbits = static_cast<uint64_t>(rate * duration.GetSeconds());
-    double csr =
+    const auto csr =
         m_errorRateModel->GetChunkSuccessRate(mode, txVector, snir, nbits, m_numRxAntennas, field);
     return csr;
 }
@@ -550,8 +549,8 @@ InterferenceHelper::CalculatePayloadChunkSuccessRate(double snir,
     {
         return 1.0;
     }
-    WifiMode mode = txVector.GetMode(staId);
-    uint64_t rate = mode.GetDataRate(txVector, staId);
+    const auto mode = txVector.GetMode(staId);
+    const auto rate = mode.GetDataRate(txVector, staId);
     auto nbits = static_cast<uint64_t>(rate * duration.GetSeconds());
     nbits /= txVector.GetNss(staId); // divide effective number of bits by NSS to achieve same chunk
                                      // error rate as SISO for AWGN
@@ -567,7 +566,7 @@ InterferenceHelper::CalculatePayloadChunkSuccessRate(double snir,
 
 double
 InterferenceHelper::CalculatePayloadPer(Ptr<const Event> event,
-                                        uint16_t channelWidth,
+                                        MHz_u channelWidth,
                                         NiChangesPerBand* nis,
                                         const WifiSpectrumBandInfo& band,
                                         uint16_t staId,
@@ -577,10 +576,10 @@ InterferenceHelper::CalculatePayloadPer(Ptr<const Event> event,
     double psr = 1.0; /* Packet Success Rate */
     const auto& niIt = nis->find(band)->second;
     auto j = niIt.cbegin();
-    Time previous = j->first;
-    double muMimoPowerW = 0.0;
-    WifiMode payloadMode = event->GetPpdu()->GetTxVector().GetMode(staId);
-    Time phyPayloadStart = j->first;
+    auto previous = j->first;
+    Watt_u muMimoPower = 0.0;
+    const auto payloadMode = event->GetPpdu()->GetTxVector().GetMode(staId);
+    auto phyPayloadStart = j->first;
     if (event->GetPpdu()->GetType() != WIFI_PPDU_TYPE_UL_MU &&
         event->GetPpdu()->GetType() !=
             WIFI_PPDU_TYPE_DL_MU) // j->first corresponds to the start of the MU payload
@@ -590,22 +589,22 @@ InterferenceHelper::CalculatePayloadPer(Ptr<const Event> event,
     }
     else
     {
-        muMimoPowerW = CalculateMuMimoPowerW(event, band);
+        muMimoPower = CalculateMuMimoPowerW(event, band);
     }
-    Time windowStart = phyPayloadStart + window.first;
-    Time windowEnd = phyPayloadStart + window.second;
+    const auto windowStart = phyPayloadStart + window.first;
+    const auto windowEnd = phyPayloadStart + window.second;
     NS_ABORT_IF(!m_firstPowers.contains(band));
-    double noiseInterferenceW = m_firstPowers.at(band);
-    double powerW = event->GetRxPowerW(band);
+    auto noiseInterference = m_firstPowers.at(band);
+    auto power = event->GetRxPower(band);
     while (++j != niIt.cend())
     {
         Time current = j->first;
         NS_LOG_DEBUG("previous= " << previous << ", current=" << current);
         NS_ASSERT(current >= previous);
-        double snr = CalculateSnr(powerW,
-                                  noiseInterferenceW,
-                                  channelWidth,
-                                  event->GetPpdu()->GetTxVector().GetNss(staId));
+        const auto snr = CalculateSnr(power,
+                                      noiseInterference,
+                                      channelWidth,
+                                      event->GetPpdu()->GetTxVector().GetNss(staId));
         // Case 1: Both previous and current point to the windowed payload
         if (previous >= windowStart)
         {
@@ -627,14 +626,13 @@ InterferenceHelper::CalculatePayloadPer(Ptr<const Event> event,
                 "previous is before windowed payload and current is in the windowed payload: mode="
                 << payloadMode << ", psr=" << psr);
         }
-        noiseInterferenceW = j->second.GetPower() - powerW;
+        noiseInterference = j->second.GetPower() - power;
         if (IsSameMuMimoTransmission(event, j->second.GetEvent()))
         {
-            muMimoPowerW += j->second.GetEvent()->GetRxPowerW(band);
-            NS_LOG_DEBUG(
-                "PPDU belongs to same MU-MIMO transmission: muMimoPowerW=" << muMimoPowerW);
+            muMimoPower += j->second.GetEvent()->GetRxPower(band);
+            NS_LOG_DEBUG("PPDU belongs to same MU-MIMO transmission: muMimoPowerW=" << muMimoPower);
         }
-        noiseInterferenceW -= muMimoPowerW;
+        noiseInterference -= muMimoPower;
         previous = j->first;
         if (previous > windowEnd)
         {
@@ -643,7 +641,7 @@ InterferenceHelper::CalculatePayloadPer(Ptr<const Event> event,
             break;
         }
     }
-    double per = 1 - psr;
+    const auto per = 1.0 - psr;
     return per;
 }
 
@@ -651,7 +649,7 @@ double
 InterferenceHelper::CalculatePhyHeaderSectionPsr(
     Ptr<const Event> event,
     NiChangesPerBand* nis,
-    uint16_t channelWidth,
+    MHz_u channelWidth,
     const WifiSpectrumBandInfo& band,
     PhyEntity::PhyHeaderSections phyHeaderSections) const
 {
@@ -661,30 +659,30 @@ InterferenceHelper::CalculatePhyHeaderSectionPsr(
     auto j = niIt.begin();
 
     NS_ASSERT(!phyHeaderSections.empty());
-    Time stopLastSection = Seconds(0);
+    Time stopLastSection;
     for (const auto& section : phyHeaderSections)
     {
         stopLastSection = Max(stopLastSection, section.second.first.second);
     }
 
-    Time previous = j->first;
+    auto previous = j->first;
     NS_ABORT_IF(!m_firstPowers.contains(band));
-    double noiseInterferenceW = m_firstPowers.at(band);
-    double powerW = event->GetRxPowerW(band);
+    auto noiseInterference = m_firstPowers.at(band);
+    const auto power = event->GetRxPower(band);
     while (++j != niIt.end())
     {
-        Time current = j->first;
+        auto current = j->first;
         NS_LOG_DEBUG("previous= " << previous << ", current=" << current);
         NS_ASSERT(current >= previous);
-        double snr = CalculateSnr(powerW, noiseInterferenceW, channelWidth, 1);
+        const auto snr = CalculateSnr(power, noiseInterference, channelWidth, 1);
         for (const auto& section : phyHeaderSections)
         {
-            Time start = section.second.first.first;
-            Time stop = section.second.first.second;
+            const auto start = section.second.first.first;
+            const auto stop = section.second.first.second;
 
             if (previous <= stop || current >= start)
             {
-                Time duration = Min(stop, current) - Max(start, previous);
+                const auto duration = Min(stop, current) - Max(start, previous);
                 if (duration.IsStrictlyPositive())
                 {
                     psr *= CalculateChunkSuccessRate(snr,
@@ -699,7 +697,7 @@ InterferenceHelper::CalculatePhyHeaderSectionPsr(
                 }
             }
         }
-        noiseInterferenceW = j->second.GetPower() - powerW;
+        noiseInterference = j->second.GetPower() - power;
         previous = j->first;
         if (previous > stopLastSection)
         {
@@ -714,7 +712,7 @@ InterferenceHelper::CalculatePhyHeaderSectionPsr(
 double
 InterferenceHelper::CalculatePhyHeaderPer(Ptr<const Event> event,
                                           NiChangesPerBand* nis,
-                                          uint16_t channelWidth,
+                                          MHz_u channelWidth,
                                           const WifiSpectrumBandInfo& band,
                                           WifiPpduField header) const
 {
@@ -743,7 +741,7 @@ InterferenceHelper::CalculatePhyHeaderPer(Ptr<const Event> event,
 
 PhyEntity::SnrPer
 InterferenceHelper::CalculatePayloadSnrPer(Ptr<Event> event,
-                                           uint16_t channelWidth,
+                                           MHz_u channelWidth,
                                            const WifiSpectrumBandInfo& band,
                                            uint16_t staId,
                                            std::pair<Time, Time> relativeMpduStartStop) const
@@ -751,47 +749,47 @@ InterferenceHelper::CalculatePayloadSnrPer(Ptr<Event> event,
     NS_LOG_FUNCTION(this << channelWidth << band << staId << relativeMpduStartStop.first
                          << relativeMpduStartStop.second);
     NiChangesPerBand ni;
-    double noiseInterferenceW = CalculateNoiseInterferenceW(event, ni, band);
-    double snr = CalculateSnr(event->GetRxPowerW(band),
-                              noiseInterferenceW,
-                              channelWidth,
-                              event->GetPpdu()->GetTxVector().GetNss(staId));
+    const auto noiseInterference = CalculateNoiseInterferenceW(event, ni, band);
+    const auto snr = CalculateSnr(event->GetRxPower(band),
+                                  noiseInterference,
+                                  channelWidth,
+                                  event->GetPpdu()->GetTxVector().GetNss(staId));
 
     /* calculate the SNIR at the start of the MPDU (located through windowing) and accumulate
      * all SNIR changes in the SNIR vector.
      */
-    double per = CalculatePayloadPer(event, channelWidth, &ni, band, staId, relativeMpduStartStop);
+    const auto per =
+        CalculatePayloadPer(event, channelWidth, &ni, band, staId, relativeMpduStartStop);
 
     return PhyEntity::SnrPer(snr, per);
 }
 
 double
 InterferenceHelper::CalculateSnr(Ptr<Event> event,
-                                 uint16_t channelWidth,
+                                 MHz_u channelWidth,
                                  uint8_t nss,
                                  const WifiSpectrumBandInfo& band) const
 {
     NiChangesPerBand ni;
-    double noiseInterferenceW = CalculateNoiseInterferenceW(event, ni, band);
-    double snr = CalculateSnr(event->GetRxPowerW(band), noiseInterferenceW, channelWidth, nss);
-    return snr;
+    const auto noiseInterference = CalculateNoiseInterferenceW(event, ni, band);
+    return CalculateSnr(event->GetRxPower(band), noiseInterference, channelWidth, nss);
 }
 
 PhyEntity::SnrPer
 InterferenceHelper::CalculatePhyHeaderSnrPer(Ptr<Event> event,
-                                             uint16_t channelWidth,
+                                             MHz_u channelWidth,
                                              const WifiSpectrumBandInfo& band,
                                              WifiPpduField header) const
 {
     NS_LOG_FUNCTION(this << band << header);
     NiChangesPerBand ni;
-    double noiseInterferenceW = CalculateNoiseInterferenceW(event, ni, band);
-    double snr = CalculateSnr(event->GetRxPowerW(band), noiseInterferenceW, channelWidth, 1);
+    const auto noiseInterference = CalculateNoiseInterferenceW(event, ni, band);
+    const auto snr = CalculateSnr(event->GetRxPower(band), noiseInterference, channelWidth, 1);
 
     /* calculate the SNIR at the start of the PHY header and accumulate
      * all SNIR changes in the SNIR vector.
      */
-    double per = CalculatePhyHeaderPer(event, &ni, channelWidth, band, header);
+    const auto per = CalculatePhyHeaderPer(event, &ni, channelWidth, band, header);
 
     return PhyEntity::SnrPer(snr, per);
 }
@@ -848,8 +846,12 @@ bool
 InterferenceHelper::IsBandInFrequencyRange(const WifiSpectrumBandInfo& band,
                                            const FrequencyRange& freqRange) const
 {
-    return ((band.frequencies.second > (freqRange.minFrequency * 1e6)) &&
-            (band.frequencies.first < (freqRange.maxFrequency * 1e6)));
+    return std::all_of(band.frequencies.cbegin(),
+                       band.frequencies.cend(),
+                       [&freqRange](const auto& freqs) {
+                           return ((freqs.second > (freqRange.minFrequency * 1e6)) &&
+                                   (freqs.first < (freqRange.maxFrequency * 1e6)));
+                       });
 }
 
 bool

@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2020 Universita' degli Studi di Napoli Federico II
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Stefano Avallone <stavallo@unina.it>
  */
@@ -138,10 +127,10 @@ class HtFrameExchangeManager : public QosFrameExchangeManager
      * This method can be called to accept a received ADDBA Request. An
      * ADDBA Response will be constructed and queued for transmission.
      *
-     * \param reqHdr a pointer to the received ADDBA Request header.
+     * \param reqHdr the received ADDBA Request header.
      * \param originator the MAC address of the originator.
      */
-    void SendAddBaResponse(const MgtAddBaRequestHeader* reqHdr, Mac48Address originator);
+    void SendAddBaResponse(const MgtAddBaRequestHeader& reqHdr, Mac48Address originator);
 
     /**
      * Sends DELBA frame to cancel a block ack agreement with STA
@@ -188,6 +177,14 @@ class HtFrameExchangeManager : public QosFrameExchangeManager
     void CtsTimeout(Ptr<WifiMpdu> rts, const WifiTxVector& txVector) override;
     void TransmissionSucceeded() override;
     void ProtectionCompleted() override;
+
+    /**
+     * Process a received management action frame that relates to Block Ack agreement.
+     *
+     * \param mpdu the MPDU carrying the received management action frame
+     * \param txVector the TXVECTOR used to transmit the management action frame
+     */
+    void ReceiveMgtAction(Ptr<const WifiMpdu> mpdu, const WifiTxVector& txVector);
 
     /**
      * Get a PSDU containing the given MPDU

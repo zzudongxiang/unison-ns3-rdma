@@ -2,18 +2,7 @@
  * Copyright (c) 2008 INRIA
  * Copyright (c) 2009 MIRKO BANCHI
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Authors: Mathieu Lacage <mathieu.lacage@sophia.inria.fr>
  *          Mirko Banchi <mk.banchi@gmail.com>
@@ -40,7 +29,8 @@
 #include "ns3/vht-configuration.h"
 #include "ns3/wifi-mac-queue.h"
 #include "ns3/wifi-mac-trailer.h"
-#include "ns3/wifi-net-device.h"
+
+#include <memory>
 
 namespace ns3
 {
@@ -144,7 +134,8 @@ AsciiPhyReceiveSinkWithoutContext(Ptr<OutputStreamWrapper> stream,
 }
 
 WifiPhyHelper::WifiPhyHelper(uint8_t nLinks)
-    : m_pcapDlt(PcapHelper::DLT_IEEE802_11)
+    : m_pcapDlt{PcapHelper::DLT_IEEE802_11},
+      m_pcapType{PcapCaptureType::PCAP_PER_PHY}
 {
     NS_ABORT_IF(nLinks == 0);
     m_phys.resize(nLinks);
@@ -177,22 +168,74 @@ WifiPhyHelper::Set(uint8_t linkId, std::string name, const AttributeValue& v)
 void
 WifiPhyHelper::DisablePreambleDetectionModel()
 {
-    for (auto& preambleDetectionModel : m_preambleDetectionModel)
+    m_preambleDetectionModel.clear();
+    m_preambleDetectionModel.resize(m_phys.size());
+}
+
+Ptr<PcapFileWrapper>
+WifiPhyHelper::GetOrCreatePcapFile(const std::shared_ptr<PcapFilesInfo>& info, uint8_t phyId)
+{
+    uint8_t fileIdx;
+    switch (info->pcapType)
     {
-        preambleDetectionModel.SetTypeId(TypeId());
+    case WifiPhyHelper::PcapCaptureType::PCAP_PER_DEVICE:
+        fileIdx = 0;
+        break;
+    case WifiPhyHelper::PcapCaptureType::PCAP_PER_PHY:
+        fileIdx = phyId;
+        break;
+    case WifiPhyHelper::PcapCaptureType::PCAP_PER_LINK:
+        if (const auto linkId = info->device->GetMac()->GetLinkForPhy(phyId))
+        {
+            fileIdx = *linkId;
+            break;
+        }
+        return nullptr;
+    default:
+        NS_ABORT_MSG("Unexpected PCAP capture type");
+        return nullptr;
     }
+
+    if (!info->files.contains(fileIdx))
+    {
+        // file does not exist yet, create it
+        auto tmp = info->commonFilename;
+
+        // find the last point in the filename
+        auto pos = info->commonFilename.find_last_of('.');
+        // if not found, set pos to filename size
+        pos = (pos == std::string::npos) ? info->commonFilename.size() : pos;
+
+        // insert PHY/link ID only for multi-link devices, unless a single PCAP is generated for the
+        // device
+        if ((info->device->GetNPhys() > 1) && (info->pcapType != PcapCaptureType::PCAP_PER_DEVICE))
+        {
+            tmp.insert(pos, "-" + std::to_string(fileIdx));
+        }
+
+        PcapHelper pcapHelper;
+        auto file = pcapHelper.CreateFile(tmp, std::ios::out, info->pcapDlt);
+        info->files.emplace(fileIdx, file);
+    }
+
+    return info->files.at(fileIdx);
 }
 
 void
-WifiPhyHelper::PcapSniffTxEvent(Ptr<PcapFileWrapper> file,
+WifiPhyHelper::PcapSniffTxEvent(const std::shared_ptr<PcapFilesInfo>& info,
+                                uint8_t phyId,
                                 Ptr<const Packet> packet,
                                 uint16_t channelFreqMhz,
                                 WifiTxVector txVector,
                                 MpduInfo aMpdu,
                                 uint16_t staId)
 {
-    uint32_t dlt = file->GetDataLinkType();
-    switch (dlt)
+    auto file = GetOrCreatePcapFile(info, phyId);
+    if (!file)
+    {
+        return;
+    }
+    switch (info->pcapDlt)
     {
     case PcapHelper::DLT_IEEE802_11:
         file->Write(Simulator::Now(), packet);
@@ -210,12 +253,13 @@ WifiPhyHelper::PcapSniffTxEvent(Ptr<PcapFileWrapper> file,
         return;
     }
     default:
-        NS_ABORT_MSG("PcapSniffTxEvent(): Unexpected data link type " << dlt);
+        NS_ABORT_MSG("PcapSniffTxEvent(): Unexpected data link type " << info->pcapDlt);
     }
 }
 
 void
-WifiPhyHelper::PcapSniffRxEvent(Ptr<PcapFileWrapper> file,
+WifiPhyHelper::PcapSniffRxEvent(const std::shared_ptr<PcapFilesInfo>& info,
+                                uint8_t phyId,
                                 Ptr<const Packet> packet,
                                 uint16_t channelFreqMhz,
                                 WifiTxVector txVector,
@@ -223,8 +267,12 @@ WifiPhyHelper::PcapSniffRxEvent(Ptr<PcapFileWrapper> file,
                                 SignalNoiseDbm signalNoise,
                                 uint16_t staId)
 {
-    uint32_t dlt = file->GetDataLinkType();
-    switch (dlt)
+    auto file = GetOrCreatePcapFile(info, phyId);
+    if (!file)
+    {
+        return;
+    }
+    switch (info->pcapDlt)
     {
     case PcapHelper::DLT_IEEE802_11:
         file->Write(Simulator::Now(), packet);
@@ -242,7 +290,7 @@ WifiPhyHelper::PcapSniffRxEvent(Ptr<PcapFileWrapper> file,
         return;
     }
     default:
-        NS_ABORT_MSG("PcapSniffRxEvent(): Unexpected data link type " << dlt);
+        NS_ABORT_MSG("PcapSniffRxEvent(): Unexpected data link type " << info->pcapDlt);
     }
 }
 
@@ -281,7 +329,7 @@ WifiPhyHelper::GetRadiotapHeader(RadiotapHeader& header,
         frameFlags |= RadiotapHeader::FRAME_FLAG_SHORT_PREAMBLE;
     }
 
-    if (txVector.GetGuardInterval() == 400)
+    if (txVector.GetGuardInterval().GetNanoSeconds() == 400)
     {
         frameFlags |= RadiotapHeader::FRAME_FLAG_SHORT_GUARD;
     }
@@ -339,7 +387,7 @@ WifiPhyHelper::GetRadiotapHeader(RadiotapHeader& header,
         }
 
         mcsKnown |= RadiotapHeader::MCS_KNOWN_GUARD_INTERVAL;
-        if (txVector.GetGuardInterval() == 400)
+        if (txVector.GetGuardInterval().GetNanoSeconds() == 400)
         {
             mcsFlags |= RadiotapHeader::MCS_FLAGS_GUARD_INTERVAL;
         }
@@ -401,7 +449,7 @@ WifiPhyHelper::GetRadiotapHeader(RadiotapHeader& header,
         }
 
         vhtKnown |= RadiotapHeader::VHT_KNOWN_GUARD_INTERVAL;
-        if (txVector.GetGuardInterval() == 400)
+        if (txVector.GetGuardInterval().GetNanoSeconds() == 400)
         {
             vhtFlags |= RadiotapHeader::VHT_FLAGS_GUARD_INTERVAL;
         }
@@ -517,11 +565,11 @@ WifiPhyHelper::GetRadiotapHeader(RadiotapHeader& header,
         {
             data5 |= RadiotapHeader::HE_DATA5_DATA_BW_RU_ALLOC_160MHZ;
         }
-        if (txVector.GetGuardInterval() == 1600)
+        if (txVector.GetGuardInterval().GetNanoSeconds() == 1600)
         {
             data5 |= RadiotapHeader::HE_DATA5_GI_1_6;
         }
-        else if (txVector.GetGuardInterval() == 3200)
+        else if (txVector.GetGuardInterval().GetNanoSeconds() == 3200)
         {
             data5 |= RadiotapHeader::HE_DATA5_GI_3_2;
         }
@@ -565,6 +613,18 @@ WifiPhyHelper::GetPcapDataLinkType() const
 }
 
 void
+WifiPhyHelper::SetPcapCaptureType(PcapCaptureType type)
+{
+    m_pcapType = type;
+}
+
+WifiPhyHelper::PcapCaptureType
+WifiPhyHelper::GetPcapCaptureType() const
+{
+    return m_pcapType;
+}
+
+void
 WifiPhyHelper::EnablePcapInternal(std::string prefix,
                                   Ptr<NetDevice> nd,
                                   bool promiscuous,
@@ -587,7 +647,6 @@ WifiPhyHelper::EnablePcapInternal(std::string prefix,
                     "WifiPhyHelper::EnablePcapInternal(): Phy layer in WifiNetDevice must be set");
 
     PcapHelper pcapHelper;
-
     std::string filename;
     if (explicitFilename)
     {
@@ -598,25 +657,15 @@ WifiPhyHelper::EnablePcapInternal(std::string prefix,
         filename = pcapHelper.GetFilenameFromDevice(prefix, device);
     }
 
-    uint8_t linkId = 0;
-    // find the last point in the filename
-    auto pos = filename.find_last_of('.');
-    // if not found, set pos to filename size
-    pos = (pos == std::string::npos) ? filename.size() : pos;
-
+    auto info = std::make_shared<PcapFilesInfo>(filename, m_pcapDlt, m_pcapType, device);
     for (auto& phy : device->GetPhys())
     {
-        std::string tmp = filename;
-        if (device->GetNPhys() > 1)
-        {
-            // insert LinkId only for multi-link devices
-            tmp.insert(pos, "-" + std::to_string(linkId++));
-        }
-        auto file = pcapHelper.CreateFile(tmp, std::ios::out, m_pcapDlt);
-        phy->TraceConnectWithoutContext("MonitorSnifferTx",
-                                        MakeBoundCallback(&WifiPhyHelper::PcapSniffTxEvent, file));
-        phy->TraceConnectWithoutContext("MonitorSnifferRx",
-                                        MakeBoundCallback(&WifiPhyHelper::PcapSniffRxEvent, file));
+        phy->TraceConnectWithoutContext(
+            "MonitorSnifferTx",
+            MakeBoundCallback(&WifiPhyHelper::PcapSniffTxEvent, info, phy->GetPhyId()));
+        phy->TraceConnectWithoutContext(
+            "MonitorSnifferRx",
+            MakeBoundCallback(&WifiPhyHelper::PcapSniffRxEvent, info, phy->GetPhyId()));
     }
 }
 
@@ -734,10 +783,57 @@ WifiHelper::WifiHelper()
     m_ehtConfig.SetTypeId("ns3::EhtConfiguration");
 }
 
+namespace
+{
+/// Map strings to WifiStandard enum values
+const std::unordered_map<std::string, WifiStandard> WIFI_STANDARDS_NAME_MAP{
+    // clang-format off
+    {"802.11a",  WIFI_STANDARD_80211a},
+    {"11a",      WIFI_STANDARD_80211a},
+
+    {"802.11b",  WIFI_STANDARD_80211b},
+    {"11b",      WIFI_STANDARD_80211b},
+
+    {"802.11g",  WIFI_STANDARD_80211g},
+    {"11g",      WIFI_STANDARD_80211g},
+
+    {"802.11p",  WIFI_STANDARD_80211p},
+    {"11p",      WIFI_STANDARD_80211p},
+
+    {"802.11n",  WIFI_STANDARD_80211n},
+    {"11n",      WIFI_STANDARD_80211n},
+    {"HT",       WIFI_STANDARD_80211n},
+
+    {"802.11ac", WIFI_STANDARD_80211ac},
+    {"11ac",     WIFI_STANDARD_80211ac},
+    {"VHT",      WIFI_STANDARD_80211ac},
+
+    {"802.11ad", WIFI_STANDARD_80211ad},
+    {"11ad",     WIFI_STANDARD_80211ad},
+
+    {"802.11ax", WIFI_STANDARD_80211ax},
+    {"11ax",     WIFI_STANDARD_80211ax},
+    {"HE",       WIFI_STANDARD_80211ax},
+
+    {"802.11be", WIFI_STANDARD_80211be},
+    {"11be",     WIFI_STANDARD_80211be},
+    {"EHT",      WIFI_STANDARD_80211be},
+    // clang-format on
+};
+} // namespace
+
 void
 WifiHelper::SetStandard(WifiStandard standard)
 {
     m_standard = standard;
+}
+
+void
+WifiHelper::SetStandard(const std::string& standard)
+{
+    NS_ABORT_MSG_IF(!WIFI_STANDARDS_NAME_MAP.contains(standard),
+                    "Specified Wi-Fi standard " << standard << " is currently not supported");
+    SetStandard(WIFI_STANDARDS_NAME_MAP.at(standard));
 }
 
 void
@@ -885,7 +981,10 @@ WifiHelper::EnableLogComponents(LogLevel logLevel)
     LogComponentEnable("AarfWifiManager", logLevel);
     LogComponentEnable("AarfcdWifiManager", logLevel);
     LogComponentEnable("AdhocWifiMac", logLevel);
+    LogComponentEnable("AdvancedApEmlsrManager", logLevel);
+    LogComponentEnable("AdvancedEmlsrManager", logLevel);
     LogComponentEnable("AmrrWifiManager", logLevel);
+    LogComponentEnable("ApEmlsrManager", logLevel);
     LogComponentEnable("ApWifiMac", logLevel);
     LogComponentEnable("AparfWifiManager", logLevel);
     LogComponentEnable("ArfWifiManager", logLevel);
@@ -895,6 +994,7 @@ WifiHelper::EnableLogComponents(LogLevel logLevel)
     LogComponentEnable("ChannelAccessManager", logLevel);
     LogComponentEnable("ConstantObssPdAlgorithm", logLevel);
     LogComponentEnable("ConstantRateWifiManager", logLevel);
+    LogComponentEnable("DefaultApEmlsrManager", logLevel);
     LogComponentEnable("DefaultEmlsrManager", logLevel);
     LogComponentEnable("DsssErrorRateModel", logLevel);
     LogComponentEnable("DsssPhy", logLevel);

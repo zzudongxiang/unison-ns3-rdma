@@ -2,7 +2,11 @@
 
 *This file is heavily inspired by Atom's [CONTRIBUTING.md file](https://raw.githubusercontent.com/atom/atom/master/CONTRIBUTING.md).*
 
+ns-3 is a free, open source software project that welcomes contributions from users worldwide.
+
 The following is a set of guidelines for contributing to ns-3, which are hosted in the [nsnam organization](https://gitlab.com/nsnam) on GitLab.com. These are mostly guidelines, not rules. Use your best judgment, and feel free to propose changes to this document in a merge request.
+
+The full documentation about how to contribute to ns-3 is available in the [ns-3 Contributing Code](http://www.nsnam.org/developers/contributing-code) website.
 
 ## Table Of Contents
 
@@ -156,10 +160,11 @@ While the prerequisites above must be satisfied prior to having your merge reque
 
 ### Git Commit Messages
 
-* Use the present tense ("Add feature" not "Added feature")
-* Use the imperative mood ("Move cursor to..." not "Moves cursor to...")
+* Use the present tense (e.g., "Add feature" not "Added feature")
+* Use the imperative mood (e.g., "Move cursor to..." not "Moves cursor to...")
 * Limit the first line to 72 characters or less
-* Reference issues in the first line, by prepending `[#issue]`
+* Reference the modules edited in the commit, except if the change applies to many modules (e.g., "core, network: ...")
+* If a commit fixes an issue, add "(fixes #issue)" to the commit message (e.g., "core: (fixes #issue) ...")
 
 ### C++ Styleguide
 

@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2009, 2010 MIRKO BANCHI
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Mirko Banchi <mk.banchi@gmail.com>
  * Author: Tommaso Pecorella <tommaso.pecorella@unifi.it>
@@ -22,6 +11,8 @@
 
 #include "block-ack-agreement.h"
 #include "block-ack-window.h"
+
+#include <set>
 
 class OriginatorBlockAckWindowTest;
 
@@ -35,21 +26,29 @@ class WifiMpdu;
  * Maintains the state and information about transmitted MPDUs with Ack Policy set to Block Ack
  * for an originator station. The state diagram is as follows:
  *
-   \verbatim
-    /------------\ send ADDBARequest ----------------
-    |   START    |------------------>|   PENDING    |-------
-    \------------/                   ----------------       \
-          ^            receive     /        |                \
-          |        ADDBAResponse  /         |                 \
-          |          (failure)   v          |                  \
-          |        ---------------          |                   --------------------->
- ---------------- |        |  REJECTED   |          |          receive ADDBAResponse (success)  |
- ESTABLISHED | |        ---------------          |      no            -------------------->
- ---------------- |           receive    ^          | ADDBAResponse     / |        ADDBAResponse \
- |                  / |          (failure)     \        v                 / | ---------------- /
-          |-------------------------|   NO_REPLY   |---------
-            Reset after timeout     ----------------
+ */
+// clang-format off
+/**
+ * \verbatim
+   /------------\ send ADDBARequest ----------------
+   |   START    |------------------>|   PENDING    |-------
+   \------------/                   ----------------       \
+         ^            receive     /        |                \
+         |        ADDBAResponse  /         |                 \
+         |          (failure)   v          |                  \
+         |        ---------------          |                   --------------------->  ----------------
+         |        |  REJECTED   |          |          receive ADDBAResponse (success)  |  ESTABLISHED |
+         |        ---------------          |      no            -------------------->  ----------------
+         |           receive    ^          | ADDBAResponse     /
+         |        ADDBAResponse  \         |                  /
+         |          (failure)     \        v                 /
+         |                         ----------------         /
+         |-------------------------|   NO_REPLY   |---------
+           Reset after timeout     ----------------
    \endverbatim
+*/
+// clang-format on
+/**
  *
  * See also OriginatorBlockAckAgreement::State
  */
@@ -192,6 +191,16 @@ class OriginatorBlockAckAgreement : public BlockAckAgreement
      * \param mpdu the discarded MPDU
      */
     void NotifyDiscardedMpdu(Ptr<const WifiMpdu> mpdu);
+
+    /**
+     * Check whether all the MPDUs in the TX window other than the given ones have been already
+     * acknowledged.
+     *
+     * \param seqNumbers the sequence numbers of the given MPDUs
+     * \return whether all the MPDUs in the TX window other than the given ones have been already
+     *         acknowledged
+     */
+    bool AllAckedMpdusInTxWindow(const std::set<uint16_t>& seqNumbers) const;
 
   private:
     /**

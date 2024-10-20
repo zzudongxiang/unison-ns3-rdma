@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2020 Universita' degli Studi di Napoli Federico II
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Stefano Avallone <stavallo@unina.it>
  */
@@ -37,6 +26,9 @@
 
 #include "ns3/object.h"
 
+#include <functional>
+#include <optional>
+
 #define WIFI_FEM_NS_LOG_APPEND_CONTEXT                                                             \
     std::clog << "[link=" << +m_linkId << "][mac=" << m_self << "] "
 
@@ -52,6 +44,14 @@ struct WifiAcknowledgment;
  *
  * FrameExchangeManager is a base class handling the basic frame exchange
  * sequences for non-QoS stations.
+ *
+ * The fragmentation policy implemented uses a simple fragmentation
+ * threshold: any packet bigger than this threshold is fragmented
+ * in fragments whose size is smaller than the threshold.
+ *
+ * The retransmission policy is also very simple: every packet is
+ * retransmitted until it is either successfully transmitted or
+ * it has been retransmitted up until the SSRC or SLRC thresholds.
  */
 class FrameExchangeManager : public Object
 {
@@ -78,10 +78,10 @@ class FrameExchangeManager : public Object
      *
      * \param dcf the channel access function that gained channel access. It is
      *            the DCF on non-QoS stations and an EDCA on QoS stations.
-     * \param allowedWidth the allowed width in MHz for the frame exchange sequence
+     * \param allowedWidth the allowed width for the frame exchange sequence
      * \return true if a frame exchange sequence was started, false otherwise
      */
-    virtual bool StartTransmission(Ptr<Txop> dcf, uint16_t allowedWidth);
+    virtual bool StartTransmission(Ptr<Txop> dcf, MHz_u allowedWidth);
 
     /**
      * This method is intended to be called by the PHY layer every time an MPDU
@@ -98,6 +98,31 @@ class FrameExchangeManager : public Object
                  RxSignalInfo rxSignalInfo,
                  WifiTxVector txVector,
                  std::vector<bool> perMpduStatus);
+
+    /**
+     * Information about the MPDU being received. The TXVECTOR is populated upon
+     * PHY-RXSTART indication; the MAC header is populated when notified by the PHY.
+     */
+    struct OngoingRxInfo
+    {
+        std::optional<WifiMacHeader> macHdr; //!< MAC header of the MPDU being received
+        WifiTxVector txVector;               //!< TXVECTOR of the MPDU being received
+        Time endOfPsduRx;                    //!< time when reception of PSDU ends
+    };
+
+    /**
+     * \return the information about the MPDU being received by the PHY, if any. This information
+     *         is available from the time the PHY-RXSTART.indication is received until the end
+     *         of PSDU reception
+     */
+    std::optional<std::reference_wrapper<const OngoingRxInfo>> GetOngoingRxInfo() const;
+
+    /**
+     * \return the information about the MAC header of the MPDU being received by the PHY, if any.
+     *         The MAC header is available from the time its reception is completed until the end
+     *         of PSDU reception
+     */
+    std::optional<std::reference_wrapper<const WifiMacHeader>> GetReceivedMacHdr() const;
 
     /**
      * Set the ID of the link this Frame Exchange Manager is associated with.
@@ -175,6 +200,10 @@ class FrameExchangeManager : public Object
      * \return the BSSID
      */
     Mac48Address GetBssid() const;
+    /**
+     * \return the width of the channel that the FEM is allowed to use for the current transmission
+     */
+    MHz_u GetAllowedWidth() const;
     /**
      * Set the callback to invoke when an MPDU is dropped.
      *
@@ -333,6 +362,13 @@ class FrameExchangeManager : public Object
     virtual void NavResetTimeout();
 
     /**
+     * This method is called when the reception of a PSDU fails.
+     *
+     * \param psdu the PSDU whose reception failed
+     */
+    virtual void PsduRxError(Ptr<const WifiPsdu> psdu);
+
+    /**
      * This method handles the reception of an MPDU (possibly included in an A-MPDU)
      *
      * \param mpdu the received MPDU
@@ -479,10 +515,10 @@ class FrameExchangeManager : public Object
     std::set<Mac48Address> m_sentRtsTo; //!< the STA(s) which we sent an RTS to (waiting for CTS)
     std::set<Mac48Address> m_protectedStas; //!< STAs that have replied to an RTS in this TXOP
     uint8_t m_linkId;                       //!< the ID of the link this object is associated with
-    uint16_t m_allowedWidth;           //!< the allowed width in MHz for the current transmission
-    bool m_promisc;                    //!< Flag if the device is operating in promiscuous mode
-    DroppedMpdu m_droppedMpduCallback; //!< the dropped MPDU callback
-    AckedMpdu m_ackedMpduCallback;     //!< the acknowledged MPDU callback
+    MHz_u m_allowedWidth;                   //!< the allowed width for the current transmission
+    bool m_promisc;                         //!< Flag if the device is operating in promiscuous mode
+    DroppedMpdu m_droppedMpduCallback;      //!< the dropped MPDU callback
+    AckedMpdu m_ackedMpduCallback;          //!< the acknowledged MPDU callback
 
     /**
      * Finalize the MAC header of the MPDUs in the given PSDU before transmission. Tasks
@@ -650,6 +686,17 @@ class FrameExchangeManager : public Object
      */
     virtual void RxStartIndication(WifiTxVector txVector, Time psduDuration);
 
+    /**
+     * Store information about the MAC header of the MPDU being received.
+     *
+     * \param macHdr the MAC header of the MPDU being received
+     * \param txVector the TXVECTOR used to transmit the PSDU
+     * \param psduDuration the remaining duration of the PSDU
+     */
+    virtual void ReceivedMacHdr(const WifiMacHeader& macHdr,
+                                const WifiTxVector& txVector,
+                                Time psduDuration);
+
   private:
     /**
      * Send the current MPDU, which can be acknowledged by a Normal Ack.
@@ -662,6 +709,9 @@ class FrameExchangeManager : public Object
     bool m_moreFragments;           //!< true if a fragment has to be sent after a SIFS
     Ptr<WifiProtectionManager> m_protectionManager; //!< Protection manager
     Ptr<WifiAckManager> m_ackManager;               //!< Acknowledgment manager
+
+    OngoingRxInfo
+        m_ongoingRxInfo{}; //!< information about the MAC header of the MPDU being received
 };
 
 } // namespace ns3

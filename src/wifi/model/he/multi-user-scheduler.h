@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2020 Universita' degli Studi di Napoli Federico II
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Stefano Avallone <stavallo@unina.it>
  */
@@ -29,6 +18,7 @@
 #include "ns3/wifi-tx-parameters.h"
 
 #include <unordered_map>
+#include <vector>
 
 namespace ns3
 {
@@ -93,14 +83,14 @@ class MultiUserScheduler : public Object
      * \param initialFrame true if the frame being transmitted is the initial frame
      *                     of the TXOP. This is used to determine whether the TXOP
      *                     limit can be exceeded
-     * \param allowedWidth the allowed width in MHz for the next transmission
+     * \param allowedWidth the allowed width for the next transmission
      * \param linkId the ID of the link over which channel access was gained
      * \return the format of the next transmission
      */
     TxFormat NotifyAccessGranted(Ptr<QosTxop> edca,
                                  Time availableTime,
                                  bool initialFrame,
-                                 uint16_t allowedWidth,
+                                 MHz_u allowedWidth,
                                  uint8_t linkId);
 
     /**
@@ -129,6 +119,11 @@ class MultiUserScheduler : public Object
      *                 for channel access
      */
     void SetAccessReqInterval(Time interval);
+
+    /**
+     * \return the duration of the interval between two consecutive requests for channel access
+     */
+    Time GetAccessReqInterval() const;
 
   protected:
     /**
@@ -182,12 +177,12 @@ class MultiUserScheduler : public Object
     void NotifyNewAggregate() override;
     void DoInitialize() override;
 
-    Ptr<ApWifiMac> m_apMac;  //!< the AP wifi MAC
-    Ptr<QosTxop> m_edca;     //!< the AC that gained channel access
-    Time m_availableTime;    //!< the time available for frame exchange
-    bool m_initialFrame;     //!< true if a TXOP is being started
-    uint16_t m_allowedWidth; //!< the allowed width in MHz for the current transmission
-    uint8_t m_linkId;        //!< the ID of the link over which channel access has been granted
+    Ptr<ApWifiMac> m_apMac; //!< the AP wifi MAC
+    Ptr<QosTxop> m_edca;    //!< the AC that gained channel access
+    Time m_availableTime;   //!< the time available for frame exchange
+    bool m_initialFrame;    //!< true if a TXOP is being started
+    MHz_u m_allowedWidth;   //!< the allowed width for the current transmission
+    uint8_t m_linkId;       //!< the ID of the link over which channel access has been granted
 
   private:
     /**
@@ -198,11 +193,13 @@ class MultiUserScheduler : public Object
     void SetWifiMac(Ptr<ApWifiMac> mac);
 
     /**
-     * Perform actions required on expiration of the channel access request timer,
-     * such as requesting channel access (if not requested already) and restarting
+     * Perform actions required on expiration of the channel access request timer associated with
+     * the given link, such as requesting channel access (if not requested already) and restarting
      * the channel access request timer.
+     *
+     * \param linkId the ID of the given link
      */
-    void AccessReqTimeout();
+    void AccessReqTimeout(uint8_t linkId);
 
     /**
      * Select the format of the next transmission.
@@ -243,9 +240,10 @@ class MultiUserScheduler : public Object
     };
 
     std::map<uint8_t, LastTxInfo> m_lastTxInfo; ///< Information about the last transmission
-    EventId m_accessReqTimer;      ///< the timer controlling additional channel access requests
-    Time m_accessReqInterval;      ///< duration of the interval between channel access requests
-    AcIndex m_accessReqAc;         ///< AC we request channel access for
+    std::vector<EventId>
+        m_accessReqTimers;    ///< the per-link timer controlling additional channel access requests
+    Time m_accessReqInterval; ///< duration of the interval between channel access requests
+    AcIndex m_accessReqAc;    ///< AC we request channel access for
     bool m_restartTimerUponAccess; ///< whether the channel access timer has to be restarted
                                    ///< upon channel access
 };

@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2019 Orange Labs
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Rediet <getachew.redieteab@orange.com>
  *         Muhammad Iqbal Rochman <muhiqbalcr@uchicago.edu>
@@ -62,17 +51,17 @@ class VhtPpdu : public OfdmPpdu
         void SetMuFlag(bool mu);
 
         /**
-         * Fill the channel width field of VHT-SIG-A1 (in MHz).
+         * Fill the channel width field of VHT-SIG-A1.
          *
-         * \param channelWidth the channel width (in MHz)
+         * \param channelWidth the channel width
          */
-        void SetChannelWidth(uint16_t channelWidth);
+        void SetChannelWidth(MHz_u channelWidth);
         /**
-         * Return the channel width (in MHz).
+         * Return the channel width.
          *
-         * \return the channel width (in MHz)
+         * \return the channel width
          */
-        uint16_t GetChannelWidth() const;
+        MHz_u GetChannelWidth() const;
         /**
          * Fill the number of streams field of VHT-SIG-A1.
          *

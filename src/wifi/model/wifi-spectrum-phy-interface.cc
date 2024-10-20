@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2009 CTTC
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Nicola Baldo <nbaldo@cttc.es>
  */
@@ -24,6 +13,8 @@
 #include "ns3/net-device.h"
 #include "ns3/spectrum-channel.h"
 #include "ns3/spectrum-value.h"
+
+#include <sstream>
 
 NS_LOG_COMPONENT_DEFINE("WifiSpectrumPhyInterface");
 
@@ -42,7 +33,7 @@ WifiSpectrumPhyInterface::GetTypeId()
 
 WifiSpectrumPhyInterface::WifiSpectrumPhyInterface(FrequencyRange freqRange)
     : m_frequencyRange{freqRange},
-      m_centerFrequency{0},
+      m_centerFrequencies{},
       m_channelWidth{0},
       m_bands{},
       m_heRuBands{}
@@ -107,15 +98,20 @@ WifiSpectrumPhyInterface::SetChannel(const Ptr<SpectrumChannel> c)
 }
 
 void
-WifiSpectrumPhyInterface::SetRxSpectrumModel(uint32_t centerFrequency,
-                                             uint16_t channelWidth,
-                                             uint32_t bandBandwidth,
-                                             uint16_t guardBandwidth)
+WifiSpectrumPhyInterface::SetRxSpectrumModel(const std::vector<MHz_u>& centerFrequencies,
+                                             MHz_u channelWidth,
+                                             Hz_u bandBandwidth,
+                                             MHz_u guardBandwidth)
 {
-    NS_LOG_FUNCTION(this << centerFrequency << channelWidth << bandBandwidth << guardBandwidth);
-    m_centerFrequency = centerFrequency;
+    std::stringstream ss;
+    for (const auto& centerFrequency : centerFrequencies)
+    {
+        ss << centerFrequency << " ";
+    }
+    NS_LOG_FUNCTION(this << ss.str() << channelWidth << bandBandwidth << guardBandwidth);
+    m_centerFrequencies = centerFrequencies;
     m_channelWidth = channelWidth;
-    m_rxSpectrumModel = WifiSpectrumValueHelper::GetSpectrumModel(centerFrequency,
+    m_rxSpectrumModel = WifiSpectrumValueHelper::GetSpectrumModel(centerFrequencies,
                                                                   channelWidth,
                                                                   bandBandwidth,
                                                                   guardBandwidth);
@@ -145,13 +141,13 @@ WifiSpectrumPhyInterface::GetFrequencyRange() const
     return m_frequencyRange;
 }
 
-uint16_t
-WifiSpectrumPhyInterface::GetCenterFrequency() const
+const std::vector<MHz_u>&
+WifiSpectrumPhyInterface::GetCenterFrequencies() const
 {
-    return m_centerFrequency;
+    return m_centerFrequencies;
 }
 
-uint16_t
+MHz_u
 WifiSpectrumPhyInterface::GetChannelWidth() const
 {
     return m_channelWidth;

@@ -1,18 +1,7 @@
 /*
  *  Copyright (c) 2007,2008, 2009 INRIA, UDcast
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Mohamed Amine Ismail <amine.ismail@sophia.inria.fr>
  *                              <amine.ismail@udcast.com>
@@ -483,6 +472,7 @@ class SimpleOfdmWimaxPhy : public WimaxPhy
      * \deprecated The non-const \c Ptr<PacketBurst> argument is deprecated
      * and will be changed to \c Ptrc<PacketBurst> in a future release.
      */
+    // NS_DEPRECATED() - tag for future removal
     TracedCallback<Ptr<PacketBurst>> m_phyTxBeginTrace;
 
     /**
@@ -493,6 +483,7 @@ class SimpleOfdmWimaxPhy : public WimaxPhy
      * \deprecated The non-const \c Ptr<PacketBurst> argument is deprecated
      * and will be changed to \c Ptrc<PacketBurst> in a future release.
      */
+    // NS_DEPRECATED() - tag for future removal
     TracedCallback<Ptr<PacketBurst>> m_phyTxEndTrace;
 
     /**
@@ -503,6 +494,7 @@ class SimpleOfdmWimaxPhy : public WimaxPhy
      * \deprecated The non-const \c Ptr<PacketBurst> argument is deprecated
      * and will be changed to \c Ptrc<PacketBurst> in a future release.
      */
+    // NS_DEPRECATED() - tag for future removal
     TracedCallback<Ptr<PacketBurst>> m_phyTxDropTrace;
 
     /**
@@ -513,6 +505,7 @@ class SimpleOfdmWimaxPhy : public WimaxPhy
      * \deprecated The non-const \c Ptr<PacketBurst> argument is deprecated
      * and will be changed to \c Ptrc<PacketBurst> in a future release.
      */
+    // NS_DEPRECATED() - tag for future removal
     TracedCallback<Ptr<PacketBurst>> m_phyRxBeginTrace;
 
     /**
@@ -523,6 +516,7 @@ class SimpleOfdmWimaxPhy : public WimaxPhy
      * \deprecated The non-const \c Ptr<PacketBurst> argument is deprecated
      * and will be changed to \c Ptrc<PacketBurst> in a future release.
      */
+    // NS_DEPRECATED() - tag for future removal
     TracedCallback<Ptr<PacketBurst>> m_phyRxEndTrace;
 
     /**
@@ -532,6 +526,7 @@ class SimpleOfdmWimaxPhy : public WimaxPhy
      * \deprecated The non-const \c Ptr<PacketBurst> argument is deprecated
      * and will be changed to \c Ptrc<PacketBurst> in a future release.
      */
+    // NS_DEPRECATED() - tag for future removal
     TracedCallback<Ptr<PacketBurst>> m_phyRxDropTrace;
 
     SNRToBlockErrorRateManager* m_snrToBlockErrorRateManager; ///< SNR to block error rate manager

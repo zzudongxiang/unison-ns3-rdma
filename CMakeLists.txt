@@ -11,9 +11,9 @@ project(NS3 CXX C)
 file(STRINGS VERSION NS3_VER)
 
 # minimum compiler versions
-set(AppleClang_MinVersion 11.0.0)
-set(Clang_MinVersion 10.0.0)
-set(GNU_MinVersion 9.1.0)
+set(AppleClang_MinVersion 13.1.6)
+set(Clang_MinVersion 11.0.0)
+set(GNU_MinVersion 10.1.0)
 
 # common options
 option(NS3_ASSERT "Enable assert on failure" OFF)
@@ -59,6 +59,11 @@ option(NS3_CPM "Enable the CPM C++ library manager support" OFF)
 option(NS3_FAST_LINKERS "Use Mold or LLD to speed up linking if available" ON)
 option(NS3_FETCH_OPTIONAL_COMPONENTS
        "Fetch Brite, Click and Openflow dependencies" OFF
+)
+option(
+  NS3_FORCE_LOCAL_DEPENDENCIES
+  "Only search applications, headers, libraries on explicitly set directories"
+  OFF
 )
 option(NS3_GSL "Build with GSL support" ON)
 option(NS3_GTK3 "Build with GTK3 support" ON)

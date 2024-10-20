@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2014 Universidad de la República - Uruguay
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Matias Richart <mrichart@fing.edu.uy>
  */
@@ -210,7 +199,7 @@ class NodeStatistics
      */
     Time GetCalcTxTime(DataRate rate);
 
-    std::map<Mac48Address, double> m_currentPower;  //!< Current Tx power for each sender.
+    std::map<Mac48Address, dBm_u> m_currentPower;   //!< Current Tx power for each sender.
     std::map<Mac48Address, DataRate> m_currentRate; //!< Current Tx rate for each sender.
     uint32_t m_bytesTotal;                          //!< Number of received bytes on a given state.
     double m_totalEnergy;                           //!< Energy used on a given state.
@@ -227,7 +216,7 @@ NodeStatistics::NodeStatistics(NetDeviceContainer aps, NetDeviceContainer stas)
     Ptr<WifiPhy> phy = wifiDevice->GetPhy();
     SetupPhy(phy);
     DataRate dataRate = DataRate(phy->GetDefaultMode().GetDataRate(phy->GetChannelWidth()));
-    double power = phy->GetTxPowerEnd();
+    const auto power = phy->GetTxPowerEnd();
     for (uint32_t j = 0; j < stas.GetN(); j++)
     {
         Ptr<NetDevice> staDevice = stas.Get(j);
@@ -392,8 +381,8 @@ RateCallback(std::string path, DataRate oldRate, DataRate newRate, Mac48Address 
 int
 main(int argc, char* argv[])
 {
-    double maxPower{17};
-    double minPower{0};
+    dBm_u maxPower{17};
+    dBm_u minPower{0};
     uint32_t powerLevels{18};
 
     uint32_t rtsThreshold{2346};
@@ -404,7 +393,7 @@ main(int argc, char* argv[])
     int sta1_x{5};
     int sta1_y{0};
     uint32_t steps{200};
-    uint32_t stepsSize{1};
+    meter_u stepsSize{1};
     Time stepsTime{"1s"};
 
     CommandLine cmd(__FILE__);

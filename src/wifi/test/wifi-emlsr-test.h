@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2023 Universita' degli Studi di Napoli Federico II
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Stefano Avallone <stavallo@unina.it>
  */
@@ -517,6 +506,19 @@ class EmlsrDlTxopTest : public EmlsrOperationsTestBase
  *   not transmitted successfully. Specifically, we check that the main PHY is completing the
  *   channel switch when the (unsuccessful) reception of the CTS ends and that a new RTS/CTS
  *   exchange is carried out to protect the transmission of the last data frame.
+ * - While the main PHY is operating on the same link as an aux PHY (which does not switch
+ *   channel), the aux PHY is put in sleep mode as soon as the main PHY starts operating on the
+ *   link, stays in sleep mode until the TXOP ends and is resumed from sleep mode right after the
+ *   end of the DL/UL TXOP.
+ * - When an aux PHY that is not TX capable gains a TXOP, it checks whether the main PHY can switch
+ *   to the non-primary link a start an UL TXOP. If the main PHY is switching, the aux PHY waits
+ *   until the channel switch is completed and checks again; if the remaining backoff time on the
+ *   primary link is greater than the channel switch delay, the main PHY is requested to switch to
+ *   the non-primary link of the aux PHY. When the channel switch is completed, if the medium is
+ *   idle on the non-primary link and the backoff is zero, the main PHY starts an UL TXOP after a
+ *   PIFS period; otherwise, the main PHY starts an UL TXOP when the backoff timer counts down to
+ *   zero. The QoS data frame sent by the main PHY is not protected by RTS and the bandwidth it
+ *   occupies is not affected by possible limitations on the aux PHY TX bandwidth capabilities.
  */
 class EmlsrUlTxopTest : public EmlsrOperationsTestBase
 {
@@ -528,15 +530,19 @@ class EmlsrUlTxopTest : public EmlsrOperationsTestBase
     {
         std::set<uint8_t>
             linksToEnableEmlsrOn;       //!< IDs of links on which EMLSR mode should be enabled
-        uint16_t channelWidth;          //!< width (MHz) of the channels used by MLDs
-        uint16_t auxPhyChannelWidth;    //!< max width (MHz) supported by aux PHYs
+        MHz_u channelWidth;             //!< width of the channels used by MLDs
+        MHz_u auxPhyChannelWidth;       //!< max width supported by aux PHYs
         Time mediumSyncDuration;        //!< duration of the MediumSyncDelay timer
         uint8_t msdMaxNTxops;           //!< Max number of TXOPs that an EMLSR client is allowed
                                         //!< to attempt to initiate while the MediumSyncDelay
                                         //!< timer is running (zero indicates no limit)
-        bool genBackoffIfTxopWithoutTx; //!< whether the backoff should be invoked when the AC
-                                        //!< gains the right to start a TXOP but it does not
-                                        //!< transmit any frame
+        bool genBackoffAndUseAuxPhyCca; //!< this variable controls two boolean values that are
+                                        //!< either both set to true or both set to false;
+                                        //!< the first value controls whether the backoff should be
+                                        //!< invoked when the AC gains the right to start a TXOP
+                                        //!< but it does not transmit any frame, the second value
+                                        //!< controls whether CCA info from aux PHY is used when
+                                        //!< aux PHY is not TX capable
     };
 
     /**
@@ -570,6 +576,18 @@ class EmlsrUlTxopTest : public EmlsrOperationsTestBase
      * \param linkId the ID of the given link
      */
     void CheckRtsFrames(Ptr<const WifiMpdu> mpdu, const WifiTxVector& txVector, uint8_t linkId);
+
+    /**
+     * Check that appropriate actions are taken by the AP MLD transmitting an initial
+     * Control frame to an EMLSR client on the given link.
+     *
+     * \param mpdu the MPDU carrying the MU-RTS TF
+     * \param txVector the TXVECTOR used to send the PPDU
+     * \param linkId the ID of the given link
+     */
+    void CheckInitialControlFrame(Ptr<const WifiMpdu> mpdu,
+                                  const WifiTxVector& txVector,
+                                  uint8_t linkId);
 
     /**
      * Check that appropriate actions are taken by the EMLSR client when receiving a CTS
@@ -617,8 +635,8 @@ class EmlsrUlTxopTest : public EmlsrOperationsTestBase
     void BackoffGenerated(uint32_t backoff, uint8_t linkId);
 
     std::set<uint8_t> m_emlsrLinks; /**< IDs of the links on which EMLSR mode has to be enabled */
-    uint16_t m_channelWidth;        //!< width (MHz) of the channels used by MLDs
-    uint16_t m_auxPhyChannelWidth;  //!< max width (MHz) supported by aux PHYs
+    MHz_u m_channelWidth;           //!< width of the channels used by MLDs
+    MHz_u m_auxPhyChannelWidth;     //!< max width supported by aux PHYs
     Time m_mediumSyncDuration;      //!< duration of the MediumSyncDelay timer
     uint8_t m_msdMaxNTxops;         //!< Max number of TXOPs that an EMLSR client is allowed
                                     //!< to attempt to initiate while the MediumSyncDelay
@@ -639,7 +657,10 @@ class EmlsrUlTxopTest : public EmlsrOperationsTestBase
     bool m_genBackoffIfTxopWithoutTx;     //!< whether the backoff should be invoked when the AC
                                           //!< gains the right to start a TXOP but it does not
                                           //!< transmit any frame
+    bool m_useAuxPhyCca;                  //!< whether CCA info from aux PHY is used when
+                                          //!< aux PHY is not TX capable
     std::optional<bool> m_corruptCts;     //!< whether the transmitted CTS must be corrupted
+    Time m_5thQosFrameTxTime;             //!< start transmission time of the 5th QoS data frame
 };
 
 /**
@@ -654,9 +675,10 @@ class EmlsrUlTxopTest : public EmlsrOperationsTestBase
  * - the first one on the link used for ML setup, hence no PHY switch occurs
  * - the second one on another link, thus causing the main PHY to switch link
  * - the third one on the remaining link, thus causing the main PHY to switch link again
- * - the fourth one on the link used for ML setup; if the aux PHYs switches link, there is
- *   one aux PHY listening on such a link and the main PHY switches to this link, otherwise
- *   no PHY is listening on such a link and there is no response to the ICF sent by the AP MLD
+ * - the fourth one on the link used for ML setup
+ *
+ * Afterwards, the EMLSR client transmits 2 QoS data frames; the first one on the link used for
+ * ML setup (hence, no RTS is sent), the second one on another link.
  */
 class EmlsrLinkSwitchTest : public EmlsrOperationsTestBase
 {
@@ -669,9 +691,14 @@ class EmlsrLinkSwitchTest : public EmlsrOperationsTestBase
         bool
             switchAuxPhy; //!< whether AUX PHY should switch channel to operate on the link on which
                           //!<  the Main PHY was operating before moving to the link of the Aux PHY
-        bool resetCamState; //!< whether to reset the state of the ChannelAccessManager associated
-                            //!< with the link on which the main PHY has just switched to
-        uint16_t auxPhyMaxChWidth; //!< max channel width (MHz) supported by aux PHYs
+        bool resetCamStateAndInterruptSwitch; //!< this variable controls two boolean values that
+                                              //!< are either both set to true or both set to false;
+                                              //!< the first value controls whether to reset the
+                                              //!< state of the ChannelAccessManager associated
+                                              //!< with the link on which the main PHY has just
+                                              //!< switched to, the second value controls whether
+                                              //!< a main PHY channel switch can be interrupted
+        MHz_u auxPhyMaxChWidth;               //!< max channel width (MHz) supported by aux PHYs
     };
 
     /**
@@ -721,14 +748,31 @@ class EmlsrLinkSwitchTest : public EmlsrOperationsTestBase
                         const WifiTxVector& txVector,
                         uint8_t linkId);
 
+    /**
+     * Check that appropriate actions are taken by the EMLSR client transmitting a PPDU containing
+     * an RTS frame to the AP MLD on the given link.
+     *
+     * \param psduMap the PSDU carrying RTS frame
+     * \param txVector the TXVECTOR used to send the PPDU
+     * \param linkId the ID of the given link
+     */
+    void CheckRtsFrame(const WifiConstPsduMap& psduMap,
+                       const WifiTxVector& txVector,
+                       uint8_t linkId);
+
   private:
-    bool m_switchAuxPhy;  /**< whether AUX PHY should switch channel to operate on the link on which
-                               the Main PHY was operating before moving to the link of Aux PHY */
-    bool m_resetCamState; /**< whether to reset the state of the ChannelAccessManager associated
-                               with the link on which the main PHY has just switched to */
-    uint16_t m_auxPhyMaxChWidth;  //!< max channel width (MHz) supported by aux PHYs
-    std::size_t m_countQoSframes; //!< counter for QoS data frames
-    std::size_t m_txPsdusPos;     //!< a position in the vector of TX PSDUs
+    bool m_switchAuxPhy; /**< whether AUX PHY should switch channel to operate on the link on which
+                              the Main PHY was operating before moving to the link of Aux PHY */
+    bool
+        m_resetCamStateAndInterruptSwitch; /**< whether to reset the state of the
+                              ChannelAccessManager associated with the link on which the main PHY
+                              has just switched to and whether main PHY switch can be interrupted */
+    MHz_u m_auxPhyMaxChWidth;              //!< max channel width (MHz) supported by aux PHYs
+    std::size_t m_countQoSframes;          //!< counter for QoS data frames
+    std::size_t m_countIcfFrames;          //!< counter for ICF frames
+    std::size_t m_countRtsFrames;          //!< counter for RTS frames
+    std::size_t m_txPsdusPos;              //!< position in the vector of TX PSDUs of the first ICF
+    Ptr<ListErrorModel> m_errorModel;      ///< error rate model to corrupt packets at AP MLD
 };
 
 /**
@@ -741,6 +785,72 @@ class WifiEmlsrTestSuite : public TestSuite
 {
   public:
     WifiEmlsrTestSuite();
+};
+
+/**
+ * \ingroup wifi-test
+ * \ingroup tests
+ *
+ * \brief Test CCA busy notifications on EMLSR clients.
+ *
+ * SwitchAuxPhy is set to true, so that the aux PHY starts switching when the main PHY switch is
+ * completed.
+ *
+ * - Main PHY switches to a link on which an aux PHY is operating. Right after the start of the
+ *   channel switch, the AP transmits a frame to another device on the aux PHY link. Verify that,
+ *   once the main PHY is operating on the new link, the channel access manager on that link is
+ *   notified of CCA busy until the end of the transmission
+ * - When the main PHY switch is completed, the aux PHY switches to a link on which no PHY is
+ *   operating. Before the aux PHY starts switching, the AP starts transmitting a frame to another
+ *   device on the link on which no PHY is operating. Verify that, once the aux PHY is operating
+ *   on the new link, the channel access manager on that link is notified of CCA busy until the
+ *   end of the transmission
+ */
+class EmlsrCcaBusyTest : public EmlsrOperationsTestBase
+{
+  public:
+    /**
+     * Constructor
+     *
+     * \param auxPhyMaxChWidth max channel width (MHz) supported by aux PHYs
+     */
+    EmlsrCcaBusyTest(uint16_t auxPhyMaxChWidth);
+
+    ~EmlsrCcaBusyTest() override = default;
+
+  protected:
+    void DoSetup() override;
+    void DoRun() override;
+
+  private:
+    void StartTraffic() override;
+
+    /**
+     * Make the other MLD transmit a packet to the AP on the given link.
+     *
+     * \param linkId the ID of the given link
+     */
+    void TransmitPacketToAp(uint8_t linkId);
+
+    /**
+     * Perform checks after that the preamble of the first PPDU has been received.
+     */
+    void CheckPoint1();
+
+    /**
+     * Perform checks after that the main PHY completed the link switch.
+     */
+    void CheckPoint2();
+
+    /**
+     * Perform checks after that the aux PHY completed the link switch.
+     */
+    void CheckPoint3();
+
+    uint16_t m_auxPhyMaxChWidth; //!< max channel width (MHz) supported by aux PHYs
+    Time m_channelSwitchDelay;   //!< the PHY channel switch delay
+    uint8_t m_currMainPhyLinkId; //!< the ID of the link the main PHY switches from
+    uint8_t m_nextMainPhyLinkId; //!< the ID of the link the main PHY switches to
 };
 
 #endif /* WIFI_EMLSR_TEST_H */

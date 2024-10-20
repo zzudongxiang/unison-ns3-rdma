@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2019 Orange Labs
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Rediet <getachew.redieteab@orange.com>
  */
@@ -27,6 +16,7 @@
 #include <list>
 #include <optional>
 #include <unordered_map>
+#include <vector>
 
 /**
  * \file
@@ -132,23 +122,23 @@ class WifiPpdu : public SimpleRefCount<WifiPpdu>
      * Get the channel width over which the PPDU will effectively be
      * transmitted.
      *
-     * \return the effective channel width (in MHz) used for the tranmsission
+     * \return the effective channel width used for the tranmsission
      */
-    virtual uint16_t GetTxChannelWidth() const;
+    virtual MHz_u GetTxChannelWidth() const;
 
     /**
-     * \return the center frequency (MHz) used for the transmission of this PPDU
+     * \return the center frequency per segment used for the transmission of this PPDU
      */
-    uint16_t GetTxCenterFreq() const;
+    std::vector<MHz_u> GetTxCenterFreqs() const;
 
     /**
      * Check whether the given PPDU overlaps a given channel.
      *
-     * \param minFreq the minimum frequency (MHz) of the channel
-     * \param maxFreq the maximum frequency (MHz) of the channel
+     * \param minFreq the minimum frequency of the channel
+     * \param maxFreq the maximum frequency of the channel
      * \return true if this PPDU overlaps the channel, false otherwise
      */
-    bool DoesOverlapChannel(uint16_t minFreq, uint16_t maxFreq) const;
+    bool DoesOverlapChannel(MHz_u minFreq, MHz_u maxFreq) const;
 
     /**
      * Get the modulation used for the PPDU.
@@ -199,11 +189,12 @@ class WifiPpdu : public SimpleRefCount<WifiPpdu>
      */
     virtual std::string PrintPayload() const;
 
-    WifiPreamble m_preamble;          //!< the PHY preamble
-    WifiModulationClass m_modulation; //!< the modulation used for the transmission of this PPDU
-    WifiConstPsduMap m_psdus;         //!< the PSDUs contained in this PPDU
-    uint16_t m_txCenterFreq; //!< the center frequency (MHz) used for the transmission of this PPDU
-    uint64_t m_uid;          //!< the unique ID of this PPDU
+    WifiPreamble m_preamble;            //!< the PHY preamble
+    WifiModulationClass m_modulation;   //!< the modulation used for the transmission of this PPDU
+    WifiConstPsduMap m_psdus;           //!< the PSDUs contained in this PPDU
+    std::vector<MHz_u> m_txCenterFreqs; //!< the center frequency per segment used for the
+                                        //!< transmission of this PPDU
+    uint64_t m_uid;                     //!< the unique ID of this PPDU
     mutable std::optional<WifiTxVector>
         m_txVector; //!< the TXVECTOR at TX PHY or the reconstructed TXVECTOR at RX PHY (or
                     //!< std::nullopt if TXVECTOR has not been reconstructed yet)
@@ -223,12 +214,12 @@ class WifiPpdu : public SimpleRefCount<WifiPpdu>
                             //!< returned WifiTxVector)
     uint8_t m_txAntennas;   //!< the number of antennas used to transmit this PPDU
 
-    uint16_t m_txChannelWidth; /**< The channel width (MHz) used for the transmission of this
+    MHz_u m_txChannelWidth; /**< The channel width used for the transmission of this
                                          PPDU. This has to be stored since channel width can not
                                          always be obtained from the PHY headers, especially for
                                          non-HT PPDU, since we do not sense the spectrum to
                                          determine the occupied channel width for simplicity. */
-};                             // class WifiPpdu
+};                          // class WifiPpdu
 
 /**
  * \brief Stream insertion operator.

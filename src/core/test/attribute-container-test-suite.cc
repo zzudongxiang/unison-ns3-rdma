@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2018 Caliola Engineering, LLC.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Jared Dulmage <jared.dulmage@caliola.com>
  */
@@ -26,7 +15,9 @@
 #include <ns3/ptr.h>
 #include <ns3/string.h>
 #include <ns3/test.h>
+#include <ns3/tuple.h>
 #include <ns3/type-id.h>
+#include <ns3/uinteger.h>
 
 #include <algorithm>
 #include <iterator>
@@ -394,7 +385,25 @@ AttributeContainerSerializationTestCase::DoRun()
         NS_TEST_ASSERT_MSG_EQ(attr.GetN(), 3, "Incorrect container size");
 
         std::string reserialized = attr.SerializeToString(checker);
-        NS_TEST_ASSERT_MSG_EQ(reserialized, pairs, "Reserealization failed");
+        NS_TEST_ASSERT_MSG_EQ(reserialized, pairs, "Reserialization failed");
+    }
+
+    {
+        std::string tupleVec = "{-1, 2, 3.4};{-2, 1, 4.3}";
+        AttributeContainerValue<TupleValue<IntegerValue, UintegerValue, DoubleValue>, ';'> attr;
+        auto checker = MakeAttributeContainerChecker(attr);
+        auto acchecker = DynamicCast<AttributeContainerChecker>(checker);
+        acchecker->SetItemChecker(MakeTupleChecker<IntegerValue, UintegerValue, DoubleValue>(
+            MakeIntegerChecker<int8_t>(),
+            MakeUintegerChecker<uint16_t>(),
+            MakeDoubleChecker<double>()));
+        NS_TEST_ASSERT_MSG_EQ(attr.DeserializeFromString(tupleVec, checker),
+                              true,
+                              "Deserialization failed");
+        NS_TEST_ASSERT_MSG_EQ(attr.GetN(), 2, "Incorrect container size");
+
+        std::string reserialized = attr.SerializeToString(checker);
+        NS_TEST_ASSERT_MSG_EQ(reserialized, tupleVec, "Reserialization failed");
     }
 }
 

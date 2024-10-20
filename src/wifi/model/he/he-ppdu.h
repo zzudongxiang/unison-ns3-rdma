@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2020 Orange Labs
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Rediet <getachew.redieteab@orange.com>
  *         Muhammad Iqbal Rochman <muhiqbalcr@uchicago.edu>
@@ -154,7 +143,7 @@ class HePpdu : public OfdmPpdu
     Ptr<WifiPpdu> Copy() const override;
     WifiPpduType GetType() const override;
     uint16_t GetStaId() const override;
-    uint16_t GetTxChannelWidth() const override;
+    MHz_u GetTxChannelWidth() const override;
 
     /**
      * Get the payload of the PPDU.
@@ -193,14 +182,14 @@ class HePpdu : public OfdmPpdu
      * This is applicable only for MU.
      * See section 27.3.10.8.3 of IEEE 802.11ax draft 4.0.
      *
-     * \param channelWidth the channel width occupied by the PPDU (in MHz)
+     * \param channelWidth the channel width occupied by the PPDU
      * \param ruAllocation 8 bit RU_ALLOCATION per 20 MHz
      * \param sigBCompression flag whether SIG-B compression is used by the PPDU
      * \param numMuMimoUsers the number of MU-MIMO users addressed by the PPDU
      * \return a pair containing the number of RUs in each HE-SIG-B content channel (resp. 1 and 2)
      */
     static std::pair<std::size_t, std::size_t> GetNumRusPerHeSigBContentChannel(
-        uint16_t channelWidth,
+        MHz_u channelWidth,
         const RuAllocation& ruAllocation,
         bool sigBCompression,
         uint8_t numMuMimoUsers);
@@ -218,13 +207,13 @@ class HePpdu : public OfdmPpdu
 
     /**
      * Get variable length HE SIG-B field size
-     * \param channelWidth the channel width occupied by the PPDU (in MHz)
+     * \param channelWidth the channel width occupied by the PPDU
      * \param ruAllocation 8 bit RU_ALLOCATION per 20 MHz
      * \param sigBCompression flag whether SIG-B compression is used by the PPDU
      * \param numMuMimoUsers the number of MU-MIMO users addressed by the PPDU
      * \return field size in bytes
      */
-    static uint32_t GetSigBFieldSize(uint16_t channelWidth,
+    static uint32_t GetSigBFieldSize(MHz_u channelWidth,
                                      const RuAllocation& ruAllocation,
                                      bool sigBCompression,
                                      std::size_t numMuMimoUsers);
@@ -258,7 +247,7 @@ class HePpdu : public OfdmPpdu
      * \param channelWidth the channel width in MHz
      * \return the value used to encode the bandwidth field in HE-SIG-A
      */
-    static uint8_t GetChannelWidthEncodingFromMhz(uint16_t channelWidth);
+    static uint8_t GetChannelWidthEncodingFromMhz(MHz_u channelWidth);
 
     /**
      * Convert number of spatial streams to NSTS field encoding in HE-SIG-A.
@@ -269,13 +258,13 @@ class HePpdu : public OfdmPpdu
     static uint8_t GetNstsEncodingFromNss(uint8_t nss);
 
     /**
-     * Convert guard interval (in ns) and NLTF to its encoding in HE-SIG-A.
+     * Convert guard interval and NLTF to its encoding in HE-SIG-A.
      *
-     * \param gi the guard interval in nanoseconds
+     * \param guardInterval the guard interval
      * \param nltf the the number of long training symbols
      * \return the value used to encode the NSTS field in HE-SIG-A
      */
-    static uint8_t GetGuardIntervalAndNltfEncoding(uint16_t gi, uint8_t nltf);
+    static uint8_t GetGuardIntervalAndNltfEncoding(Time guardInterval, uint8_t nltf);
 
     /**
      * Convert number of spatial streams from NSTS field encoding in HE-SIG-A.
@@ -291,15 +280,15 @@ class HePpdu : public OfdmPpdu
      * \param bandwidth the value of the bandwidth field in HE-SIG-A
      * \return the channel width in MHz
      */
-    static uint16_t GetChannelWidthMhzFromEncoding(uint8_t bandwidth);
+    static MHz_u GetChannelWidthMhzFromEncoding(uint8_t bandwidth);
 
     /**
-     * Convert guard interval (in ns) from its encoding in HE-SIG-A.
+     * Convert guard interval from its encoding in HE-SIG-A.
      *
      * \param giAndNltfSize the value used to encode the guard interval and NLTF field in HE-SIG-A
-     * \return the guard interval in nanoseconds
+     * \return the guard interval
      */
-    static uint16_t GetGuardIntervalFromEncoding(uint8_t giAndNltfSize);
+    static Time GetGuardIntervalFromEncoding(uint8_t giAndNltfSize);
 
     /**
      * Convert number of MU-MIMO users to its encoding in HE-SIG-A.

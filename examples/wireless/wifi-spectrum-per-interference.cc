@@ -2,18 +2,7 @@
  * Copyright (c) 2009 MIRKO BANCHI
  * Copyright (c) 2015 University of Washington
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Authors: Mirko Banchi <mk.banchi@gmail.com>
  *          Sebastien Deronne <sebastien.deronne@gmail.com>
@@ -180,14 +169,14 @@ int
 main(int argc, char* argv[])
 {
     bool udp{true};
-    double distance{50};
+    meter_u distance{50};
     Time simulationTime{"10s"};
     uint16_t index{256};
     std::string wifiType{"ns3::SpectrumWifiPhy"};
     std::string errorModelType{"ns3::NistErrorRateModel"};
     bool enablePcap{false};
     const uint32_t tcpPacketSize{1448};
-    double waveformPower{0};
+    Watt_u waveformPower{0};
 
     CommandLine cmd(__FILE__);
     cmd.AddValue("simulationTime", "Simulation time", simulationTime);

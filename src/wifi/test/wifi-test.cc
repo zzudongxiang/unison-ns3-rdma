@@ -2,18 +2,7 @@
  * Copyright (c) 2005,2006 INRIA
  *               2010      NICTA
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Authors: Mathieu Lacage <mathieu.lacage@sophia.inria.fr>
  *          Quincy Tse <quincy.tse@nicta.com.au>
@@ -24,9 +13,11 @@
 #include "ns3/ap-wifi-mac.h"
 #include "ns3/config.h"
 #include "ns3/constant-position-mobility-model.h"
+#include "ns3/constant-rate-wifi-manager.h"
 #include "ns3/error-model.h"
 #include "ns3/fcfs-wifi-queue-scheduler.h"
 #include "ns3/he-frame-exchange-manager.h"
+#include "ns3/he-phy.h"
 #include "ns3/header-serialization-test.h"
 #include "ns3/ht-configuration.h"
 #include "ns3/interference-helper.h"
@@ -43,7 +34,7 @@
 #include "ns3/spectrum-wifi-helper.h"
 #include "ns3/string.h"
 #include "ns3/test.h"
-#include "ns3/vht-phy.h"
+#include "ns3/uinteger.h"
 #include "ns3/waypoint-mobility-model.h"
 #include "ns3/wifi-default-ack-manager.h"
 #include "ns3/wifi-default-assoc-manager.h"
@@ -1449,7 +1440,7 @@ Bug2222TestCase::DoRun()
     wifiDevices = wifi.Install(phy, mac, wifiNodes);
 
     // Assign fixed streams to random variables in use
-    wifi.AssignStreams(wifiDevices, streamNumber);
+    WifiHelper::AssignStreams(wifiDevices, streamNumber);
 
     MobilityHelper mobility;
     Ptr<ListPositionAllocator> positionAlloc = CreateObject<ListPositionAllocator>();
@@ -1533,8 +1524,7 @@ class Bug2843TestCase : public TestCase
      * A tuple of {starting frequency, channelWidth, Number of subbands in SpectrumModel, modulation
      * type}
      */
-    typedef std::tuple<double, uint16_t, uint32_t, WifiModulationClass>
-        FreqWidthSubbandModulationTuple;
+    typedef std::tuple<Hz_u, MHz_u, uint32_t, WifiModulationClass> FreqWidthSubbandModulationTuple;
     std::vector<FreqWidthSubbandModulationTuple>
         m_distinctTuples; ///< vector of distinct {starting frequency, channelWidth, Number of
                           ///< subbands in SpectrumModel, modulation type} tuples
@@ -1556,7 +1546,7 @@ class Bug2843TestCase : public TestCase
                          Ptr<NetDevice> sourceDevice,
                          Address& destination) const;
 
-    uint16_t m_channelWidth; ///< channel width (in MHz)
+    MHz_u m_channelWidth; ///< channel width
 };
 
 Bug2843TestCase::Bug2843TestCase()
@@ -1575,7 +1565,7 @@ Bug2843TestCase::StoreDistinctTuple(std::string context, Ptr<SpectrumSignalParam
     // Extract starting frequency and number of subbands
     Ptr<const SpectrumModel> c = txParams->psd->GetSpectrumModel();
     std::size_t numBands = c->GetNumBands();
-    double startingFreq = c->Begin()->fl;
+    const Hz_u startingFreq = c->Begin()->fl;
 
     // Get channel bandwidth and modulation class
     Ptr<const WifiSpectrumSignalParameters> wifiTxParams =
@@ -1618,7 +1608,7 @@ Bug2843TestCase::SendPacketBurst(uint8_t numPackets,
 void
 Bug2843TestCase::DoRun()
 {
-    uint16_t channelWidth = 40; // at least 40 MHz expected here
+    MHz_u channelWidth = 40; // at least 40 MHz expected here
 
     NodeContainer wifiStaNode;
     wifiStaNode.Create(1);
@@ -2065,9 +2055,9 @@ StaWifiMacScanningTestCase::Setup(bool nearestApBeaconGeneration, bool staActive
     staDevice = wifi.Install(phy, mac, staNode);
 
     // Assign fixed streams to random variables in use
-    wifi.AssignStreams(apDevice, streamNumber);
-    wifi.AssignStreams(apDeviceNearest, streamNumber + 1);
-    wifi.AssignStreams(staDevice, streamNumber + 2);
+    WifiHelper::AssignStreams(apDevice, streamNumber);
+    WifiHelper::AssignStreams(apDeviceNearest, streamNumber + 1);
+    WifiHelper::AssignStreams(staDevice, streamNumber + 2);
 
     MobilityHelper mobility;
     Ptr<ListPositionAllocator> positionAlloc = CreateObject<ListPositionAllocator>();
@@ -2402,8 +2392,8 @@ Bug2470TestCase::RunSubtest(TypeOfStation rcvErrorType)
     staDevice = wifi.Install(phy, mac, wifiStaNode);
 
     // Assign fixed streams to random variables in use
-    wifi.AssignStreams(apDevice, streamNumber);
-    wifi.AssignStreams(staDevice, streamNumber);
+    WifiHelper::AssignStreams(apDevice, streamNumber);
+    WifiHelper::AssignStreams(staDevice, streamNumber);
 
     MobilityHelper mobility;
     Ptr<ListPositionAllocator> positionAlloc = CreateObject<ListPositionAllocator>();
@@ -2683,8 +2673,8 @@ Issue40TestCase::RunOne(bool useAmpdu)
     staDevice = wifi.Install(phy, mac, wifiStaNode);
 
     // Assign fixed streams to random variables in use
-    wifi.AssignStreams(apDevice, streamNumber);
-    wifi.AssignStreams(staDevice, streamNumber);
+    WifiHelper::AssignStreams(apDevice, streamNumber);
+    WifiHelper::AssignStreams(staDevice, streamNumber);
 
     MobilityHelper mobility;
     Ptr<ListPositionAllocator> positionAlloc = CreateObject<ListPositionAllocator>();
@@ -2908,8 +2898,8 @@ Issue169TestCase::DoRun()
     staDevice = wifi.Install(phy, mac, wifiStaNode);
 
     // Assign fixed streams to random variables in use
-    wifi.AssignStreams(apDevice, streamNumber);
-    wifi.AssignStreams(staDevice, streamNumber);
+    WifiHelper::AssignStreams(apDevice, streamNumber);
+    WifiHelper::AssignStreams(staDevice, streamNumber);
 
     MobilityHelper mobility;
     Ptr<ListPositionAllocator> positionAlloc = CreateObject<ListPositionAllocator>();
@@ -2973,9 +2963,9 @@ class IdealRateManagerChannelWidthTest : public TestCase
   private:
     /**
      * Change the configured channel width for all nodes
-     * \param channelWidth the channel width (in MHz)
+     * \param channelWidth the channel width
      */
-    void ChangeChannelWidth(uint16_t channelWidth);
+    void ChangeChannelWidth(MHz_u channelWidth);
 
     /**
      * Triggers the transmission of a 1000 Byte-long data packet from the source device
@@ -3015,10 +3005,11 @@ IdealRateManagerChannelWidthTest::~IdealRateManagerChannelWidthTest()
 }
 
 void
-IdealRateManagerChannelWidthTest::ChangeChannelWidth(uint16_t channelWidth)
+IdealRateManagerChannelWidthTest::ChangeChannelWidth(MHz_u channelWidth)
 {
     Config::Set("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/ChannelSettings",
-                StringValue("{0, " + std::to_string(channelWidth) + ", BAND_5GHZ, 0}"));
+                StringValue("{0, " + std::to_string(static_cast<uint16_t>(channelWidth)) +
+                            ", BAND_5GHZ, 0}"));
 }
 
 void
@@ -3079,8 +3070,8 @@ IdealRateManagerChannelWidthTest::DoRun()
     staDevice = wifi.Install(phy, mac, wifiStaNode);
 
     // Assign fixed streams to random variables in use
-    wifi.AssignStreams(apDevice, streamNumber);
-    wifi.AssignStreams(staDevice, streamNumber);
+    WifiHelper::AssignStreams(apDevice, streamNumber);
+    WifiHelper::AssignStreams(staDevice, streamNumber);
 
     MobilityHelper mobility;
     Ptr<ListPositionAllocator> positionAlloc = CreateObject<ListPositionAllocator>();
@@ -3310,8 +3301,8 @@ IdealRateManagerMimoTest::DoRun()
     staDevice = wifi.Install(phy, mac, wifiStaNode);
 
     // Assign fixed streams to random variables in use
-    wifi.AssignStreams(apDevice, streamNumber);
-    wifi.AssignStreams(staDevice, streamNumber);
+    WifiHelper::AssignStreams(apDevice, streamNumber);
+    WifiHelper::AssignStreams(staDevice, streamNumber);
 
     MobilityHelper mobility;
     Ptr<ListPositionAllocator> positionAlloc = CreateObject<ListPositionAllocator>();
@@ -3586,7 +3577,7 @@ class HeRuMcsDataRateTestCase : public TestCase
     bool CheckDataRate(HeRu::RuType ruType,
                        std::string mcs,
                        uint8_t nss,
-                       uint16_t guardInterval,
+                       Time guardInterval,
                        uint16_t expectedDataRate);
     void DoRun() override;
 };
@@ -3600,12 +3591,26 @@ bool
 HeRuMcsDataRateTestCase::CheckDataRate(HeRu::RuType ruType,
                                        std::string mcs,
                                        uint8_t nss,
-                                       uint16_t guardInterval,
+                                       Time guardInterval,
                                        uint16_t expectedDataRate)
 {
-    uint16_t approxWidth = HeRu::GetBandwidth(ruType);
+    uint8_t staId = 1;
+    auto txVector = WifiTxVector(HePhy::GetHeMcs(0),
+                                 0,
+                                 WIFI_PREAMBLE_HE_MU,
+                                 guardInterval,
+                                 1,
+                                 1,
+                                 0,
+                                 160,
+                                 false,
+                                 false);
     WifiMode mode(mcs);
-    uint64_t dataRate = round(mode.GetDataRate(approxWidth, guardInterval, nss) / 100000.0);
+    txVector.SetMode(mode, staId);
+    txVector.SetNss(nss, staId);
+    HeRu::RuSpec ru(ruType, 1, true);
+    txVector.SetRu(ru, staId);
+    uint64_t dataRate = round(mode.GetDataRate(txVector, staId) / 100000.0);
     NS_ABORT_MSG_IF(dataRate > 65535, "Rate is way too high");
     if (static_cast<uint16_t>(dataRate) != expectedDataRate)
     {
@@ -3624,18 +3629,18 @@ HeRuMcsDataRateTestCase::DoRun()
     bool retval = true;
 
     // 26-tone RU, browse over all MCSs, GIs and Nss's (up to 4, current max)
-    retval = retval && CheckDataRate(HeRu::RU_26_TONE, "HeMcs0", 1, 800, 9) &&
-             CheckDataRate(HeRu::RU_26_TONE, "HeMcs1", 1, 1600, 17) &&
-             CheckDataRate(HeRu::RU_26_TONE, "HeMcs2", 1, 3200, 23) &&
-             CheckDataRate(HeRu::RU_26_TONE, "HeMcs3", 1, 3200, 30) &&
-             CheckDataRate(HeRu::RU_26_TONE, "HeMcs4", 2, 1600, 100) &&
-             CheckDataRate(HeRu::RU_26_TONE, "HeMcs5", 3, 1600, 200) &&
-             CheckDataRate(HeRu::RU_26_TONE, "HeMcs6", 4, 1600, 300) &&
-             CheckDataRate(HeRu::RU_26_TONE, "HeMcs7", 4, 3200, 300) &&
-             CheckDataRate(HeRu::RU_26_TONE, "HeMcs8", 4, 1600, 400) &&
-             CheckDataRate(HeRu::RU_26_TONE, "HeMcs9", 4, 3200, 400) &&
-             CheckDataRate(HeRu::RU_26_TONE, "HeMcs10", 4, 1600, 500) &&
-             CheckDataRate(HeRu::RU_26_TONE, "HeMcs11", 4, 3200, 500);
+    retval = retval && CheckDataRate(HeRu::RU_26_TONE, "HeMcs0", 1, NanoSeconds(800), 9) &&
+             CheckDataRate(HeRu::RU_26_TONE, "HeMcs1", 1, NanoSeconds(1600), 17) &&
+             CheckDataRate(HeRu::RU_26_TONE, "HeMcs2", 1, NanoSeconds(3200), 23) &&
+             CheckDataRate(HeRu::RU_26_TONE, "HeMcs3", 1, NanoSeconds(3200), 30) &&
+             CheckDataRate(HeRu::RU_26_TONE, "HeMcs4", 2, NanoSeconds(1600), 100) &&
+             CheckDataRate(HeRu::RU_26_TONE, "HeMcs5", 3, NanoSeconds(1600), 200) &&
+             CheckDataRate(HeRu::RU_26_TONE, "HeMcs6", 4, NanoSeconds(1600), 300) &&
+             CheckDataRate(HeRu::RU_26_TONE, "HeMcs7", 4, NanoSeconds(3200), 300) &&
+             CheckDataRate(HeRu::RU_26_TONE, "HeMcs8", 4, NanoSeconds(1600), 400) &&
+             CheckDataRate(HeRu::RU_26_TONE, "HeMcs9", 4, NanoSeconds(3200), 400) &&
+             CheckDataRate(HeRu::RU_26_TONE, "HeMcs10", 4, NanoSeconds(1600), 500) &&
+             CheckDataRate(HeRu::RU_26_TONE, "HeMcs11", 4, NanoSeconds(3200), 500);
 
     NS_TEST_EXPECT_MSG_EQ(
         retval,
@@ -3643,12 +3648,12 @@ HeRuMcsDataRateTestCase::DoRun()
         "26-tone RU  data rate verification for different MCSs, GIs, and Nss's failed");
 
     // Check other RU sizes
-    retval = retval && CheckDataRate(HeRu::RU_52_TONE, "HeMcs2", 1, 1600, 50) &&
-             CheckDataRate(HeRu::RU_106_TONE, "HeMcs9", 1, 800, 500) &&
-             CheckDataRate(HeRu::RU_242_TONE, "HeMcs5", 1, 1600, 650) &&
-             CheckDataRate(HeRu::RU_484_TONE, "HeMcs3", 1, 1600, 650) &&
-             CheckDataRate(HeRu::RU_996_TONE, "HeMcs5", 1, 3200, 2450) &&
-             CheckDataRate(HeRu::RU_2x996_TONE, "HeMcs3", 1, 3200, 2450);
+    retval = retval && CheckDataRate(HeRu::RU_52_TONE, "HeMcs2", 1, NanoSeconds(1600), 50) &&
+             CheckDataRate(HeRu::RU_106_TONE, "HeMcs9", 1, NanoSeconds(800), 500) &&
+             CheckDataRate(HeRu::RU_242_TONE, "HeMcs5", 1, NanoSeconds(1600), 650) &&
+             CheckDataRate(HeRu::RU_484_TONE, "HeMcs3", 1, NanoSeconds(1600), 650) &&
+             CheckDataRate(HeRu::RU_996_TONE, "HeMcs5", 1, NanoSeconds(3200), 2450) &&
+             CheckDataRate(HeRu::RU_2x996_TONE, "HeMcs3", 1, NanoSeconds(3200), 2450);
 
     NS_TEST_EXPECT_MSG_EQ(retval,
                           true,
@@ -3806,6 +3811,151 @@ WifiMgtHeaderTest::DoRun()
     TestHeaderSerialization(frame);
 }
 
+//-----------------------------------------------------------------------------
+
+/**
+ * Make sure that all DSSS modulation types work (see issue #1095).
+ *
+ * This test sends four packets from a STA to an AP, each with a different
+ * DSSS rate (1, 2, 5.5, and 11Mbps), and checks that all four are received.
+ */
+class DsssModulationTest : public TestCase
+{
+  public:
+    DsssModulationTest();
+
+    void DoRun() override;
+
+  private:
+    uint32_t m_received; ///< number of received packets
+
+    /**
+     * Trace sink to receive from the PacketSocket; the address parameter is unused
+     * \param context the context
+     * \param p the received packet
+     */
+    void Receive(std::string context, Ptr<const Packet> p, const Address&);
+};
+
+DsssModulationTest::DsssModulationTest()
+    : TestCase("Test case for Bug 730"),
+      m_received(0)
+{
+}
+
+void
+DsssModulationTest::Receive(std::string context, Ptr<const Packet> p, const Address&)
+{
+    m_received++;
+}
+
+void
+DsssModulationTest::DoRun()
+{
+    m_received = 0;
+
+    NodeContainer wifiStaNode;
+    wifiStaNode.Create(1);
+
+    NodeContainer wifiApNode;
+    wifiApNode.Create(1);
+
+    auto channel = YansWifiChannelHelper::Default();
+    YansWifiPhyHelper phy;
+    phy.SetChannel(channel.Create());
+
+    WifiHelper wifi;
+    wifi.SetStandard(WIFI_STANDARD_80211b);
+    wifi.SetRemoteStationManager("ns3::ConstantRateWifiManager",
+                                 "DataMode",
+                                 StringValue("DsssRate1Mbps"),
+                                 "ControlMode",
+                                 StringValue("DsssRate1Mbps"));
+
+    WifiMacHelper mac;
+    auto ssid = Ssid("ns-3-ssid");
+    mac.SetType("ns3::StaWifiMac", "Ssid", SsidValue(ssid), "ActiveProbing", BooleanValue(false));
+
+    NetDeviceContainer staDevices;
+    staDevices = wifi.Install(phy, mac, wifiStaNode);
+
+    mac.SetType("ns3::ApWifiMac", "Ssid", SsidValue(ssid), "BeaconGeneration", BooleanValue(true));
+
+    NetDeviceContainer apDevices;
+    apDevices = wifi.Install(phy, mac, wifiApNode);
+    auto apRemoteStationManager = apDevices.Get(0)
+                                      ->GetObject<WifiNetDevice>()
+                                      ->GetRemoteStationManager()
+                                      ->GetObject<ConstantRateWifiManager>();
+    apRemoteStationManager->SetAttribute("DataMode", StringValue("DsssRate1Mbps"));
+
+    MobilityHelper mobility;
+    auto positionAlloc = CreateObject<ListPositionAllocator>();
+
+    positionAlloc->Add(Vector(0.0, 0.0, 0.0));
+    positionAlloc->Add(Vector(1.0, 0.0, 0.0));
+    mobility.SetPositionAllocator(positionAlloc);
+
+    mobility.SetMobilityModel("ns3::ConstantPositionMobilityModel");
+    mobility.Install(wifiApNode);
+    mobility.Install(wifiStaNode);
+
+    auto apDevice = DynamicCast<WifiNetDevice>(apDevices.Get(0));
+    auto staDevice = DynamicCast<WifiNetDevice>(staDevices.Get(0));
+
+    PacketSocketAddress socket;
+    socket.SetSingleDevice(staDevice->GetIfIndex());
+    socket.SetPhysicalAddress(apDevice->GetAddress());
+    socket.SetProtocol(1);
+
+    // give packet socket powers to nodes.
+    PacketSocketHelper packetSocket;
+    packetSocket.Install(wifiStaNode);
+    packetSocket.Install(wifiApNode);
+
+    auto client = CreateObject<PacketSocketClient>();
+    client->SetAttribute("PacketSize", UintegerValue(1460));
+    client->SetAttribute("MaxPackets", UintegerValue(4));
+    client->SetRemote(socket);
+    wifiStaNode.Get(0)->AddApplication(client);
+    client->SetStartTime(Seconds(1));
+    client->SetStopTime(Seconds(4.5));
+
+    auto server = CreateObject<PacketSocketServer>();
+    server->SetLocal(socket);
+    wifiApNode.Get(0)->AddApplication(server);
+    server->SetStartTime(Seconds(0));
+    server->SetStopTime(Seconds(4.5));
+
+    Config::Connect("/NodeList/1/ApplicationList/0/$ns3::PacketSocketServer/Rx",
+                    MakeCallback(&DsssModulationTest::Receive, this));
+
+    // The PacketSocketClient starts at time 1s, and packets are sent at times 1s, 2s, 3s, 4s.
+    // Change the MCS in between these send times (e.g., at 1.5s, 2.5s, 3.5s)
+    Simulator::Schedule(
+        Seconds(1.5),
+        Config::Set,
+        "/NodeList/0/DeviceList/0/RemoteStationManager/$ns3::ConstantRateWifiManager/DataMode",
+        StringValue("DsssRate2Mbps"));
+    Simulator::Schedule(
+        Seconds(2.5),
+        Config::Set,
+        "/NodeList/0/DeviceList/0/RemoteStationManager/$ns3::ConstantRateWifiManager/DataMode",
+        StringValue("DsssRate5_5Mbps"));
+    Simulator::Schedule(
+        Seconds(3.5),
+        Config::Set,
+        "/NodeList/0/DeviceList/0/RemoteStationManager/$ns3::ConstantRateWifiManager/DataMode",
+        StringValue("DsssRate11Mbps"));
+
+    Simulator::Stop(Seconds(4.5));
+    Simulator::Run();
+
+    Simulator::Destroy();
+
+    NS_TEST_ASSERT_MSG_EQ(m_received, 4, "Did not receive four DSSS packets");
+}
+
 /**
  * \ingroup wifi-test
  * \ingroup tests
@@ -3839,6 +3989,7 @@ WifiTestSuite::WifiTestSuite()
     AddTestCase(new IdealRateManagerMimoTest, TestCase::Duration::QUICK);
     AddTestCase(new HeRuMcsDataRateTestCase, TestCase::Duration::QUICK);
     AddTestCase(new WifiMgtHeaderTest, TestCase::Duration::QUICK);
+    AddTestCase(new DsssModulationTest, TestCase::Duration::QUICK);
 }
 
 static WifiTestSuite g_wifiTestSuite; ///< the test suite

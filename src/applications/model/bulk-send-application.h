@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2010 Georgia Institute of Technology
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: George F. Riley <riley@ece.gatech.edu>
  */
@@ -33,6 +22,8 @@ namespace ns3
 
 class Address;
 class Socket;
+class TcpHeader;
+class TcpSocketBase;
 
 /**
  * \ingroup applications
@@ -137,6 +128,14 @@ class BulkSendApplication : public Application
     /// Traced Callback: sent packets
     TracedCallback<Ptr<const Packet>> m_txTrace;
 
+    /// Traced Callback: retransmitted packets
+    TracedCallback<Ptr<const Packet>,
+                   const TcpHeader&,
+                   const Address&,
+                   const Address&,
+                   Ptr<const TcpSocketBase>>
+        m_retransmissionTrace;
+
     /// Callback for tracing the packet Tx events, includes source, destination,  the packet sent,
     /// and header
     TracedCallback<Ptr<const Packet>, const Address&, const Address&, const SeqTsSizeHeader&>
@@ -162,6 +161,20 @@ class BulkSendApplication : public Application
      * \param unused actually unused
      */
     void DataSend(Ptr<Socket> socket, uint32_t unused);
+
+    /**
+     *  \brief Packet retransmitted (called by TcpSocketBase sockets via callback)
+     *  \param p the retransmitted packet
+     *  \param header the TCP header
+     *  \param localAddr the local address
+     *  \param peerAddr the peer address
+     *  \param socket the socket that retransmitted the packet
+     */
+    void PacketRetransmitted(Ptr<const Packet> p,
+                             const TcpHeader& header,
+                             const Address& localAddr,
+                             const Address& peerAddr,
+                             Ptr<const TcpSocketBase> socket);
 };
 
 } // namespace ns3

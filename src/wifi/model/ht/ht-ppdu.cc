@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2020 Orange Labs
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Rediet <getachew.redieteab@orange.com>
  *         Muhammad Iqbal Rochman <muhiqbalcr@uchicago.edu>
@@ -82,7 +71,7 @@ HtPpdu::SetHtSigHeader(HtSigHeader& htSig, const WifiTxVector& txVector, std::si
     htSig.SetChannelWidth(txVector.GetChannelWidth());
     htSig.SetHtLength(psduSize);
     htSig.SetAggregation(txVector.IsAggregation());
-    htSig.SetShortGuardInterval(txVector.GetGuardInterval() == 400);
+    htSig.SetShortGuardInterval(txVector.GetGuardInterval().GetNanoSeconds() == 400);
 }
 
 WifiTxVector
@@ -102,7 +91,7 @@ HtPpdu::SetTxVectorFromPhyHeaders(WifiTxVector& txVector,
     txVector.SetMode(HtPhy::GetHtMcs(htSig.GetMcs()));
     txVector.SetChannelWidth(htSig.GetChannelWidth());
     txVector.SetNss(1 + (htSig.GetMcs() / 8));
-    txVector.SetGuardInterval(htSig.GetShortGuardInterval() ? 400 : 800);
+    txVector.SetGuardInterval(NanoSeconds(htSig.GetShortGuardInterval() ? 400 : 800));
     txVector.SetAggregation(htSig.GetAggregation());
 }
 
@@ -144,12 +133,12 @@ HtPpdu::HtSigHeader::GetMcs() const
 }
 
 void
-HtPpdu::HtSigHeader::SetChannelWidth(uint16_t channelWidth)
+HtPpdu::HtSigHeader::SetChannelWidth(MHz_u channelWidth)
 {
     m_cbw20_40 = (channelWidth > 20) ? 1 : 0;
 }
 
-uint16_t
+MHz_u
 HtPpdu::HtSigHeader::GetChannelWidth() const
 {
     return m_cbw20_40 ? 40 : 20;

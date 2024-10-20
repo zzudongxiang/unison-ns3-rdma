@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2016
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Sébastien Deronne <sebastien.deronne@gmail.com>
  */
@@ -21,6 +10,7 @@
 #define WIFI_UTILS_H
 
 #include "block-ack-type.h"
+#include "wifi-types.h"
 
 #include "ns3/fatal-error.h"
 #include "ns3/nstime.h"
@@ -77,27 +67,27 @@ using WifiTidLinkMapping = std::map<uint8_t, std::set<uint8_t>>;
 /**
  * Convert from dBm to Watts.
  *
- * \param dbm the power in dBm
+ * \param val the value in dBm
  *
  * \return the equivalent Watts for the given dBm
  */
-double DbmToW(double dbm);
+Watt_u DbmToW(dBm_u val);
 /**
  * Convert from dB to ratio.
  *
- * \param db the value in dB
+ * \param val the value in dB
  *
  * \return ratio in linear scale
  */
-double DbToRatio(double db);
+double DbToRatio(dB_u val);
 /**
  * Convert from Watts to dBm.
  *
- * \param w the power in Watts
+ * \param val the value in Watts
  *
  * \return the equivalent dBm for the given Watts
  */
-double WToDbm(double w);
+dBm_u WToDbm(Watt_u val);
 /**
  * Convert from ratio to dB.
  *
@@ -105,7 +95,7 @@ double WToDbm(double w);
  *
  * \return the value in dB
  */
-double RatioToDb(double ratio);
+dB_u RatioToDb(double ratio);
 /**
  * Return the total Ack size (including FCS trailer).
  *

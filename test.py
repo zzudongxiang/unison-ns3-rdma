@@ -2,18 +2,7 @@
 #
 # Copyright (c) 2009 University of Washington
 #
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation;
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+# SPDX-License-Identifier: GPL-2.0-only
 #
 import argparse
 import fnmatch
@@ -664,9 +653,12 @@ def sigint_hook(signal, frame):
 # little less hacky, we should add a command to ns3 to return this info
 # and use that result.
 #
-def read_ns3_config():
-    lock_filename = ".lock-ns3_%s_build" % sys.platform
+platform = sys.platform
+platform = "bsd" if "bsd" in platform else platform
+lock_filename = ".lock-ns3_%s_build" % platform
 
+
+def read_ns3_config():
     try:
         # sys.platform reports linux2 for python2 and linux for python3
         with open(lock_filename, "rt", encoding="utf-8") as f:
@@ -854,6 +846,11 @@ def make_paths():
 VALGRIND_SUPPRESSIONS_FILE = ".ns3.supp"
 # VALGRIND_SUPPRESSIONS_FILE = None
 
+# When the TEST_LOGS environment variable is set to 1 or true,
+# NS_LOG is set to NS_LOG=*, and stdout/stderr
+# from tests are discarded to prevent running out of memory.
+TEST_LOGS = bool(os.getenv("TEST_LOGS", False))
+
 
 def run_job_synchronously(shell_command, directory, valgrind, is_python, build_path=""):
     if VALGRIND_SUPPRESSIONS_FILE is not None:
@@ -886,9 +883,16 @@ def run_job_synchronously(shell_command, directory, valgrind, is_python, build_p
 
     start_time = time.time()
     proc = subprocess.Popen(
-        cmd, shell=True, cwd=directory, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        cmd,
+        shell=True,
+        cwd=directory,
+        stdout=subprocess.PIPE if not TEST_LOGS else subprocess.DEVNULL,
+        stderr=subprocess.PIPE if not TEST_LOGS else subprocess.STDOUT,
     )
     stdout_results, stderr_results = proc.communicate()
+    stdout_results = b"" if stdout_results is None else stdout_results
+    stderr_results = b"" if stderr_results is None else stderr_results
+
     elapsed_time = time.time() - start_time
 
     retval = proc.returncode
@@ -1260,7 +1264,6 @@ def run_tests():
     #
     # Get the information from the build status file.
     #
-    lock_filename = ".lock-ns3_%s_build" % sys.platform
     if os.path.exists(lock_filename):
         ns3_runnable_programs = get_list_from_file(lock_filename, "ns3_runnable_programs")
         ns3_runnable_scripts = get_list_from_file(lock_filename, "ns3_runnable_scripts")
@@ -1352,7 +1355,7 @@ def run_tests():
     # test.py runs.  If you want to see logging output from your tests, you
     # have to run them using the test-runner directly.
     #
-    os.environ["NS_LOG"] = ""
+    os.environ["NS_LOG"] = "*" if TEST_LOGS else ""
 
     #
     # There are a couple of options that imply we can to exit before starting

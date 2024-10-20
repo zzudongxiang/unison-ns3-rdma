@@ -2,18 +2,7 @@
  * Copyright (c) 2007 INRIA
  *               2009,2010 Contributors
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Mathieu Lacage <mathieu.lacage@sophia.inria.fr>
  * Contributors: Thomas Waldecker <twaldecker@rocketmail.com>
@@ -66,7 +55,7 @@ class ConstantVelocityMobilityModel;
  * The following tools are known to support this format:
  *  - BonnMotion http://net.cs.uni-bonn.de/wg/cs/applications/bonnmotion/
  *  - SUMO http://sourceforge.net/apps/mediawiki/sumo/index.php?title=Main_Page
- *  - TraNS http://trans.epfl.ch/
+ *  - TraNS https://web.archive.org/web/20190512111856/http://lca.epfl.ch/projects/trans/
  *
  *  See usage example in examples/mobility/ns2-mobility-trace.cc
  *

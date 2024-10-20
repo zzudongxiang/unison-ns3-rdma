@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2013 Universita' di Firenze, Italy
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Tommaso Pecorella <tommaso.pecorella@unifi.it>
  *         Michele Muccio <michelemuccio@virgilio.it>
@@ -149,7 +138,7 @@ SixLowPanNetDevice::SetNetDevice(Ptr<NetDevice> device)
     NS_LOG_DEBUG("RegisterProtocolHandler for " << device->GetInstanceTypeId().GetName());
 
     uint16_t protocolType = PROT_NUMBER;
-    if (device->GetInstanceTypeId().GetName() == "ns3::LrWpanNetDevice")
+    if (device->GetInstanceTypeId().GetName().find("LrWpanNetDevice") != std::string::npos)
     {
         // LrWpanNetDevice does not have a protocol number in the frame.
         // Hence, we must register for any protocol, and assume that any

@@ -2,18 +2,7 @@
  * Copyright (c) 2009 MIRKO BANCHI
  * Copyright (c) 2015 University of Washington
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Authors: Mirko Banchi <mk.banchi@gmail.com>
  *          Sebastien Deronne <sebastien.deronne@gmail.com>
@@ -100,7 +89,7 @@ NS_LOG_COMPONENT_DEFINE("WifiSpectrumSaturationExample");
 int
 main(int argc, char* argv[])
 {
-    double distance{1};
+    meter_u distance{1};
     Time simulationTime{"10s"};
     uint16_t index{256};
     uint32_t channelWidth{0};
@@ -141,22 +130,22 @@ main(int argc, char* argv[])
         NodeContainer wifiApNode;
         wifiApNode.Create(1);
 
-        YansWifiPhyHelper phy;
+        YansWifiPhyHelper yansPhy;
         SpectrumWifiPhyHelper spectrumPhy;
         if (wifiType == "ns3::YansWifiPhy")
         {
             YansWifiChannelHelper channel;
             channel.AddPropagationLoss("ns3::FriisPropagationLossModel");
             channel.SetPropagationDelay("ns3::ConstantSpeedPropagationDelayModel");
-            phy.SetChannel(channel.Create());
-            phy.Set("TxPowerStart", DoubleValue(1));
-            phy.Set("TxPowerEnd", DoubleValue(1));
+            yansPhy.SetChannel(channel.Create());
+            yansPhy.Set("TxPowerStart", DoubleValue(1));
+            yansPhy.Set("TxPowerEnd", DoubleValue(1));
 
             if (i > 31 && i <= 63)
             {
-                phy.Set("Antennas", UintegerValue(2));
-                phy.Set("MaxSupportedTxSpatialStreams", UintegerValue(2));
-                phy.Set("MaxSupportedRxSpatialStreams", UintegerValue(2));
+                yansPhy.Set("Antennas", UintegerValue(2));
+                yansPhy.Set("MaxSupportedTxSpatialStreams", UintegerValue(2));
+                yansPhy.Set("MaxSupportedRxSpatialStreams", UintegerValue(2));
             }
         }
         else if (wifiType == "ns3::SpectrumWifiPhy")
@@ -535,20 +524,20 @@ main(int argc, char* argv[])
         if (wifiType == "ns3::YansWifiPhy")
         {
             mac.SetType("ns3::StaWifiMac", "Ssid", SsidValue(ssid));
-            phy.Set("ChannelSettings", StringValue(channelStr));
+            yansPhy.Set("ChannelSettings", StringValue(channelStr));
 
-            staDevice = wifi.Install(phy, mac, wifiStaNode);
+            staDevice = wifi.Install(yansPhy, mac, wifiStaNode);
             mac.SetType("ns3::ApWifiMac", "Ssid", SsidValue(ssid));
-            phy.Set("ChannelSettings", StringValue(channelStr));
-            apDevice = wifi.Install(phy, mac, wifiApNode);
+            yansPhy.Set("ChannelSettings", StringValue(channelStr));
+            apDevice = wifi.Install(yansPhy, mac, wifiApNode);
         }
         else if (wifiType == "ns3::SpectrumWifiPhy")
         {
             mac.SetType("ns3::StaWifiMac", "Ssid", SsidValue(ssid));
-            phy.Set("ChannelSettings", StringValue(channelStr));
+            spectrumPhy.Set("ChannelSettings", StringValue(channelStr));
             staDevice = wifi.Install(spectrumPhy, mac, wifiStaNode);
             mac.SetType("ns3::ApWifiMac", "Ssid", SsidValue(ssid));
-            phy.Set("ChannelSettings", StringValue(channelStr));
+            spectrumPhy.Set("ChannelSettings", StringValue(channelStr));
             apDevice = wifi.Install(spectrumPhy, mac, wifiApNode);
         }
 
@@ -602,6 +591,9 @@ main(int argc, char* argv[])
 
         if (enablePcap)
         {
+            auto& phy =
+                (wifiType == "ns3::YansWifiPhy" ? dynamic_cast<WifiPhyHelper&>(yansPhy)
+                                                : dynamic_cast<WifiPhyHelper&>(spectrumPhy));
             phy.SetPcapDataLinkType(WifiPhyHelper::DLT_IEEE802_11_RADIO);
             std::stringstream ss;
             ss << "wifi-spectrum-saturation-example-" << i;

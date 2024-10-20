@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2008 INRIA
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Authors: Mathieu Lacage <mathieu.lacage@sophia.inria.fr>
  */
@@ -235,8 +224,11 @@ class ObjectBase
      *
      * \param [in]  name The name of the attribute to read.
      * \param [out] value Where the result should be stored.
+     * \param [in] permissive If false (by default), will generate warnings and errors for
+     * deprecated and obsolete attributes, respectively. If set to true, warnings for deprecated
+     * attributes will be suppressed.
      */
-    void GetAttribute(std::string name, AttributeValue& value) const;
+    void GetAttribute(std::string name, AttributeValue& value, bool permissive = false) const;
     /**
      * Get the value of an attribute without raising errors.
      *

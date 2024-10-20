@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2014 Universidad de la República - Uruguay
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Matias Richart <mrichart@fing.edu.uy>
  */
@@ -188,9 +177,9 @@ AparfWifiManager::CheckInit(AparfWifiRemoteStation* station)
         station->m_prevPowerLevel = m_maxPower;
         station->m_critRateIndex = 0;
         WifiMode mode = GetSupported(station, station->m_rateIndex);
-        uint16_t channelWidth = GetChannelWidth(station);
+        auto channelWidth = GetChannelWidth(station);
         DataRate rate(mode.GetDataRate(channelWidth));
-        double power = GetPhy()->GetPowerDbm(m_maxPower);
+        const auto power = GetPhy()->GetPower(m_maxPower);
         m_powerChange(power, power, station->m_state->m_address);
         m_rateChange(rate, rate, station->m_state->m_address);
         station->m_initialized = true;
@@ -267,7 +256,7 @@ AparfWifiManager::DoReportDataOk(WifiRemoteStation* st,
                                  double ackSnr,
                                  WifiMode ackMode,
                                  double dataSnr,
-                                 uint16_t dataChannelWidth,
+                                 MHz_u dataChannelWidth,
                                  uint8_t dataNss)
 {
     NS_LOG_FUNCTION(this << st << ackSnr << ackMode << dataSnr << dataChannelWidth << +dataNss);
@@ -348,11 +337,11 @@ AparfWifiManager::DoReportFinalDataFailed(WifiRemoteStation* station)
 }
 
 WifiTxVector
-AparfWifiManager::DoGetDataTxVector(WifiRemoteStation* st, uint16_t allowedWidth)
+AparfWifiManager::DoGetDataTxVector(WifiRemoteStation* st, MHz_u allowedWidth)
 {
     NS_LOG_FUNCTION(this << st << allowedWidth);
     auto station = static_cast<AparfWifiRemoteStation*>(st);
-    uint16_t channelWidth = GetChannelWidth(station);
+    auto channelWidth = GetChannelWidth(station);
     if (channelWidth > 20 && channelWidth != 22)
     {
         channelWidth = 20;
@@ -361,8 +350,8 @@ AparfWifiManager::DoGetDataTxVector(WifiRemoteStation* st, uint16_t allowedWidth
     WifiMode mode = GetSupported(station, station->m_rateIndex);
     DataRate rate(mode.GetDataRate(channelWidth));
     DataRate prevRate(GetSupported(station, station->m_prevRateIndex).GetDataRate(channelWidth));
-    double power = GetPhy()->GetPowerDbm(station->m_powerLevel);
-    double prevPower = GetPhy()->GetPowerDbm(station->m_prevPowerLevel);
+    const auto power = GetPhy()->GetPower(station->m_powerLevel);
+    const auto prevPower = GetPhy()->GetPower(station->m_prevPowerLevel);
     if (station->m_prevPowerLevel != station->m_powerLevel)
     {
         m_powerChange(prevPower, power, station->m_state->m_address);
@@ -377,7 +366,7 @@ AparfWifiManager::DoGetDataTxVector(WifiRemoteStation* st, uint16_t allowedWidth
         mode,
         station->m_powerLevel,
         GetPreambleForTransmission(mode.GetModulationClass(), GetShortPreambleEnabled()),
-        800,
+        NanoSeconds(800),
         1,
         1,
         0,
@@ -392,7 +381,7 @@ AparfWifiManager::DoGetRtsTxVector(WifiRemoteStation* st)
     /// \todo we could/should implement the ARF algorithm for
     /// RTS only by picking a single rate within the BasicRateSet.
     auto station = static_cast<AparfWifiRemoteStation*>(st);
-    uint16_t channelWidth = GetChannelWidth(station);
+    auto channelWidth = GetChannelWidth(station);
     if (channelWidth > 20 && channelWidth != 22)
     {
         channelWidth = 20;
@@ -410,7 +399,7 @@ AparfWifiManager::DoGetRtsTxVector(WifiRemoteStation* st)
         mode,
         GetDefaultTxPowerLevel(),
         GetPreambleForTransmission(mode.GetModulationClass(), GetShortPreambleEnabled()),
-        800,
+        NanoSeconds(800),
         1,
         1,
         0,

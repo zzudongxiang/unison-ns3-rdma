@@ -2,18 +2,7 @@
  * Copyright (c) 2015 Natale Patriciello <natale.patriciello@gmail.com>
  *               2016 Stefano Avallone <stavallo@unina.it>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  */
 #ifndef TRAFFICCONTROLLAYER_H
 #define TRAFFICCONTROLLAYER_H
@@ -63,20 +52,26 @@ class NetDeviceQueueInterface;
  * their Receive callback through RegisterProtocolHandler) and NetDevices.
  *
  * An example of the IN connection between this layer and IP layer is the following:
- *\verbatim
-  Ptr<TrafficControlLayer> tc = m_node->GetObject<TrafficControlLayer> ();
+ * \code{.cpp}
+   Ptr<TrafficControlLayer> tc = m_node->GetObject<TrafficControlLayer>();
 
-  NS_ASSERT (tc != 0);
+   NS_ASSERT(tc != nullptr);
 
-  m_node->RegisterProtocolHandler (MakeCallback (&TrafficControlLayer::Receive, tc),
-                                   Ipv4L3Protocol::PROT_NUMBER, device);
-  m_node->RegisterProtocolHandler (MakeCallback (&TrafficControlLayer::Receive, tc),
-                                   ArpL3Protocol::PROT_NUMBER, device);
+   m_node->RegisterProtocolHandler(MakeCallback(&TrafficControlLayer::Receive, tc),
+                                   Ipv4L3Protocol::PROT_NUMBER,
+                                   device);
+   m_node->RegisterProtocolHandler(MakeCallback(&TrafficControlLayer::Receive, tc),
+                                   ArpL3Protocol::PROT_NUMBER,
+                                   device);
 
-  tc->RegisterProtocolHandler (MakeCallback (&Ipv4L3Protocol::Receive, this),
-                               Ipv4L3Protocol::PROT_NUMBER, device);
-  tc->RegisterProtocolHandler (MakeCallback (&ArpL3Protocol::Receive, PeekPointer
- (GetObject<ArpL3Protocol> ())), ArpL3Protocol::PROT_NUMBER, device); \endverbatim
+   tc->RegisterProtocolHandler(MakeCallback(&Ipv4L3Protocol::Receive, this),
+                               Ipv4L3Protocol::PROT_NUMBER,
+                               device);
+   tc->RegisterProtocolHandler(
+       MakeCallback(&ArpL3Protocol::Receive, PeekPointer(GetObject<ArpL3Protocol>())),
+       ArpL3Protocol::PROT_NUMBER,
+       device);
+   \endcode
  * On the node, for IPv4 and ARP packet, is registered the
  * TrafficControlLayer::Receive callback. At the same time, on the TrafficControlLayer
  * object, is registered the callbacks associated to the upper layers (IPv4 or ARP).

@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2018 NITK Surathkal
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Viyom Mittal <viyommittal@gmail.com>
  *         Vivek Jain <jain.vivek.anand@gmail.com>
@@ -110,11 +99,13 @@ class TcpRecoveryOps : public Object
      * The function is called on arrival of every ack when TcpSocketState
      * is set to CA_RECOVERY. It performs the necessary cwnd changes
      * as per the recovery algorithm.
+     * The param `isDupAck` has been added to align PRR implementation with RFC 6937 bis-08.
      *
      * \param tcb internal congestion state
      * \param deliveredBytes bytes (S)ACKed in the last (S)ACK
+     * \param isDupAck Indicates if the last acknowledgement was duplicate.
      */
-    virtual void DoRecovery(Ptr<TcpSocketState> tcb, uint32_t deliveredBytes) = 0;
+    virtual void DoRecovery(Ptr<TcpSocketState> tcb, uint32_t deliveredBytes, bool isDupAck) = 0;
 
     /**
      * \brief Performs cwnd adjustments at the end of recovery
@@ -189,7 +180,7 @@ class TcpClassicRecovery : public TcpRecoveryOps
                        uint32_t unAckDataCount,
                        uint32_t deliveredBytes) override;
 
-    void DoRecovery(Ptr<TcpSocketState> tcb, uint32_t deliveredBytes) override;
+    void DoRecovery(Ptr<TcpSocketState> tcb, uint32_t deliveredBytes, bool isDupAck) override;
 
     void ExitRecovery(Ptr<TcpSocketState> tcb) override;
 

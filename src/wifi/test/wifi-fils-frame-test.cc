@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2024 Rami Abdallah
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  */
 
 #include "ns3/ap-wifi-mac.h"
@@ -86,7 +75,7 @@ static const uint8_t WIFI_6GHZ_FD_PHY_IDX = 4;
 /// @brief  Wi-Fi FILS frame test parameters
 struct WifiFilsFrameTestParams
 {
-    uint16_t bw{DEFAULT_BANDWIDTH};                     ///< Operation bandwidth
+    MHz_u bw{DEFAULT_BANDWIDTH};                        ///< Operation bandwidth
     std::string ssid{DEFAULT_SSID};                     ///< SSID name
     uint8_t nss{0};                                     ///< Number of spatial streams
     Time bcnIntrvl{DEFAULT_BCN_INTRVL};                 ///< Time between Beacons
@@ -186,9 +175,12 @@ WifiFilsFrameTest::SetupDevice(Ptr<YansWifiChannel>& channel, bool isAp)
     MobilityHelper mobility;
     node.Create(1);
     phy.SetChannel(channel);
-    TupleValue<UintegerValue, UintegerValue, EnumValue<WifiPhyBand>, UintegerValue> channelValue;
-    channelValue.Set(
-        WifiPhy::ChannelTuple{INVALID_CHAN_NUM, m_params.bw, DEFAULT_BAND, DEFAULT_PRIMARY_INDEX});
+    AttributeContainerValue<
+        TupleValue<UintegerValue, UintegerValue, EnumValue<WifiPhyBand>, UintegerValue>,
+        ';'>
+        channelValue;
+    channelValue.Set(WifiPhy::ChannelSegments{
+        {INVALID_CHAN_NUM, m_params.bw, DEFAULT_BAND, DEFAULT_PRIMARY_INDEX}});
     phy.Set("ChannelSettings", channelValue);
     phy.Set("Antennas", UintegerValue(m_params.nss));
     phy.Set("MaxSupportedTxSpatialStreams", UintegerValue(m_params.nss));
@@ -220,7 +212,7 @@ WifiFilsFrameTest::SetupDevice(Ptr<YansWifiChannel>& channel, bool isAp)
                     BooleanValue(false));
     }
     auto testDevs = wifi.Install(phy, mac, node);
-    wifi.AssignStreams(testDevs, DEFAULT_STREAM_INDEX);
+    WifiHelper::AssignStreams(testDevs, DEFAULT_STREAM_INDEX);
     auto dev = DynamicCast<WifiNetDevice>(testDevs.Get(0));
     mobility.SetMobilityModel("ns3::ConstantPositionMobilityModel");
     mobility.Install(node);

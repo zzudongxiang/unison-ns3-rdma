@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2022 Universita' degli Studi di Napoli Federico II
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Stefano Avallone <stavallo@unina.it>
  */
@@ -54,9 +43,9 @@ class WifiUseAvailBwTest : public TestCase
      * Constructor
      *
      * \param channelStr channel setting strings for BSS 0 and BSS 1
-     * \param bss0Width width (MHz) of the transmission in BSS 0 started when BSS 1 is transmitting
+     * \param bss0Width width of the transmission in BSS 0 started when BSS 1 is transmitting
      */
-    WifiUseAvailBwTest(std::initializer_list<std::string> channelStr, uint16_t bss0Width);
+    WifiUseAvailBwTest(std::initializer_list<std::string> channelStr, MHz_u bss0Width);
     ~WifiUseAvailBwTest() override;
 
     /**
@@ -94,7 +83,7 @@ class WifiUseAvailBwTest : public TestCase
     };
 
     std::vector<std::string> m_channelStr;        ///< channel setting strings
-    uint16_t m_bss0Width;                         ///< width (MHz) of the transmission in BSS 0
+    MHz_u m_bss0Width;                            ///< width of the transmission in BSS 0
                                                   ///< started when BSS 1 is transmitting
     NetDeviceContainer m_staDevices;              ///< container for stations' NetDevices
     NetDeviceContainer m_apDevices;               ///< container for AP's NetDevice
@@ -106,7 +95,7 @@ class WifiUseAvailBwTest : public TestCase
 };
 
 WifiUseAvailBwTest::WifiUseAvailBwTest(std::initializer_list<std::string> channelStr,
-                                       uint16_t bss0Width)
+                                       MHz_u bss0Width)
     : TestCase("Check transmission on available bandwidth"),
       m_channelStr(channelStr),
       m_bss0Width(bss0Width),
@@ -232,8 +221,8 @@ WifiUseAvailBwTest::DoRun()
     Ptr<WifiNetDevice> dev;
 
     // Assign fixed streams to random variables in use
-    streamNumber += wifi.AssignStreams(m_apDevices, streamNumber);
-    streamNumber += wifi.AssignStreams(m_staDevices, streamNumber);
+    streamNumber += WifiHelper::AssignStreams(m_apDevices, streamNumber);
+    streamNumber += WifiHelper::AssignStreams(m_staDevices, streamNumber);
 
     MobilityHelper mobility;
     Ptr<ListPositionAllocator> positionAlloc = CreateObject<ListPositionAllocator>();

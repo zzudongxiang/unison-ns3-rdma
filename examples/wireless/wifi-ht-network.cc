@@ -1,23 +1,13 @@
 /*
  * Copyright (c) 2009 MIRKO BANCHI
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Authors: Mirko Banchi <mk.banchi@gmail.com>
  *          Sebastien Deronne <sebastien.deronne@gmail.com>
  */
 
+#include "ns3/attribute-container.h"
 #include "ns3/boolean.h"
 #include "ns3/command-line.h"
 #include "ns3/config.h"
@@ -67,9 +57,9 @@ main(int argc, char* argv[])
     bool udp{true};
     bool useRts{false};
     Time simulationTime{"10s"};
-    double distance{1.0}; // meters
-    double frequency{5};  // whether 2.4 or 5 GHz
-    int mcs{-1};          // -1 indicates an unset value
+    meter_u distance{1.0};
+    double frequency{5}; // whether 2.4 or 5 GHz
+    int mcs{-1};         // -1 indicates an unset value
     double minExpectedThroughput{0.0};
     double maxExpectedThroughput{0.0};
 
@@ -176,10 +166,12 @@ main(int argc, char* argv[])
                 wifi.ConfigHtOptions("ShortGuardIntervalSupported", BooleanValue(sgi));
 
                 Ssid ssid = Ssid("ns3-80211n");
-                TupleValue<UintegerValue, UintegerValue, EnumValue<WifiPhyBand>, UintegerValue>
+                AttributeContainerValue<
+                    TupleValue<UintegerValue, UintegerValue, EnumValue<WifiPhyBand>, UintegerValue>,
+                    ';'>
                     channelValue;
                 WifiPhyBand band = (frequency == 5.0 ? WIFI_PHY_BAND_5GHZ : WIFI_PHY_BAND_2_4GHZ);
-                channelValue.Set(WifiPhy::ChannelTuple{0, channelWidth, band, 0});
+                channelValue.Set(WifiPhy::ChannelSegments{{0, channelWidth, band, 0}});
 
                 mac.SetType("ns3::StaWifiMac", "Ssid", SsidValue(ssid));
                 phy.Set("ChannelSettings", channelValue);
@@ -197,8 +189,8 @@ main(int argc, char* argv[])
                 apDevice = wifi.Install(phy, mac, wifiApNode);
 
                 int64_t streamNumber = 150;
-                streamNumber += wifi.AssignStreams(apDevice, streamNumber);
-                streamNumber += wifi.AssignStreams(staDevice, streamNumber);
+                streamNumber += WifiHelper::AssignStreams(apDevice, streamNumber);
+                streamNumber += WifiHelper::AssignStreams(staDevice, streamNumber);
 
                 // mobility.
                 MobilityHelper mobility;
@@ -229,7 +221,8 @@ main(int argc, char* argv[])
                 apNodeInterface = address.Assign(apDevice);
 
                 /* Setting applications */
-                const auto maxLoad = HtPhy::GetDataRate(mcs, channelWidth, sgi ? 400 : 800, 1);
+                const auto maxLoad =
+                    HtPhy::GetDataRate(mcs, channelWidth, NanoSeconds(sgi ? 400 : 800), 1);
                 ApplicationContainer serverApp;
                 if (udp)
                 {

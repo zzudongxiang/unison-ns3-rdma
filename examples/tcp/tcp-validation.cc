@@ -2,34 +2,7 @@
  * Copyright (c) 2019 Cable Television Laboratories, Inc.
  * Copyright (c) 2020 Tom Henderson (adapted for DCTCP testing)
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. The names of the authors may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
- *
- * Alternatively, provided that this notice is retained in full, this
- * software may be distributed under the terms of the GNU General
- * Public License ("GPL") version 2, in which case the provisions of the
- * GPL apply INSTEAD OF those given above.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * SPDX-License-Identifier: BSD-3-Clause
  */
 
 // This program is designed to observe long-running TCP congestion control
@@ -258,10 +231,10 @@ TraceFirstDctcp(std::ofstream* ofStream, uint32_t bytesMarked, uint32_t bytesAck
             NS_LOG_WARN("now " << Now().As(Time::S) << " alpha " << alpha << " (expected <= 0.1)");
             g_validationFailed = true;
         }
-        if ((now > 7) && ((alpha > 0.09) || (alpha < 0.055)))
+        if ((now > 7) && ((alpha > 0.09) || (alpha < 0.049)))
         {
             NS_LOG_WARN("now " << Now().As(Time::S) << " alpha " << alpha
-                               << " (expected 0.09 <= alpha <= 0.055)");
+                               << " (expected 0.09 <= alpha <= 0.049)");
             g_validationFailed = true;
         }
     }

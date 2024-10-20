@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2020 Universita' degli Studi di Napoli Federico II
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Stefano Avallone <stavallo@unina.it>
  */
@@ -399,6 +388,15 @@ void
 HeFrameExchangeManager::CtsAfterMuRtsTimeout(Ptr<WifiMpdu> muRts, const WifiTxVector& txVector)
 {
     NS_LOG_FUNCTION(this << *muRts << txVector);
+    DoCtsAfterMuRtsTimeout(muRts, txVector, true);
+}
+
+void
+HeFrameExchangeManager::DoCtsAfterMuRtsTimeout(Ptr<WifiMpdu> muRts,
+                                               const WifiTxVector& txVector,
+                                               bool updateFailedCw)
+{
+    NS_LOG_FUNCTION(this << *muRts << txVector << updateFailedCw);
 
     if (m_psduMap.empty())
     {
@@ -446,7 +444,10 @@ HeFrameExchangeManager::CtsAfterMuRtsTimeout(Ptr<WifiMpdu> muRts, const WifiTxVe
     else
     {
         NS_LOG_DEBUG("Missed CTS, retransmit MPDUs");
-        m_edca->UpdateFailedCw(m_linkId);
+        if (updateFailedCw)
+        {
+            m_edca->UpdateFailedCw(m_linkId);
+        }
     }
     // Make the sequence numbers of the MPDUs available again if the MPDUs have never
     // been transmitted, both in case the MPDUs have been discarded and in case the
@@ -1189,7 +1190,7 @@ HeFrameExchangeManager::GetCtsTxVectorAfterMuRts(const CtrlTriggerHeader& trigge
 
     auto userInfoIt = trigger.FindUserInfoWithAid(staId);
     NS_ASSERT_MSG(userInfoIt != trigger.end(), "User Info field for AID=" << staId << " not found");
-    uint16_t bw = 0;
+    MHz_u bw = 0;
 
     if (uint8_t ru = userInfoIt->GetMuRtsRuAllocation(); ru < 65)
     {
@@ -1488,39 +1489,38 @@ HeFrameExchangeManager::GetHeTbTxVector(CtrlTriggerHeader trigger, Mac48Address 
         trigger.GetApTxPower() -
         static_cast<int8_t>(
             *optRssi); // cast RSSI to be on equal footing with AP Tx power information
-    auto reqTxPowerDbm = static_cast<double>(userInfoIt->GetUlTargetRssi() + pathLossDb);
+    auto reqTxPower = static_cast<dBm_u>(userInfoIt->GetUlTargetRssi() + pathLossDb);
 
     // Convert the transmit power to a power level
     uint8_t numPowerLevels = m_phy->GetNTxPower();
     if (numPowerLevels > 1)
     {
-        double stepDbm = (m_phy->GetTxPowerEnd() - m_phy->GetTxPowerStart()) / (numPowerLevels - 1);
+        dBm_u step = (m_phy->GetTxPowerEnd() - m_phy->GetTxPowerStart()) / (numPowerLevels - 1);
         powerLevel = static_cast<uint8_t>(
-            ceil((reqTxPowerDbm - m_phy->GetTxPowerStart()) /
-                 stepDbm)); // better be slightly above so as to satisfy target UL RSSI
+            ceil((reqTxPower - m_phy->GetTxPowerStart()) /
+                 step)); // better be slightly above so as to satisfy target UL RSSI
         if (powerLevel > numPowerLevels)
         {
             powerLevel = numPowerLevels; // capping will trigger warning below
         }
     }
-    if (reqTxPowerDbm > m_phy->GetPowerDbm(powerLevel))
+    if (reqTxPower > m_phy->GetPower(powerLevel))
     {
-        NS_LOG_WARN("The requested power level ("
-                    << reqTxPowerDbm << "dBm) cannot be satisfied (max: " << m_phy->GetTxPowerEnd()
-                    << "dBm)");
+        NS_LOG_WARN("The requested power level (" << reqTxPower << "dBm) cannot be satisfied (max: "
+                                                  << m_phy->GetTxPowerEnd() << "dBm)");
     }
     v.SetTxPowerLevel(powerLevel);
     NS_LOG_LOGIC("UL power control: "
-                 << "input {pathLoss=" << pathLossDb << "dB, reqTxPower=" << reqTxPowerDbm << "dBm}"
-                 << " output {powerLevel=" << +powerLevel << " -> "
-                 << m_phy->GetPowerDbm(powerLevel) << "dBm}"
+                 << "input {pathLoss=" << pathLossDb << "dB, reqTxPower=" << reqTxPower << "dBm}"
+                 << " output {powerLevel=" << +powerLevel << " -> " << m_phy->GetPower(powerLevel)
+                 << "dBm}"
                  << " PHY power capa {min=" << m_phy->GetTxPowerStart() << "dBm, max="
                  << m_phy->GetTxPowerEnd() << "dBm, levels:" << +numPowerLevels << "}");
 
     return v;
 }
 
-std::optional<double>
+std::optional<dBm_u>
 HeFrameExchangeManager::GetMostRecentRssi(const Mac48Address& address) const
 {
     return GetWifiRemoteStationManager()->GetMostRecentRssi(address);
@@ -1533,7 +1533,7 @@ HeFrameExchangeManager::SetTargetRssi(CtrlTriggerHeader& trigger) const
     NS_ASSERT(m_apMac);
 
     trigger.SetApTxPower(static_cast<int8_t>(
-        m_phy->GetPowerDbm(GetWifiRemoteStationManager()->GetDefaultTxPowerLevel())));
+        m_phy->GetPower(GetWifiRemoteStationManager()->GetDefaultTxPowerLevel())));
     for (auto& userInfo : trigger)
     {
         const auto staList = m_apMac->GetStaList(m_linkId);
@@ -1830,9 +1830,11 @@ HeFrameExchangeManager::SendQosNullFramesInTbPpdu(const CtrlTriggerHeader& trigg
         return;
     }
 
+    const auto addr1 =
+        GetWifiRemoteStationManager()->GetMldAddress(hdr.GetAddr2()).value_or(hdr.GetAddr2());
     WifiMacHeader header(WIFI_MAC_QOSDATA_NULL);
-    header.SetAddr1(hdr.GetAddr2());
-    header.SetAddr2(m_self);
+    header.SetAddr1(addr1);
+    header.SetAddr2(m_mac->GetAddress());
     header.SetAddr3(hdr.GetAddr2());
     header.SetDsTo();
     header.SetDsNotFrom();
@@ -1869,6 +1871,7 @@ HeFrameExchangeManager::SendQosNullFramesInTbPpdu(const CtrlTriggerHeader& trigg
         // TX parameters below.
         header.SetQosTid(tid);
         auto mpdu = Create<WifiMpdu>(Create<Packet>(), header);
+        mpdu = CreateAliasIfNeeded(mpdu);
         txParams.AddMpdu(mpdu);
         UpdateTxDuration(header.GetAddr1(), txParams);
 

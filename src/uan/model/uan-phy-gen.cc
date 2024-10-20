@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2009 University of Washington
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Leonard Tracy <lentracy@gmail.com>
  *         Andrea Sacco <andrea.sacco85@gmail.com>
@@ -310,7 +299,7 @@ UanPhyPerCommonModes::CalcPer(Ptr<Packet> pkt, double sinrDb, UanTxMode mode)
     // Amplitude Modulation", EE 242 Digital Communications and Codings, 2009
     case UanTxMode::QAM: {
         // generic EbNo
-        EbNo *= mode.GetDataRateBps() / mode.GetBandwidthHz();
+        EbNo *= static_cast<double>(mode.GetBandwidthHz()) / mode.GetDataRateBps();
 
         auto M = (double)mode.GetConstellationSize();
 
@@ -345,8 +334,8 @@ UanPhyPerCommonModes::CalcPer(Ptr<Packet> pkt, double sinrDb, UanTxMode mode)
             // Eq (74)
             for (int j = 0; j < sum_items; ++j)
             {
-                PbK += ::std::pow(-1.0, (double)j * pow2k / sqrtM) *
-                       (pow2k - ::std::floor((double)(j * pow2k / sqrtM) - 0.5)) *
+                PbK += ::std::pow(-1.0, ::std::floor((double)j * pow2k / sqrtM)) *
+                       (pow2k - ::std::floor((double)(j * pow2k / sqrtM) + 0.5)) *
                        erfc((2.0 * (double)j + 1.0) *
                             ::std::sqrt(3.0 * (log2M * EbNo) / (2.0 * (M - 1.0))));
 
@@ -857,8 +846,9 @@ UanPhyGen::RxEndEvent(Ptr<Packet> pkt, double /* rxPowerDb */, UanTxMode txMode)
     else
     {
         m_state = IDLE;
-        UpdatePowerConsumption(IDLE);
     }
+
+    UpdatePowerConsumption(IDLE);
 
     if (m_pg->GetValue(0, 1) > m_per->CalcPer(m_pktRx, m_minRxSinrDb, txMode))
     {

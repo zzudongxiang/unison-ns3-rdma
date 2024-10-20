@@ -2,18 +2,7 @@
  * Copyright (c) 2009 MIRKO BANCHI
  * Copyright (c) 2015 University of Washington
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Authors: Mirko Banchi <mk.banchi@gmail.com>
  *          Sebastien Deronne <sebastien.deronne@gmail.com>
@@ -129,7 +118,7 @@ int
 main(int argc, char* argv[])
 {
     bool udp{true};
-    double distance{50};
+    meter_u distance{50};
     Time simulationTime{"10s"};
     uint16_t index{256};
     std::string wifiType{"ns3::SpectrumWifiPhy"};
@@ -181,7 +170,7 @@ main(int argc, char* argv[])
         NodeContainer wifiApNode;
         wifiApNode.Create(1);
 
-        YansWifiPhyHelper phy;
+        YansWifiPhyHelper yansPhy;
         SpectrumWifiPhyHelper spectrumPhy;
         if (wifiType == "ns3::YansWifiPhy")
         {
@@ -190,9 +179,9 @@ main(int argc, char* argv[])
                                        "Frequency",
                                        DoubleValue(5.180e9));
             channel.SetPropagationDelay("ns3::ConstantSpeedPropagationDelayModel");
-            phy.SetChannel(channel.Create());
-            phy.Set("TxPowerStart", DoubleValue(1)); // dBm (1.26 mW)
-            phy.Set("TxPowerEnd", DoubleValue(1));
+            yansPhy.SetChannel(channel.Create());
+            yansPhy.Set("TxPowerStart", DoubleValue(1)); // dBm (1.26 mW)
+            yansPhy.Set("TxPowerEnd", DoubleValue(1));
         }
         else if (wifiType == "ns3::SpectrumWifiPhy")
         {
@@ -397,17 +386,19 @@ main(int argc, char* argv[])
         if (wifiType == "ns3::YansWifiPhy")
         {
             mac.SetType("ns3::StaWifiMac", "Ssid", SsidValue(ssid));
-            phy.Set("ChannelSettings",
-                    StringValue(std::string("{0, ") + (i <= 15 ? "20" : "40") + ", BAND_5GHZ, 0}"));
-            staDevice = wifi.Install(phy, mac, wifiStaNode);
+            yansPhy.Set(
+                "ChannelSettings",
+                StringValue(std::string("{0, ") + (i <= 15 ? "20" : "40") + ", BAND_5GHZ, 0}"));
+            staDevice = wifi.Install(yansPhy, mac, wifiStaNode);
             mac.SetType("ns3::ApWifiMac", "Ssid", SsidValue(ssid));
-            apDevice = wifi.Install(phy, mac, wifiApNode);
+            apDevice = wifi.Install(yansPhy, mac, wifiApNode);
         }
         else if (wifiType == "ns3::SpectrumWifiPhy")
         {
             mac.SetType("ns3::StaWifiMac", "Ssid", SsidValue(ssid));
-            phy.Set("ChannelSettings",
-                    StringValue(std::string("{0, ") + (i <= 15 ? "20" : "40") + ", BAND_5GHZ, 0}"));
+            spectrumPhy.Set(
+                "ChannelSettings",
+                StringValue(std::string("{0, ") + (i <= 15 ? "20" : "40") + ", BAND_5GHZ, 0}"));
             staDevice = wifi.Install(spectrumPhy, mac, wifiStaNode);
             mac.SetType("ns3::ApWifiMac", "Ssid", SsidValue(ssid));
             apDevice = wifi.Install(spectrumPhy, mac, wifiApNode);
@@ -491,11 +482,15 @@ main(int argc, char* argv[])
 
         if (enablePcap)
         {
+            auto& phy = wifiType == "ns3::YansWifiPhy" ? dynamic_cast<WifiPhyHelper&>(yansPhy)
+                                                       : dynamic_cast<WifiPhyHelper&>(spectrumPhy);
+
             phy.SetPcapDataLinkType(WifiPhyHelper::DLT_IEEE802_11_RADIO);
             std::stringstream ss;
             ss << "wifi-spectrum-per-example-" << i;
             phy.EnablePcap(ss.str(), apDevice);
         }
+
         g_signalDbmAvg = 0;
         g_noiseDbmAvg = 0;
         g_samples = 0;
@@ -504,7 +499,7 @@ main(int argc, char* argv[])
         Simulator::Run();
 
         auto throughput = 0.0;
-        auto totalPacketsThrough = 0.0;
+        uint64_t totalPacketsThrough = 0;
         if (udp)
         {
             // UDP
@@ -516,7 +511,7 @@ main(int argc, char* argv[])
         {
             // TCP
             auto totalBytesRx = DynamicCast<PacketSink>(serverApp.Get(0))->GetTotalRx();
-            totalPacketsThrough = totalBytesRx / tcpPacketSize;
+            totalPacketsThrough = static_cast<uint64_t>(totalBytesRx / tcpPacketSize);
             throughput = totalBytesRx * 8 / simulationTime.GetMicroSeconds(); // Mbit/s
         }
         std::cout << std::setw(5) << i << std::setw(6) << (i % 8) << std::setprecision(2)

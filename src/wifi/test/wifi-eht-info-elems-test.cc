@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2022 Universita' degli Studi di Napoli Federico II
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Stefano Avallone <stavallo@unina.it>
  */
@@ -779,9 +768,9 @@ class WifiEhtCapabilitiesIeTest : public HeaderSerializationTestCase
     /**
      * Constructor
      * \param is2_4Ghz whether the PHY is operating in 2.4 GHz
-     * \param channelWidth the supported channel width in MHz
+     * \param channelWidth the supported channel width
      */
-    WifiEhtCapabilitiesIeTest(bool is2_4Ghz, uint16_t channelWidth);
+    WifiEhtCapabilitiesIeTest(bool is2_4Ghz, MHz_u channelWidth);
     ~WifiEhtCapabilitiesIeTest() override = default;
 
     /**
@@ -847,11 +836,11 @@ class WifiEhtCapabilitiesIeTest : public HeaderSerializationTestCase
   private:
     void DoRun() override;
 
-    bool m_is2_4Ghz;         //!< whether the PHY is operating in 2.4 GHz
-    uint16_t m_channelWidth; //!< Supported channel width by the PHY (in MHz)
+    bool m_is2_4Ghz;      //!< whether the PHY is operating in 2.4 GHz
+    MHz_u m_channelWidth; //!< Supported channel width by the PHY
 };
 
-WifiEhtCapabilitiesIeTest ::WifiEhtCapabilitiesIeTest(bool is2_4Ghz, uint16_t channelWidth)
+WifiEhtCapabilitiesIeTest ::WifiEhtCapabilitiesIeTest(bool is2_4Ghz, MHz_u channelWidth)
     : HeaderSerializationTestCase{"Check serialization and deserialization of EHT capabilities IE"},
       m_is2_4Ghz{is2_4Ghz},
       m_channelWidth{channelWidth}
@@ -1064,7 +1053,7 @@ WifiEhtCapabilitiesIeTest::DoRun()
 {
     uint8_t maxMcs = 0;
     uint16_t expectedEhtMcsAndNssSetSize = 0;
-    switch (m_channelWidth)
+    switch (static_cast<uint16_t>(m_channelWidth))
     {
     case 20:
         expectedEhtMcsAndNssSetSize = 4;

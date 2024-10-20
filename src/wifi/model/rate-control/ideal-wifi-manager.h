@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2006 INRIA
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Mathieu Lacage <mathieu.lacage@sophia.inria.fr>
  */
@@ -70,18 +59,18 @@ class IdealWifiManager : public WifiRemoteStationManager
                         double ackSnr,
                         WifiMode ackMode,
                         double dataSnr,
-                        uint16_t dataChannelWidth,
+                        MHz_u dataChannelWidth,
                         uint8_t dataNss) override;
     void DoReportAmpduTxStatus(WifiRemoteStation* station,
                                uint16_t nSuccessfulMpdus,
                                uint16_t nFailedMpdus,
                                double rxSnr,
                                double dataSnr,
-                               uint16_t dataChannelWidth,
+                               MHz_u dataChannelWidth,
                                uint8_t dataNss) override;
     void DoReportFinalRtsFailed(WifiRemoteStation* station) override;
     void DoReportFinalDataFailed(WifiRemoteStation* station) override;
-    WifiTxVector DoGetDataTxVector(WifiRemoteStation* station, uint16_t allowedWidth) override;
+    WifiTxVector DoGetDataTxVector(WifiRemoteStation* station, MHz_u allowedWidth) override;
     WifiTxVector DoGetRtsTxVector(WifiRemoteStation* station) override;
 
     /**
@@ -119,9 +108,9 @@ class IdealWifiManager : public WifiRemoteStationManager
     /**
      * Convenience function for selecting a channel width for non-HT mode
      * \param mode non-HT WifiMode
-     * \return the channel width (MHz) for the selected mode
+     * \return the channel width for the selected mode
      */
-    uint16_t GetChannelWidthForNonHtMode(WifiMode mode) const;
+    MHz_u GetChannelWidthForNonHtMode(WifiMode mode) const;
 
     /**
      * Convenience function to get the last observed SNR from a given station for a given channel
@@ -130,12 +119,12 @@ class IdealWifiManager : public WifiRemoteStationManager
      * some computations to get the corresponding SNR.
      *
      * \param station the station being queried
-     * \param channelWidth the channel width (in MHz)
+     * \param channelWidth the channel width
      * \param nss the number of spatial streams
      * \return the SNR in linear scale
      */
     double GetLastObservedSnr(IdealWifiRemoteStation* station,
-                              uint16_t channelWidth,
+                              MHz_u channelWidth,
                               uint8_t nss) const;
 
     /**

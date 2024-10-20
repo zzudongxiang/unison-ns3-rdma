@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2014 Natale Patriciello <natale.patriciello@gmail.com>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  */
 
@@ -68,7 +57,7 @@ namespace ns3
  * and the current cWnd size).
  *
  * The reference paper for BIC can be found in:
- * http://an.kaist.ac.kr/courses/2006/cs540/reading/bic-tcp.pdf
+ * https://web.archive.org/web/20220930220436/https://an.kaist.ac.kr/courses/2006/cs540/reading/bic-tcp.pdf
  *
  * This model has a number of configurable parameters that are exposed as
  * attributes of the TcpBic TypeId.  This model also exports trace sources,

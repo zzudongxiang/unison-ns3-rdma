@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2018 Natale Patriciello <natale.patriciello@gmail.com>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  */
 #ifndef TCP_SOCKET_STATE_H
 #define TCP_SOCKET_STATE_H
@@ -206,9 +195,10 @@ class TcpSocketState : public Object
 
     Time m_minRtt{Time::Max()}; //!< Minimum RTT observed throughout the connection
 
-    TracedValue<uint32_t> m_bytesInFlight{0};  //!< Bytes in flight
-    bool m_isCwndLimited{false};               //!< Whether throughput is limited by cwnd
-    TracedValue<Time> m_lastRtt{Seconds(0.0)}; //!< Last RTT sample collected
+    TracedValue<uint32_t> m_bytesInFlight{0}; //!< Bytes in flight
+    bool m_isCwndLimited{false};              //!< Whether throughput is limited by cwnd
+    TracedValue<Time> m_srtt;                 //!< Smoothed RTT
+    TracedValue<Time> m_lastRtt;              //!< RTT of the last (S)ACKed packet
 
     Ptr<TcpRxBuffer> m_rxBuffer; //!< Rx buffer (reordering buffer)
 

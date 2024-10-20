@@ -1,17 +1,6 @@
 # Copyright (c) 2023 Universidade de Brasília
 #
-# This program is free software; you can redistribute it and/or modify it under
-# the terms of the GNU General Public License version 2 as published by the Free
-# Software Foundation;
-#
-# This program is distributed in the hope that it will be useful, but WITHOUT
-# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
-# details.
-#
-# You should have received a copy of the GNU General Public License along with
-# this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-# Place, Suite 330, Boston, MA  02111-1307 USA
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Author: Gabriel Ferreira <gabrielcarvfer@gmail.com>
 
@@ -28,9 +17,26 @@ if(EXISTS "/proc/version")
   endif()
 endif()
 
+# cmake-format: off
+# Windows injects **BY DEFAULT** its %PATH% into WSL $PATH
+# Detect and warn users how to disable path injection
+# cmake-format: on
+if("$ENV{PATH}" MATCHES "/mnt/c/")
+  message(
+    WARNING
+      "To prevent Windows path injection on WSL, append the following to /etc/wsl.conf, then use `wsl --shutdown` to restart the WSL VM:
+[interop]
+appendWindowsPath = false"
+  )
+endif()
+
 # Set Linux flag if on Linux
 if(UNIX AND NOT APPLE)
-  set(LINUX TRUE)
+  if("${CMAKE_SYSTEM_NAME}" STREQUAL "Linux")
+    set(LINUX TRUE)
+  else()
+    set(BSD TRUE)
+  endif()
   add_definitions(-D__LINUX__)
 endif()
 
@@ -64,8 +70,8 @@ else()
 endif()
 
 if(${XCODE})
-  # Is that so hard not to break people's CI, AAPL? Why would you output the
-  # targets to a Debug/Release subfolder? Why?
+  # Prevent multi-config generators from placing output files into per
+  # configuration directory
   foreach(OUTPUTCONFIG ${CMAKE_CONFIGURATION_TYPES})
     string(TOUPPER ${OUTPUTCONFIG} OUTPUTCONFIG)
     set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_${OUTPUTCONFIG}

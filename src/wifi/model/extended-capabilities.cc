@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2017
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Authors: Sébastien Deronne <sebastien.deronne@gmail.com>
  */
@@ -79,9 +68,7 @@ ExtendedCapabilities::ExtendedCapabilities()
       m_protectedQloadReport(0),
       m_tdlsWiderBandwidth(0),
       m_operatingModeNotification(0),
-      m_maxNumberOfMsdusInAmsdu(0),
-      m_htSupported(0),
-      m_vhtSupported(0)
+      m_maxNumberOfMsdusInAmsdu(0)
 {
 }
 
@@ -97,27 +84,9 @@ ExtendedCapabilities::Print(std::ostream& os) const
     os << "Extended Capabilities=" << +GetExtendedCapabilitiesByte1();
 }
 
-void
-ExtendedCapabilities::SetHtSupported(uint8_t htSupported)
-{
-    m_htSupported = htSupported;
-}
-
-void
-ExtendedCapabilities::SetVhtSupported(uint8_t vhtSupported)
-{
-    m_vhtSupported = vhtSupported;
-}
-
 uint16_t
 ExtendedCapabilities::GetInformationFieldSize() const
 {
-    // we should not be here if it is not supported
-    NS_ASSERT(m_htSupported > 0 || m_vhtSupported > 0);
-    if (!m_vhtSupported)
-    {
-        return 1;
-    }
     return 8;
 }
 
@@ -334,23 +303,15 @@ ExtendedCapabilities::GetExtendedCapabilitiesByte8() const
 void
 ExtendedCapabilities::SerializeInformationField(Buffer::Iterator start) const
 {
-    if (m_htSupported > 0 && m_vhtSupported == 0)
-    {
-        // write the corresponding value for each bit
-        start.WriteU8(GetExtendedCapabilitiesByte1() & 0x7f);
-    }
-    else if (m_vhtSupported > 0)
-    {
-        // write the corresponding value for each bit
-        start.WriteU8(GetExtendedCapabilitiesByte1());
-        start.WriteU8(GetExtendedCapabilitiesByte2());
-        start.WriteU8(GetExtendedCapabilitiesByte3());
-        start.WriteU8(GetExtendedCapabilitiesByte4());
-        start.WriteU8(GetExtendedCapabilitiesByte5());
-        start.WriteU8(GetExtendedCapabilitiesByte6());
-        start.WriteU8(GetExtendedCapabilitiesByte7());
-        start.WriteU8(GetExtendedCapabilitiesByte8());
-    }
+    // write the corresponding value for each bit
+    start.WriteU8(GetExtendedCapabilitiesByte1());
+    start.WriteU8(GetExtendedCapabilitiesByte2());
+    start.WriteU8(GetExtendedCapabilitiesByte3());
+    start.WriteU8(GetExtendedCapabilitiesByte4());
+    start.WriteU8(GetExtendedCapabilitiesByte5());
+    start.WriteU8(GetExtendedCapabilitiesByte6());
+    start.WriteU8(GetExtendedCapabilitiesByte7());
+    start.WriteU8(GetExtendedCapabilitiesByte8());
 }
 
 uint16_t
@@ -358,24 +319,21 @@ ExtendedCapabilities::DeserializeInformationField(Buffer::Iterator start, uint16
 {
     Buffer::Iterator i = start;
     uint8_t byte1 = i.ReadU8();
+    uint8_t byte2 = i.ReadU8();
+    uint8_t byte3 = i.ReadU8();
+    uint8_t byte4 = i.ReadU8();
+    uint8_t byte5 = i.ReadU8();
+    uint8_t byte6 = i.ReadU8();
+    uint8_t byte7 = i.ReadU8();
+    uint8_t byte8 = i.ReadU8();
     SetExtendedCapabilitiesByte1(byte1);
-    if (m_vhtSupported > 0)
-    {
-        uint8_t byte2 = i.ReadU8();
-        uint8_t byte3 = i.ReadU8();
-        uint8_t byte4 = i.ReadU8();
-        uint8_t byte5 = i.ReadU8();
-        uint8_t byte6 = i.ReadU8();
-        uint8_t byte7 = i.ReadU8();
-        uint8_t byte8 = i.ReadU8();
-        SetExtendedCapabilitiesByte2(byte2);
-        SetExtendedCapabilitiesByte3(byte3);
-        SetExtendedCapabilitiesByte4(byte4);
-        SetExtendedCapabilitiesByte5(byte5);
-        SetExtendedCapabilitiesByte6(byte6);
-        SetExtendedCapabilitiesByte7(byte7);
-        SetExtendedCapabilitiesByte8(byte8);
-    }
+    SetExtendedCapabilitiesByte2(byte2);
+    SetExtendedCapabilitiesByte3(byte3);
+    SetExtendedCapabilitiesByte4(byte4);
+    SetExtendedCapabilitiesByte5(byte5);
+    SetExtendedCapabilitiesByte6(byte6);
+    SetExtendedCapabilitiesByte7(byte7);
+    SetExtendedCapabilitiesByte8(byte8);
     return length;
 }
 

@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2012 The Boeing Company
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Gary Pei <guangyu.pei@boeing.com>
  *
@@ -2410,9 +2399,9 @@ class Experiment
      * \param pcap flag to enable/disable PCAP files generation
      * \param infra flag to enable infrastructure model, ring adhoc network if not set
      * \param guardIntervalNs the guard interval in ns
-     * \param distanceM the distance in meters
-     * \param apTxPowerDbm the AP transmit power in dBm
-     * \param staTxPowerDbm the STA transmit power in dBm
+     * \param distance the distance
+     * \param apTxPower the AP transmit power
+     * \param staTxPower the STA transmit power
      * \param pktInterval the packet interval
      * \return 0 if all went well
      */
@@ -2426,9 +2415,9 @@ class Experiment
             bool pcap,
             bool infra,
             uint16_t guardIntervalNs,
-            double distanceM,
-            double apTxPowerDbm,
-            double staTxPowerDbm,
+            meter_u distance,
+            dBm_u apTxPower,
+            dBm_u staTxPower,
             Time pktInterval);
 };
 
@@ -2447,9 +2436,9 @@ Experiment::Run(const WifiHelper& helper,
                 bool pcap,
                 bool infra,
                 uint16_t guardIntervalNs,
-                double distance,
-                double apTxPowerDbm,
-                double staTxPowerDbm,
+                meter_u distance,
+                dBm_u apTxPower,
+                dBm_u staTxPower,
                 Time pktInterval)
 {
     RngSeedManager::SetSeed(10);
@@ -2471,7 +2460,7 @@ Experiment::Run(const WifiHelper& helper,
     phy.SetPcapDataLinkType(WifiPhyHelper::DLT_IEEE802_11_RADIO);
 
     WifiMacHelper mac = wifiMac;
-    WifiHelper wifi = helper;
+    const auto& wifi = helper;
     NetDeviceContainer devices;
     uint32_t nNodes = wifiNodes.GetN();
     if (infra)
@@ -2485,8 +2474,8 @@ Experiment::Run(const WifiHelper& helper,
                     TimeValue(MicroSeconds(beaconInterval)),
                     "Ssid",
                     SsidValue(ssid));
-        phy.Set("TxPowerStart", DoubleValue(apTxPowerDbm));
-        phy.Set("TxPowerEnd", DoubleValue(apTxPowerDbm));
+        phy.Set("TxPowerStart", DoubleValue(apTxPower));
+        phy.Set("TxPowerEnd", DoubleValue(apTxPower));
         devices = wifi.Install(phy, mac, wifiNodes.Get(0));
 
         mac.SetType("ns3::StaWifiMac",
@@ -2494,8 +2483,8 @@ Experiment::Run(const WifiHelper& helper,
                     UintegerValue(std::numeric_limits<uint32_t>::max()),
                     "Ssid",
                     SsidValue(ssid));
-        phy.Set("TxPowerStart", DoubleValue(staTxPowerDbm));
-        phy.Set("TxPowerEnd", DoubleValue(staTxPowerDbm));
+        phy.Set("TxPowerStart", DoubleValue(staTxPower));
+        phy.Set("TxPowerEnd", DoubleValue(staTxPower));
         for (uint32_t i = 1; i < nNodes; ++i)
         {
             devices.Add(wifi.Install(phy, mac, wifiNodes.Get(i)));
@@ -2504,12 +2493,12 @@ Experiment::Run(const WifiHelper& helper,
     else
     {
         mac.SetType("ns3::AdhocWifiMac");
-        phy.Set("TxPowerStart", DoubleValue(staTxPowerDbm));
-        phy.Set("TxPowerEnd", DoubleValue(staTxPowerDbm));
+        phy.Set("TxPowerStart", DoubleValue(staTxPower));
+        phy.Set("TxPowerEnd", DoubleValue(staTxPower));
         devices = wifi.Install(phy, mac, wifiNodes);
     }
 
-    wifi.AssignStreams(devices, trialNumber);
+    WifiHelper::AssignStreams(devices, trialNumber);
 
     Config::Set(
         "/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/HtConfiguration/ShortGuardIntervalSupported",
@@ -2539,7 +2528,7 @@ Experiment::Run(const WifiHelper& helper,
     positionAlloc->Add(Vector(1.0, 1.0, 0.0));
 
     // Set position for STAs
-    double angle = (static_cast<double>(360) / (nNodes - 1));
+    const auto angle = (static_cast<degree_u>(360) / (nNodes - 1));
     for (uint32_t i = 0; i < (nNodes - 1); ++i)
     {
         positionAlloc->Add(Vector(1.0 + (distance * cos((i * angle * PI) / 180)),
@@ -2716,9 +2705,9 @@ main(int argc, char* argv[])
     uint16_t pktInterval =
         1000; ///< The socket packet interval in microseconds (a higher value is needed to reach
               ///< saturation conditions as the channel bandwidth or the MCS increases)
-    double distance = 0.001; ///< The distance in meters between the AP and the STAs
-    double apTxPower = 16;   ///< The transmit power of the AP in dBm (if infrastructure only)
-    double staTxPower = 16;  ///< The transmit power of each STA in dBm (or all STAs if adhoc)
+    meter_u distance = 0.001; ///< The distance in meters between the AP and the STAs
+    dBm_u apTxPower = 16;     ///< The transmit power of the AP (if infrastructure only)
+    dBm_u staTxPower = 16;    ///< The transmit power of each STA (or all STAs if adhoc)
 
     // Disable fragmentation and RTS/CTS
     Config::SetDefault("ns3::WifiRemoteStationManager::FragmentationThreshold",

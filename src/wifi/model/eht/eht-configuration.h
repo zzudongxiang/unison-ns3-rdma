@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2021 DERONNE SOFTWARE ENGINEERING
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Authors: Sébastien Deronne <sebastien.deronne@gmail.com>
  *          Stefano Avallone <stavallo@unina.it>
@@ -51,16 +40,22 @@ enum class WifiTidToLinkMappingNegSupport : uint8_t
     ANY_LINK_SET = 3
 };
 
+/**
+ * Deprecated link mapping support enums.
+ *
+ * Use `WifiTidToLinkMappingNegSupport` class enum values instead.
+ * @{
+ */
 NS_DEPRECATED_3_42("Use WifiTidToLinkMappingNegSupport::NOT_SUPPORTED instead")
-static constexpr auto WIFI_TID_TO_LINK_MAPPING_NOT_SUPPORTED = WifiTidToLinkMappingNegSupport::
-    NOT_SUPPORTED; //!< \deprecated See WifiTidToLinkMappingNegSupport::NOT_SUPPORTED
+static constexpr auto WIFI_TID_TO_LINK_MAPPING_NOT_SUPPORTED =
+    WifiTidToLinkMappingNegSupport::NOT_SUPPORTED;
 NS_DEPRECATED_3_42("Use WifiTidToLinkMappingNegSupport::SAME_LINK_SET instead")
-static constexpr auto WIFI_TID_TO_LINK_MAPPING_SAME_LINK_SET = WifiTidToLinkMappingNegSupport::
-    SAME_LINK_SET; //!< \deprecated See WifiTidToLinkMappingNegSupport::SAME_LINK_SET
+static constexpr auto WIFI_TID_TO_LINK_MAPPING_SAME_LINK_SET =
+    WifiTidToLinkMappingNegSupport::SAME_LINK_SET;
 NS_DEPRECATED_3_42("Use WifiTidToLinkMappingNegSupport::ANY_LINK_SET instead")
 static constexpr auto WIFI_TID_TO_LINK_MAPPING_ANY_LINK_SET =
-    WifiTidToLinkMappingNegSupport::ANY_LINK_SET; //!< \deprecated See
-                                                  //!< WifiTidToLinkMappingNegSupport::ANY_LINK_SET
+    WifiTidToLinkMappingNegSupport::ANY_LINK_SET;
+/**@}*/
 
 /**
  * \brief Stream insertion operator.

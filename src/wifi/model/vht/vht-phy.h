@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2020 Orange Labs
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Authors: Rediet <getachew.redieteab@orange.com>
  *          Sébastien Deronne <sebastien.deronne@gmail.com> (for logic ported from wifi-phy)
@@ -70,8 +59,8 @@ class VhtPhy : public HtPhy
     Ptr<WifiPpdu> BuildPpdu(const WifiConstPsduMap& psdus,
                             const WifiTxVector& txVector,
                             Time ppduDuration) override;
-    double GetCcaThreshold(const Ptr<const WifiPpdu> ppdu,
-                           WifiChannelListType channelType) const override;
+    dBm_u GetCcaThreshold(const Ptr<const WifiPpdu> ppdu,
+                          WifiChannelListType channelType) const override;
 
     /**
      * \return the WifiMode used for the SIG-A field
@@ -195,15 +184,15 @@ class VhtPhy : public HtPhy
      * and is mainly used as a callback for WifiMode operation.
      *
      * \param mcsValue the VHT MCS index
-     * \param channelWidth the considered channel width in MHz
-     * \param guardInterval the considered guard interval duration in nanoseconds
+     * \param channelWidth the considered channel width
+     * \param guardInterval the considered guard interval duration
      * \param nss the considered number of stream
      *
      * \return the physical bit rate of this signal in bps.
      */
     static uint64_t GetPhyRate(uint8_t mcsValue,
-                               uint16_t channelWidth,
-                               uint16_t guardInterval,
+                               MHz_u channelWidth,
+                               Time guardInterval,
                                uint8_t nss);
     /**
      * Return the PHY rate corresponding to
@@ -234,14 +223,14 @@ class VhtPhy : public HtPhy
      * streams.
      *
      * \param mcsValue the MCS index
-     * \param channelWidth the channel width in MHz
-     * \param guardInterval the guard interval duration in nanoseconds
+     * \param channelWidth the channel width
+     * \param guardInterval the guard interval duration
      * \param nss the number of spatial streams
      * \return the data bit rate in bps.
      */
     static uint64_t GetDataRate(uint8_t mcsValue,
-                                uint16_t channelWidth,
-                                uint16_t guardInterval,
+                                MHz_u channelWidth,
+                                Time guardInterval,
                                 uint8_t nss);
     /**
      * Calculate the rate in bps of the non-HT Reference Rate corresponding
@@ -257,11 +246,11 @@ class VhtPhy : public HtPhy
      * This function is used as a callback for WifiMode operation.
      *
      * \param mcsValue the considered MCS index
-     * \param channelWidth the considered channel width in MHz
+     * \param channelWidth the considered channel width
      * \param nss the considered number of streams
      * \returns true if this <MCS, channel width, NSS> combination is allowed, false otherwise.
      */
-    static bool IsCombinationAllowed(uint8_t mcsValue, uint16_t channelWidth, uint8_t nss);
+    static bool IsCombinationAllowed(uint8_t mcsValue, MHz_u channelWidth, uint8_t nss);
     /**
      * Check whether the combination in TXVECTOR is allowed.
      * This function is used as a callback for WifiMode operation.
@@ -330,10 +319,10 @@ class VhtPhy : public HtPhy
      */
     static uint64_t CalculateNonHtReferenceRate(WifiCodeRate codeRate, uint16_t constellationSize);
     /**
-     * \param channelWidth the channel width in MHz
+     * \param channelWidth the channel width
      * \return he number of usable subcarriers for data
      */
-    static uint16_t GetUsableSubcarriers(uint16_t channelWidth);
+    static uint16_t GetUsableSubcarriers(MHz_u channelWidth);
 
   private:
     void BuildModeList() override;
@@ -352,7 +341,7 @@ class VhtPhy : public HtPhy
      * Typedef for storing exceptions in the number of BCC encoders for VHT MCSs
      */
     typedef std::map<
-        std::tuple<uint16_t /* channelWidth in MHz */, uint8_t /* Nss */, uint8_t /* MCS index */>,
+        std::tuple<MHz_u /* channelWidth */, uint8_t /* Nss */, uint8_t /* MCS index */>,
         uint8_t /* Nes */>
         NesExceptionMap;
     static const NesExceptionMap m_exceptionsMap; //!< exception map for number of BCC encoders

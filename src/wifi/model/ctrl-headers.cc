@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2009 MIRKO BANCHI
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Mirko Banchi <mk.banchi@gmail.com>
  */
@@ -1696,8 +1685,8 @@ CtrlTriggerHeader::CtrlTriggerHeader(TriggerFrameType type, const WifiTxVector& 
     m_triggerType = type;
     SetUlBandwidth(txVector.GetChannelWidth());
     SetUlLength(txVector.GetLength());
-    uint16_t gi = txVector.GetGuardInterval();
-    if (gi == 800 || gi == 1600)
+    const auto gi = txVector.GetGuardInterval().GetNanoSeconds();
+    if ((gi == 800) || (gi == 1600))
     {
         m_giAndLtfType = 1;
     }
@@ -2038,9 +2027,9 @@ CtrlTriggerHeader::GetCsRequired() const
 }
 
 void
-CtrlTriggerHeader::SetUlBandwidth(uint16_t bw)
+CtrlTriggerHeader::SetUlBandwidth(MHz_u bw)
 {
-    switch (bw)
+    switch (static_cast<uint16_t>(bw))
     {
     case 20:
         m_ulBandwidth = 0;
@@ -2060,24 +2049,25 @@ CtrlTriggerHeader::SetUlBandwidth(uint16_t bw)
     }
 }
 
-uint16_t
+MHz_u
 CtrlTriggerHeader::GetUlBandwidth() const
 {
     return (1 << m_ulBandwidth) * 20;
 }
 
 void
-CtrlTriggerHeader::SetGiAndLtfType(uint16_t guardInterval, uint8_t ltfType)
+CtrlTriggerHeader::SetGiAndLtfType(Time guardInterval, uint8_t ltfType)
 {
-    if (ltfType == 1 && guardInterval == 1600)
+    const auto gi = guardInterval.GetNanoSeconds();
+    if ((ltfType == 1) && (gi == 1600))
     {
         m_giAndLtfType = 0;
     }
-    else if (ltfType == 2 && guardInterval == 1600)
+    else if ((ltfType == 2) && (gi == 1600))
     {
         m_giAndLtfType = 1;
     }
-    else if (ltfType == 4 && guardInterval == 3200)
+    else if ((ltfType == 4) && (gi == 3200))
     {
         m_giAndLtfType = 2;
     }
@@ -2087,16 +2077,16 @@ CtrlTriggerHeader::SetGiAndLtfType(uint16_t guardInterval, uint8_t ltfType)
     }
 }
 
-uint16_t
+Time
 CtrlTriggerHeader::GetGuardInterval() const
 {
     if (m_giAndLtfType == 0 || m_giAndLtfType == 1)
     {
-        return 1600;
+        return NanoSeconds(1600);
     }
     else if (m_giAndLtfType == 2)
     {
-        return 3200;
+        return NanoSeconds(3200);
     }
     else
     {

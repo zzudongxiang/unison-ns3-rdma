@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2005,2006,2007 INRIA
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Authors: Mathieu Lacage <mathieu.lacage@sophia.inria.fr>
  *          Sébastien Deronne <sebastien.deronne@gmail.com>
@@ -53,10 +42,10 @@ class WifiMode
     /**
      * \returns true if this <MCS, channel width, NSS> combination is allowed, false otherwise.
      *
-     * \param channelWidth the considered channel width in MHz
+     * \param channelWidth the considered channel width
      * \param nss the considered number of streams
      */
-    bool IsAllowed(uint16_t channelWidth, uint8_t nss) const;
+    bool IsAllowed(MHz_u channelWidth, uint8_t nss) const;
     /**
      * \returns true if this TXVECTOR combination is allowed, false otherwise.
      *
@@ -65,8 +54,8 @@ class WifiMode
     bool IsAllowed(const WifiTxVector& txVector) const;
     /**
      *
-     * \param channelWidth the considered channel width in MHz
-     * \param guardInterval the considered guard interval duration in nanoseconds
+     * \param channelWidth the considered channel width
+     * \param guardInterval the considered guard interval duration
      * \param nss the considered number of streams
      *
      * \returns the physical bit rate of this signal in bps.
@@ -74,7 +63,7 @@ class WifiMode
      * If a transmission mode uses 1/2 FEC, and if its
      * data rate is 3.25Mbps, the PHY rate is 6.5Mbps
      */
-    uint64_t GetPhyRate(uint16_t channelWidth, uint16_t guardInterval, uint8_t nss) const;
+    uint64_t GetPhyRate(MHz_u channelWidth, Time guardInterval, uint8_t nss) const;
     /**
      * \param txVector the const WifiTxVector& of the signal
      * \param staId the station ID for MU (unused if SU)
@@ -86,20 +75,20 @@ class WifiMode
      */
     uint64_t GetPhyRate(const WifiTxVector& txVector, uint16_t staId = SU_STA_ID) const;
     /**
-     * \param channelWidth the considered channel width in MHz
+     * \param channelWidth the considered channel width
      *
      * \returns the physical bit rate of this non-HT signal.
      */
-    uint64_t GetPhyRate(uint16_t channelWidth) const;
+    uint64_t GetPhyRate(MHz_u channelWidth) const;
     /**
      *
-     * \param channelWidth the considered channel width in MHz
-     * \param guardInterval the considered guard interval duration in nanoseconds
+     * \param channelWidth the considered channel width
+     * \param guardInterval the considered guard interval duration
      * \param nss the considered number of streams
      *
      * \returns the data bit rate of this signal in bps.
      */
-    uint64_t GetDataRate(uint16_t channelWidth, uint16_t guardInterval, uint8_t nss) const;
+    uint64_t GetDataRate(MHz_u channelWidth, Time guardInterval, uint8_t nss) const;
     /**
      * \param txVector the const WifiTxVector& of the signal
      * \param staId the station ID for MU (unused if SU)
@@ -108,11 +97,11 @@ class WifiMode
      */
     uint64_t GetDataRate(const WifiTxVector& txVector, uint16_t staId = SU_STA_ID) const;
     /**
-     * \param channelWidth the considered channel width in MHz
+     * \param channelWidth the considered channel width
      *
      * \returns the data bit rate of this non-HT.
      */
-    uint64_t GetDataRate(uint16_t channelWidth) const;
+    uint64_t GetDataRate(MHz_u channelWidth) const;
 
     /**
      * \returns the coding rate of this transmission mode
@@ -130,7 +119,7 @@ class WifiMode
      * \returns a human-readable representation of this WifiMode
      * instance.
      */
-    std::string GetUniqueName() const;
+    const std::string& GetUniqueName() const;
     /**
      * \returns true if this mode is a mandatory mode, false
      *          otherwise.

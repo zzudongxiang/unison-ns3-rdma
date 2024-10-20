@@ -1,18 +1,7 @@
 //
 // Copyright (c) 2006 Georgia Tech Research Corporation
 //
-// This program is free software; you can redistribute it and/or modify
-// it under the terms of the GNU General Public License version 2 as
-// published by the Free Software Foundation;
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+// SPDX-License-Identifier: GPL-2.0-only
 //
 // Author: George F. Riley <riley@ece.gatech.edu>
 // Author: Lalith Suresh <suresh.lalith@gmail.com>
@@ -268,8 +257,10 @@ class Ipv4L3ClickProtocol : public Ipv4
     void SetIpForward(bool forward) override;
     bool GetIpForward() const override;
 
+    /** \copydoc Ipv4::SetWeakEsModel */
     NS_DEPRECATED_3_41("Use SetStrongEndSystemModel instead")
     void SetWeakEsModel(bool model) override;
+    /** \copydoc Ipv4::GetWeakEsModel */
     NS_DEPRECATED_3_41("Use GetStrongEndSystemModel instead")
     bool GetWeakEsModel() const override;
 

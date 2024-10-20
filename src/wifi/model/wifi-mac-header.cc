@@ -2,18 +2,7 @@
  * Copyright (c) 2006, 2009 INRIA
  * Copyright (c) 2009 MIRKO BANCHI
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Authors: Mathieu Lacage <mathieu.lacage@sophia.inria.fr>
  *          Mirko Banchi <mk.banchi@gmail.com>
@@ -57,30 +46,10 @@ enum
     SUBTYPE_CTL_END_ACK = 15
 };
 
-WifiMacHeader::WifiMacHeader()
-    : m_ctrlMoreFrag(0),
-      m_ctrlRetry(0),
-      m_ctrlPowerManagement(0),
-      m_ctrlMoreData(0),
-      m_ctrlWep(0),
-      m_ctrlOrder(0),
-      m_duration(0),
-      m_seqFrag(0),
-      m_seqSeq(0),
-      m_qosEosp(0),
-      m_qosAckPolicy(0), // Normal Ack
-      m_amsduPresent(0)
-{
-}
-
 WifiMacHeader::WifiMacHeader(WifiMacType type)
     : WifiMacHeader()
 {
     SetType(type);
-}
-
-WifiMacHeader::~WifiMacHeader()
-{
 }
 
 void
@@ -1175,15 +1144,15 @@ WifiMacHeader::Print(std::ostream& os) const
         os << " Duration/ID=" << m_duration << "us";
         if (!m_ctrlToDs && !m_ctrlFromDs)
         {
-            os << ", DA=" << m_addr1 << ", SA=" << m_addr2 << ", BSSID=" << m_addr3;
+            os << ", DA(RA)=" << m_addr1 << ", SA(TA)=" << m_addr2 << ", BSSID=" << m_addr3;
         }
         else if (!m_ctrlToDs && m_ctrlFromDs)
         {
-            os << ", DA=" << m_addr1 << ", SA=" << m_addr3 << ", BSSID=" << m_addr2;
+            os << ", DA(RA)=" << m_addr1 << ", SA=" << m_addr3 << ", BSSID(TA)=" << m_addr2;
         }
         else if (m_ctrlToDs && !m_ctrlFromDs)
         {
-            os << ", DA=" << m_addr3 << ", SA=" << m_addr2 << ", BSSID=" << m_addr1;
+            os << ", DA=" << m_addr3 << ", SA(TA)=" << m_addr2 << ", BSSID(RA)=" << m_addr1;
         }
         else if (m_ctrlToDs && m_ctrlFromDs)
         {
@@ -1196,6 +1165,26 @@ WifiMacHeader::Print(std::ostream& os) const
         }
         os << ", FragNumber=" << std::hex << (int)m_seqFrag << std::dec
            << ", SeqNumber=" << m_seqSeq;
+        if (IsQosData())
+        {
+            os << ", tid=" << +m_qosTid;
+            if (IsQosAmsdu())
+            {
+                os << ", A-MSDU";
+            }
+            if (IsQosNoAck())
+            {
+                os << ", ack=NoAck";
+            }
+            else if (IsQosAck())
+            {
+                os << ", ack=NormalAck";
+            }
+            else if (IsQosBlockAck())
+            {
+                os << ", ack=BlockAck";
+            }
+        }
         break;
     case WIFI_MAC_CTL_BACKREQ:
     case WIFI_MAC_CTL_BACKRESP:

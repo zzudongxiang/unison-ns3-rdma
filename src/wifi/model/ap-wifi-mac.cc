@@ -2,18 +2,7 @@
  * Copyright (c) 2006, 2009 INRIA
  * Copyright (c) 2009 MIRKO BANCHI
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Authors: Mathieu Lacage <mathieu.lacage@sophia.inria.fr>
  *          Mirko Banchi <mk.banchi@gmail.com>
@@ -35,6 +24,7 @@
 #include "wifi-net-device.h"
 #include "wifi-phy.h"
 
+#include "ns3/ap-emlsr-manager.h"
 #include "ns3/eht-configuration.h"
 #include "ns3/eht-frame-exchange-manager.h"
 #include "ns3/he-configuration.h"
@@ -235,6 +225,11 @@ ApWifiMac::DoDispose()
     m_beaconTxop->Dispose();
     m_beaconTxop = nullptr;
     m_enableBeaconGeneration = false;
+    if (m_apEmlsrManager)
+    {
+        m_apEmlsrManager->Dispose();
+    }
+    m_apEmlsrManager = nullptr;
     WifiMac::DoDispose();
 }
 
@@ -254,6 +249,20 @@ ApWifiMac::ApLinkEntity&
 ApWifiMac::GetLink(uint8_t linkId) const
 {
     return static_cast<ApLinkEntity&>(WifiMac::GetLink(linkId));
+}
+
+void
+ApWifiMac::SetApEmlsrManager(Ptr<ApEmlsrManager> apEmlsrManager)
+{
+    NS_LOG_FUNCTION(this << apEmlsrManager);
+    m_apEmlsrManager = apEmlsrManager;
+    m_apEmlsrManager->SetWifiMac(this);
+}
+
+Ptr<ApEmlsrManager>
+ApWifiMac::GetApEmlsrManager() const
+{
+    return m_apEmlsrManager;
 }
 
 void
@@ -394,63 +403,16 @@ ApWifiMac::UpdateShortPreambleEnabled(uint8_t linkId)
     }
 }
 
-void
-ApWifiMac::ForwardDown(Ptr<Packet> packet, Mac48Address from, Mac48Address to)
+bool
+ApWifiMac::CanForwardPacketsTo(Mac48Address to) const
 {
-    NS_LOG_FUNCTION(this << packet << from << to);
-    // If we are not a QoS AP then we definitely want to use AC_BE to
-    // transmit the packet. A TID of zero will map to AC_BE (through \c
-    // QosUtilsMapTidToAc()), so we use that as our default here.
-    uint8_t tid = 0;
-
-    // If we are a QoS AP then we attempt to get a TID for this packet
-    if (GetQosSupported())
-    {
-        tid = QosUtilsGetTidForPacket(packet);
-        // Any value greater than 7 is invalid and likely indicates that
-        // the packet had no QoS tag, so we revert to zero, which'll
-        // mean that AC_BE is used.
-        if (tid > 7)
-        {
-            tid = 0;
-        }
-    }
-
-    ForwardDown(packet, from, to, tid);
+    return (to.IsGroup() || IsAssociated(to));
 }
 
 void
-ApWifiMac::ForwardDown(Ptr<Packet> packet, Mac48Address from, Mac48Address to, uint8_t tid)
+ApWifiMac::Enqueue(Ptr<WifiMpdu> mpdu, Mac48Address to, Mac48Address from)
 {
-    NS_LOG_FUNCTION(this << packet << from << to << +tid);
-    WifiMacHeader hdr;
-
-    // For now, an AP that supports QoS does not support non-QoS
-    // associations, and vice versa. In future the AP model should
-    // support simultaneously associated QoS and non-QoS STAs, at which
-    // point there will need to be per-association QoS state maintained
-    // by the association state machine, and consulted here.
-    if (GetQosSupported())
-    {
-        hdr.SetType(WIFI_MAC_QOSDATA);
-        hdr.SetQosAckPolicy(WifiMacHeader::NORMAL_ACK);
-        hdr.SetQosNoEosp();
-        hdr.SetQosNoAmsdu();
-        // Transmission of multiple frames in the same Polled TXOP is not supported for now
-        hdr.SetQosTxopLimit(0);
-        // Fill in the QoS control field in the MAC header
-        hdr.SetQosTid(tid);
-    }
-    else
-    {
-        hdr.SetType(WIFI_MAC_DATA);
-    }
-
-    if (GetQosSupported())
-    {
-        hdr.SetNoOrder(); // explicitly set to 0 for the time being since HT control field is not
-                          // yet implemented (set it to 1 when implemented)
-    }
+    NS_LOG_FUNCTION(this << *mpdu << to << from);
 
     std::list<Mac48Address> addr2Set;
     if (to.IsGroup())
@@ -474,55 +436,26 @@ ApWifiMac::ForwardDown(Ptr<Packet> packet, Mac48Address from, Mac48Address to, u
         }
     }
 
-    for (const auto& addr2 : addr2Set)
+    for (auto addr2 = addr2Set.cbegin(); addr2 != addr2Set.cend(); ++addr2)
     {
+        auto& hdr = mpdu->GetHeader();
+
         hdr.SetAddr1(to);
-        hdr.SetAddr2(addr2);
+        hdr.SetAddr2(*addr2);
         hdr.SetAddr3(from);
         hdr.SetDsFrom();
         hdr.SetDsNotTo();
 
-        if (GetQosSupported())
+        auto txop = hdr.IsQosData() ? StaticCast<Txop>(GetQosTxop(hdr.GetQosTid())) : GetTxop();
+        NS_ASSERT(txop);
+        txop->Queue(mpdu);
+
+        // create another MPDU if needed
+        if (std::next(addr2) != addr2Set.cend())
         {
-            // Sanity check that the TID is valid
-            NS_ASSERT(tid < 8);
-            GetQosTxop(tid)->Queue(packet, hdr);
-        }
-        else
-        {
-            GetTxop()->Queue(packet, hdr);
+            mpdu = Create<WifiMpdu>(mpdu->GetPacket()->Copy(), hdr);
         }
     }
-}
-
-bool
-ApWifiMac::CanForwardPacketsTo(Mac48Address to) const
-{
-    return (to.IsGroup() || IsAssociated(to));
-}
-
-void
-ApWifiMac::Enqueue(Ptr<Packet> packet, Mac48Address to, Mac48Address from)
-{
-    NS_LOG_FUNCTION(this << packet << to << from);
-    if (CanForwardPacketsTo(to))
-    {
-        ForwardDown(packet, from, to);
-    }
-    else
-    {
-        NotifyTxDrop(packet);
-    }
-}
-
-void
-ApWifiMac::Enqueue(Ptr<Packet> packet, Mac48Address to)
-{
-    NS_LOG_FUNCTION(this << packet << to);
-    // We're sending this packet with a from address that is our own. We
-    // get that address from the lower MAC and make use of the
-    // from-spoofing Enqueue() method to avoid duplicated code.
-    Enqueue(packet, to, GetAddress());
 }
 
 bool
@@ -917,10 +850,10 @@ ApWifiMac::GetHtOperation(uint8_t linkId) const
     {
         uint8_t nss = (mcs.GetMcsValue() / 8) + 1;
         NS_ASSERT(nss > 0 && nss < 5);
-        uint64_t dataRate =
-            mcs.GetDataRate(phy->GetChannelWidth(),
-                            GetHtConfiguration()->GetShortGuardIntervalSupported() ? 400 : 800,
-                            nss);
+        uint64_t dataRate = mcs.GetDataRate(
+            phy->GetChannelWidth(),
+            NanoSeconds(GetHtConfiguration()->GetShortGuardIntervalSupported() ? 400 : 800),
+            nss);
         if (dataRate > maxSupportedRate)
         {
             maxSupportedRate = dataRate;
@@ -946,7 +879,9 @@ ApWifiMac::GetHtOperation(uint8_t linkId) const
                 NS_ASSERT(nss > 0 && nss < 5);
                 uint64_t dataRate = mcs.GetDataRate(
                     remoteStationManager->GetChannelWidthSupported(sta.second),
-                    remoteStationManager->GetShortGuardIntervalSupported(sta.second) ? 400 : 800,
+                    NanoSeconds(remoteStationManager->GetShortGuardIntervalSupported(sta.second)
+                                    ? 400
+                                    : 800),
                     nss);
                 if (dataRate > maxSupportedRateByHtSta)
                 {
@@ -995,7 +930,7 @@ ApWifiMac::GetVhtOperation(uint8_t linkId) const
     auto phy = GetWifiPhy(linkId);
     auto remoteStationManager = GetWifiRemoteStationManager(linkId);
 
-    const uint16_t bssBandwidth = phy->GetChannelWidth();
+    const auto bssBandwidth = phy->GetChannelWidth();
     // Set to 0 for 20 MHz or 40 MHz BSS bandwidth.
     // Set to 1 for 80 MHz, 160 MHz or 80+80 MHz BSS bandwidth.
     operation.SetChannelWidth((bssBandwidth > 40) ? 1 : 0);
@@ -1004,16 +939,22 @@ ApWifiMac::GetVhtOperation(uint8_t linkId) const
     // For 160 MHz BSS bandwidth and the Channel Width subfield equal to 1,
     // indicates the channel center frequency index of the 80 MHz channel
     // segment that contains the primary channel.
+    // For 80+80 MHz BSS bandwidth and the Channel Width subfield equal to 1 or 3,
+    // indicates the channel center frequency index for the primary 80 MHz channel of the VHT BSS.
     operation.SetChannelCenterFrequencySegment0(
-        (bssBandwidth == 160)
-            ? phy->GetOperatingChannel().GetPrimaryChannelNumber(80, phy->GetStandard())
-            : phy->GetChannelNumber());
+        (bssBandwidth == 160) ? phy->GetPrimaryChannelNumber(80) : phy->GetChannelNumber());
     // For a 20, 40, or 80 MHz BSS bandwidth, this subfield is set to 0.
     // For a 160 MHz BSS bandwidth and the Channel Width subfield equal to 1,
     // indicates the channel center frequency index of the 160 MHz channel on
     // which the VHT BSS operates.
-    operation.SetChannelCenterFrequencySegment1((bssBandwidth == 160) ? phy->GetChannelNumber()
-                                                                      : 0);
+    // For an 80+80 MHz BSS bandwidth and the Channel Width subfield equal to 1 or 3,
+    // indicates the channel center frequency index of the secondary 80 MHz channel of the VHT BSS.
+    const auto& operatingChannel = phy->GetOperatingChannel();
+    const auto is80Plus80 =
+        operatingChannel.GetWidthType() == WifiChannelWidthType::CW_80_PLUS_80MHZ;
+    operation.SetChannelCenterFrequencySegment1(
+        (bssBandwidth == 160) ? is80Plus80 ? operatingChannel.GetNumber(1) : phy->GetChannelNumber()
+                              : 0);
     uint8_t maxSpatialStream = phy->GetMaxSupportedRxSpatialStreams();
     for (const auto& sta : GetLink(linkId).staList)
     {
@@ -1197,7 +1138,7 @@ ApWifiMac::SendProbeResp(Mac48Address to, uint8_t linkId)
 
     if (!GetQosSupported())
     {
-        GetTxop()->Queue(packet, hdr);
+        GetTxop()->Queue(Create<WifiMpdu>(packet, hdr));
     }
     // "A QoS STA that transmits a Management frame determines access category used
     // for medium access in transmission of the Management frame as follows
@@ -1208,11 +1149,11 @@ ApWifiMac::SendProbeResp(Mac48Address to, uint8_t linkId)
     //   shall be selected." (Sec. 10.2.3.2 of 802.11-2020)
     else if (!GetWifiRemoteStationManager(linkId)->GetQosSupported(to))
     {
-        GetBEQueue()->Queue(packet, hdr);
+        GetBEQueue()->Queue(Create<WifiMpdu>(packet, hdr));
     }
     else
     {
-        GetVOQueue()->Queue(packet, hdr);
+        GetVOQueue()->Queue(Create<WifiMpdu>(packet, hdr));
     }
 }
 
@@ -1327,105 +1268,58 @@ ApWifiMac::SetAid(MgtAssocResponseHeader& assoc, const LinkIdStaAddrMap& linkIdS
         return;
     }
 
-    // check if AIDs are already allocated to the STAs that are associating
+    const auto& [linkId, staAddr] = *linkIdStaAddrMap.cbegin();
+    const auto addr = GetWifiRemoteStationManager(linkId)->GetMldAddress(staAddr).value_or(staAddr);
+
+    // check if an AID is already allocated to the device that is associating
     std::set<uint16_t> aids;
-    std::map<uint8_t /* link ID */, uint16_t /* AID */> linkIdAidMap;
 
-    for (const auto& [id, staAddr] : linkIdStaAddrMap)
+    for (const auto& [id, link] : GetLinks())
     {
-        for (const auto& [aid, addr] : GetLink(id).staList)
+        if (const auto aid = link->stationManager->GetAssociationId(addr); aid != SU_STA_ID)
         {
-            if (addr == staAddr)
-            {
-                aids.insert(aid);
-                linkIdAidMap[id] = aid;
-                break;
-            }
+            aids.insert(aid);
         }
     }
 
-    // check if an AID already assigned to an STA can be assigned to all other STAs
-    // affiliated with the non-AP MLD we are associating with
-    while (!aids.empty())
-    {
-        const uint16_t aid = *aids.begin();
-        bool good = true;
+    NS_ABORT_MSG_IF(aids.size() > 1, addr << " cannot have more than one AID assigned");
 
-        for (const auto& [id, staAddr] : linkIdStaAddrMap)
-        {
-            if (auto it = GetLink(id).staList.find(aid);
-                it != GetLink(id).staList.end() && it->second != staAddr)
-            {
-                // the AID is already assigned to an STA other than the one affiliated
-                // with the non-AP MLD we are associating with
-                aids.erase(aids.begin());
-                good = false;
-                break;
-            }
-        }
-
-        if (good)
-        {
-            break;
-        }
-    }
-
-    uint16_t aid = 0;
-
-    if (!aids.empty())
-    {
-        // one of the AIDs already assigned to an STA can be assigned to all the other
-        // STAs affiliated with the non-AP MLD we are associating with
-        aid = *aids.begin();
-    }
-    else
-    {
-        std::list<uint8_t> linkIds;
-        std::transform(linkIdStaAddrMap.cbegin(),
-                       linkIdStaAddrMap.cend(),
-                       std::back_inserter(linkIds),
-                       [](auto&& linkIdStaAddrPair) { return linkIdStaAddrPair.first; });
-        aid = GetNextAssociationId(linkIds);
-    }
+    const auto aid = aids.empty() ? GetNextAssociationId() : *aids.cbegin();
 
     // store the MLD or link address in the AID-to-address map
-    const auto& [linkId, staAddr] = *linkIdStaAddrMap.cbegin();
-    m_aidToMldOrLinkAddress[aid] =
-        GetWifiRemoteStationManager(linkId)->GetMldAddress(staAddr).value_or(staAddr);
+    const auto [it, inserted] = m_aidToMldOrLinkAddress.emplace(aid, addr);
+
+    NS_ABORT_MSG_IF(!inserted, "AID " << aid << " already present, cannot be assigned to " << addr);
 
     for (const auto& [id, staAddr] : linkIdStaAddrMap)
     {
-        auto remoteStationManager = GetWifiRemoteStationManager(id);
         auto& link = GetLink(id);
 
-        if (auto it = linkIdAidMap.find(id); it == linkIdAidMap.end() || it->second != aid)
+        if (const auto [it, inserted] = link.staList.emplace(aid, staAddr); inserted)
         {
-            // the STA on this link has no AID assigned or has a different AID assigned
-            link.staList.insert(std::make_pair(aid, staAddr));
+            // the STA on this link had no AID assigned
             m_assocLogger(aid, staAddr);
-            remoteStationManager->SetAssociationId(staAddr, aid);
+            link.stationManager->SetAssociationId(staAddr, aid);
 
-            if (it == linkIdAidMap.end())
+            if (link.stationManager->GetDsssSupported(staAddr) &&
+                !link.stationManager->GetErpOfdmSupported(staAddr))
             {
-                // the STA on this link had no AID assigned
-                if (remoteStationManager->GetDsssSupported(staAddr) &&
-                    !remoteStationManager->GetErpOfdmSupported(staAddr))
-                {
-                    link.numNonErpStations++;
-                }
-                if (!remoteStationManager->GetHtSupported(staAddr) &&
-                    !remoteStationManager->GetStationHe6GhzCapabilities(staAddr))
-                {
-                    link.numNonHtStations++;
-                }
-                UpdateShortSlotTimeEnabled(id);
-                UpdateShortPreambleEnabled(id);
+                link.numNonErpStations++;
             }
-            else
+            if (!link.stationManager->GetHtSupported(staAddr) &&
+                !link.stationManager->GetStationHe6GhzCapabilities(staAddr))
             {
-                // the STA on this link had a different AID assigned
-                link.staList.erase(it->second); // free the previous AID
+                link.numNonHtStations++;
             }
+            UpdateShortSlotTimeEnabled(id);
+            UpdateShortPreambleEnabled(id);
+        }
+        else
+        {
+            // the STA on this link had an AID assigned
+            NS_ABORT_MSG_IF(it->first != aid,
+                            "AID " << it->first << " already assigned to " << staAddr
+                                   << ", could not assign " << aid);
         }
     }
 
@@ -1486,7 +1380,7 @@ ApWifiMac::SendAssocResp(Mac48Address to, bool isReassoc, uint8_t linkId)
 
     if (!GetQosSupported())
     {
-        GetTxop()->Queue(packet, hdr);
+        GetTxop()->Queue(Create<WifiMpdu>(packet, hdr));
     }
     // "A QoS STA that transmits a Management frame determines access category used
     // for medium access in transmission of the Management frame as follows
@@ -1497,11 +1391,11 @@ ApWifiMac::SendAssocResp(Mac48Address to, bool isReassoc, uint8_t linkId)
     //   shall be selected." (Sec. 10.2.3.2 of 802.11-2020)
     else if (!GetWifiRemoteStationManager(linkId)->GetQosSupported(to))
     {
-        GetBEQueue()->Queue(packet, hdr);
+        GetBEQueue()->Queue(Create<WifiMpdu>(packet, hdr));
     }
     else
     {
-        GetVOQueue()->Queue(packet, hdr);
+        GetVOQueue()->Queue(Create<WifiMpdu>(packet, hdr));
     }
 }
 
@@ -1596,7 +1490,7 @@ ApWifiMac::SendOneBeacon(uint8_t linkId)
 
     NS_LOG_INFO("Generating beacon from " << link.feManager->GetAddress() << " linkID " << +linkId);
     // The beacon has it's own special queue, so we load it in there
-    m_beaconTxop->Queue(packet, hdr);
+    m_beaconTxop->Queue(Create<WifiMpdu>(packet, hdr));
     link.beaconEvent =
         Simulator::Schedule(GetBeaconInterval(), &ApWifiMac::SendOneBeacon, this, linkId);
 
@@ -1938,11 +1832,11 @@ ApWifiMac::Receive(Ptr<const WifiMpdu> mpdu, uint8_t linkId)
                 // header...
                 if (hdr->IsQosData())
                 {
-                    ForwardDown(copy, from, to, hdr->GetQosTid());
+                    WifiMac::Enqueue(copy, to, from, hdr->GetQosTid());
                 }
                 else
                 {
-                    ForwardDown(copy, from, to);
+                    WifiMac::Enqueue(copy, to, from);
                 }
                 ForwardUp(packet, from, to);
             }
@@ -2079,9 +1973,7 @@ ApWifiMac::Receive(Ptr<const WifiMpdu> mpdu, uint8_t linkId)
         }
     }
 
-    // Invoke the receive handler of our parent class to deal with any
-    // other frames. Specifically, this will handle Block Ack-related
-    // Management Action frames.
+    // Invoke the receive handler of our parent class to deal with any other frames
     WifiMac::Receive(Create<WifiMpdu>(packet, *hdr), linkId);
 }
 
@@ -2447,8 +2339,8 @@ ApWifiMac::ReceiveEmlOmn(MgtEmlOmn& frame, const Mac48Address& sender, uint8_t l
     // when the transmission of the Ack following the received EML Notification frame is
     // completed. For this purpose, we connect a callback to the PHY TX begin trace to catch
     // the Ack transmitted after the EML Notification frame.
-    CallbackBase cb = Callback<void, WifiConstPsduMap, WifiTxVector, double>(
-        [=, this](WifiConstPsduMap psduMap, WifiTxVector txVector, double /* txPowerW */) {
+    CallbackBase cb = Callback<void, WifiConstPsduMap, WifiTxVector, Watt_u>(
+        [=, this](WifiConstPsduMap psduMap, WifiTxVector txVector, Watt_u /* txPower */) {
             NS_ASSERT_MSG(psduMap.size() == 1 && psduMap.begin()->second->GetNMpdus() == 1 &&
                               psduMap.begin()->second->GetHeader(0).IsAck(),
                           "Expected a Normal Ack after EML Notification frame");
@@ -2558,7 +2450,7 @@ ApWifiMac::DeaggregateAmsduAndForward(Ptr<const WifiMpdu> mpdu)
         if (to.IsGroup() || IsAssociated(to))
         {
             NS_LOG_DEBUG("forwarding QoS frame from=" << from << ", to=" << to);
-            ForwardDown(i.first->Copy(), from, to, mpdu->GetHeader().GetQosTid());
+            WifiMac::Enqueue(i.first->Copy(), to, from, mpdu->GetHeader().GetQosTid());
         }
 
         ForwardUp(i.first, from, to);
@@ -2607,14 +2499,15 @@ ApWifiMac::GetUseNonErpProtection(uint8_t linkId) const
 }
 
 uint16_t
-ApWifiMac::GetNextAssociationId(std::list<uint8_t> linkIds)
+ApWifiMac::GetNextAssociationId() const
 {
-    // Return the first AID value between 1 and 2007 that is free for all the given links
-    for (uint16_t nextAid = 1; nextAid <= 2007; nextAid++)
+    const auto& links = GetLinks();
+
+    // Return the first AID value between 1 and 2007 that is free for all the links
+    for (uint16_t nextAid = 1; nextAid <= 2007; ++nextAid)
     {
-        if (std::all_of(linkIds.begin(), linkIds.end(), [&](auto&& linkId) {
-                auto& staList = GetLink(linkId).staList;
-                return !staList.contains(nextAid);
+        if (std::none_of(links.cbegin(), links.cend(), [&](auto&& idLinkPair) {
+                return GetStaList(idLinkPair.first).contains(nextAid);
             }))
         {
             return nextAid;

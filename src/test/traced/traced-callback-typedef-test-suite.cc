@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2015 Lawrence Livermore National Laboratory
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author:  Peter D. Barnes, Jr. <pdbarnes@llnl.gov>
  */
@@ -26,6 +15,7 @@
 #include <set>
 #include <sstream>
 #include <string>
+#include <type_traits>
 // Ipv6L3Protocol, Ipv6PacketProbe
 #include "ns3/lr-wpan-mac.h"      // LrWpanMac
 #include "ns3/lte-module.h"       // PhyReceptionStatParameters,
@@ -282,7 +272,7 @@ class TracedCallbackTypedefTestCase::Checker : public Object
     ~Checker() override{};
 
     /// Arguments of the TracedCallback.
-    std::tuple<typename TypeTraits<Ts>::BaseType...> m_items;
+    std::tuple<std::remove_pointer_t<std::remove_cvref_t<Ts>>...> m_items;
 
     /// Number of arguments of the TracedCallback.
     const std::size_t m_nItems = sizeof...(Ts);

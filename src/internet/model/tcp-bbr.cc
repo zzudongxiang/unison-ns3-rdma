@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2018 NITK Surathkal
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Authors: Vivek Jain <jain.vivek.anand@gmail.com>
  *          Viyom Mittal <viyommittal@gmail.com>
@@ -75,7 +64,20 @@ TcpBbr::GetTypeId()
                 "Max allowed val for m_ackEpochAcked, after which sampling epoch is reset",
                 UintegerValue(1 << 12),
                 MakeUintegerAccessor(&TcpBbr::m_ackEpochAckedResetThresh),
-                MakeUintegerChecker<uint32_t>());
+                MakeUintegerChecker<uint32_t>())
+            .AddTraceSource("MinRtt",
+                            "Estimated two-way round-trip propagation delay of the path, estimated "
+                            "from the windowed minimum recent round-trip delay sample",
+                            MakeTraceSourceAccessor(&TcpBbr::m_minRtt),
+                            "ns3::TracedValueCallback::Time")
+            .AddTraceSource("PacingGain",
+                            "The dynamic pacing gain factor",
+                            MakeTraceSourceAccessor(&TcpBbr::m_pacingGain),
+                            "ns3::TracedValueCallback::Double")
+            .AddTraceSource("CwndGain",
+                            "The dynamic congestion window gain factor",
+                            MakeTraceSourceAccessor(&TcpBbr::m_cWndGain),
+                            "ns3::TracedValueCallback::Double");
     return tid;
 }
 
@@ -230,6 +232,7 @@ TcpBbr::SetPacingRate(Ptr<TcpSocketState> tcb, double gain)
     if (m_isPipeFilled || rate > tcb->m_pacingRate)
     {
         tcb->m_pacingRate = rate;
+        NS_LOG_DEBUG("Pacing rate updated. New value: " << tcb->m_pacingRate);
     }
 }
 
@@ -475,6 +478,7 @@ TcpBbr::UpdateTargetCwnd(Ptr<TcpSocketState> tcb)
 uint32_t
 TcpBbr::AckAggregationCwnd()
 {
+    NS_LOG_FUNCTION(this);
     uint32_t maxAggrBytes; // MaxBW * 0.1 secs
     uint32_t aggrCwndBytes = 0;
 
@@ -490,6 +494,7 @@ TcpBbr::AckAggregationCwnd()
 void
 TcpBbr::UpdateAckAggregation(Ptr<TcpSocketState> tcb, const TcpRateOps::TcpRateSample& rs)
 {
+    NS_LOG_FUNCTION(this << tcb << rs);
     uint32_t expectedAcked;
     uint32_t extraAck;
     uint32_t epochProp;
@@ -588,6 +593,7 @@ TcpBbr::SetCwnd(Ptr<TcpSocketState> tcb, const TcpRateOps::TcpRateSample& rs)
         tcb->m_cWnd = tcb->m_cWnd.Get() + rs.m_ackedSacked;
     }
     tcb->m_cWnd = std::max(tcb->m_cWnd.Get(), m_minPipeCwnd);
+    NS_LOG_DEBUG("Congestion window updated. New value:" << tcb->m_cWnd);
 
 done:
     ModulateCwndForProbeRTT(tcb);
@@ -711,7 +717,7 @@ TcpBbr::CongestionStateSet(Ptr<TcpSocketState> tcb, const TcpSocketState::TcpCon
     if (newState == TcpSocketState::CA_OPEN && !m_isInitialized)
     {
         NS_LOG_DEBUG("CongestionStateSet triggered to CA_OPEN :: " << newState);
-        m_minRtt = tcb->m_lastRtt.Get() != Time::Max() ? tcb->m_lastRtt.Get() : Time::Max();
+        m_minRtt = tcb->m_srtt.Get() != Time::Max() ? tcb->m_srtt.Get() : Time::Max();
         m_minRttStamp = Simulator::Now();
         m_priorCwnd = tcb->m_cWnd;
         tcb->m_ssThresh = tcb->m_initialSsThresh;

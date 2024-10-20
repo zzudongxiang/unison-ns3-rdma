@@ -2,18 +2,7 @@
  * Copyright (c) 2011 UPB
  * Copyright (c) 2017 NITK Surathkal
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Radu Lupu <rlupu@elcom.pub.ro>
  *         Ankit Deepak <adadeepak8@gmail.com>
@@ -41,13 +30,13 @@ namespace ns3
  * \ingroup dhcp
  *
  * \class DhcpHeader
- * \brief BOOTP header with DHCP messages supports the following options:
+ * \brief BOOTP header with DHCP messages.  This supports the following options:
  *        Subnet Mask (1), Address Request (50), Refresh Lease Time (51),
  *        DHCP Message Type (53), DHCP Server ID (54), Renew Time (58),
  *        Rebind Time (59) and End (255) of BOOTP
-
-  \verbatim
-    0                   1                   2                   3
+ *
+ * \verbatim
+   0                   1                   2                   3
    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
    |     op (1)    |   htype (1)   |   hlen (1)    |   hops (1)    |
@@ -78,8 +67,7 @@ namespace ns3
    |                                                               |
    |                          options (variable)                   |
    +---------------------------------------------------------------+
-  \endverbatim
-
+   \endverbatim
  */
 class DhcpHeader : public Header
 {

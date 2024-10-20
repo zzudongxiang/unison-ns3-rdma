@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2016 SEBASTIEN DERONNE
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Sebastien Deronne <sebastien.deronne@gmail.com>
  */
@@ -72,10 +61,11 @@ main(int argc, char* argv[])
     bool udp{true};
     bool downlink{true};
     bool useRts{false};
+    bool use80Plus80{false};
     bool useExtendedBlockAck{false};
     Time simulationTime{"10s"};
-    double distance{1.0}; // meters
-    double frequency{5};  // whether 2.4, 5 or 6 GHz
+    meter_u distance{1.0};
+    double frequency{5}; // whether 2.4, 5 or 6 GHz
     std::size_t nStations{1};
     std::string dlAckSeqType{"NO-OFDMA"};
     bool enableUlOfdma{false};
@@ -101,6 +91,7 @@ main(int argc, char* argv[])
                  "Generate downlink flows if set to 1, uplink flows otherwise",
                  downlink);
     cmd.AddValue("useRts", "Enable/disable RTS/CTS", useRts);
+    cmd.AddValue("use80Plus80", "Enable/disable use of 80+80 MHz", use80Plus80);
     cmd.AddValue("useExtendedBlockAck", "Enable/disable use of extended BACK", useExtendedBlockAck);
     cmd.AddValue("nStations", "Number of non-AP HE stations", nStations);
     cmd.AddValue("dlAckType",
@@ -119,7 +110,8 @@ main(int argc, char* argv[])
     cmd.AddValue("mcs", "if set, limit testing to a specific MCS (0-11)", mcs);
     cmd.AddValue("payloadSize", "The application payload size in bytes", payloadSize);
     cmd.AddValue("phyModel",
-                 "PHY model to use when OFDMA is disabled (Yans or Spectrum). If OFDMA is enabled "
+                 "PHY model to use when OFDMA is disabled (Yans or Spectrum). If 80+80 MHz or "
+                 "OFDMA is enabled "
                  "then Spectrum is automatically selected",
                  phyModel);
     cmd.AddValue("minExpectedThroughput",
@@ -161,9 +153,9 @@ main(int argc, char* argv[])
     {
         NS_ABORT_MSG("Invalid PHY model (must be Yans or Spectrum)");
     }
-    if (dlAckSeqType != "NO-OFDMA")
+    if (use80Plus80 || (dlAckSeqType != "NO-OFDMA"))
     {
-        // SpectrumWifiPhy is required for OFDMA
+        // SpectrumWifiPhy is required for 80+80 MHz and OFDMA
         phyModel = "Spectrum";
     }
 
@@ -191,6 +183,9 @@ main(int argc, char* argv[])
         int minGi = enableUlOfdma ? 1600 : 800;
         for (int channelWidth = 20; channelWidth <= maxChannelWidth;) // MHz
         {
+            const auto is80Plus80 = (use80Plus80 && (channelWidth == 160));
+            const std::string widthStr = is80Plus80 ? "80+80" : std::to_string(channelWidth);
+            const auto segmentWidthStr = is80Plus80 ? "80" : widthStr;
             for (int gi = 3200; gi >= minGi;) // Nanoseconds
             {
                 if (!udp)
@@ -207,7 +202,7 @@ main(int argc, char* argv[])
                 NetDeviceContainer staDevices;
                 WifiMacHelper mac;
                 WifiHelper wifi;
-                std::string channelStr("{0, " + std::to_string(channelWidth) + ", ");
+                std::string channelStr("{0, " + segmentWidthStr + ", ");
                 StringValue ctrlRate;
                 auto nonHtRefRateMbps = HePhy::GetNonHtReferenceRate(mcs) / 1e6;
 
@@ -216,7 +211,6 @@ main(int argc, char* argv[])
 
                 if (frequency == 6)
                 {
-                    wifi.SetStandard(WIFI_STANDARD_80211ax);
                     ctrlRate = StringValue(ossDataMode.str());
                     channelStr += "BAND_6GHZ, 0}";
                     Config::SetDefault("ns3::LogDistancePropagationLossModel::ReferenceLoss",
@@ -224,7 +218,6 @@ main(int argc, char* argv[])
                 }
                 else if (frequency == 5)
                 {
-                    wifi.SetStandard(WIFI_STANDARD_80211ax);
                     std::ostringstream ossControlMode;
                     ossControlMode << "OfdmRate" << nonHtRefRateMbps << "Mbps";
                     ctrlRate = StringValue(ossControlMode.str());
@@ -232,7 +225,6 @@ main(int argc, char* argv[])
                 }
                 else if (frequency == 2.4)
                 {
-                    wifi.SetStandard(WIFI_STANDARD_80211ax);
                     std::ostringstream ossControlMode;
                     ossControlMode << "ErpOfdmRate" << nonHtRefRateMbps << "Mbps";
                     ctrlRate = StringValue(ossControlMode.str());
@@ -245,6 +237,12 @@ main(int argc, char* argv[])
                     NS_FATAL_ERROR("Wrong frequency value!");
                 }
 
+                if (is80Plus80)
+                {
+                    channelStr += std::string(";") + channelStr;
+                }
+
+                wifi.SetStandard(WIFI_STANDARD_80211ax);
                 wifi.SetRemoteStationManager("ns3::ConstantRateWifiManager",
                                              "DataMode",
                                              StringValue(ossDataMode.str()),
@@ -257,17 +255,9 @@ main(int argc, char* argv[])
 
                 if (phyModel == "Spectrum")
                 {
-                    /*
-                     * SingleModelSpectrumChannel cannot be used with 802.11ax because two
-                     * spectrum models are required: one with 78.125 kHz bands for HE PPDUs
-                     * and one with 312.5 kHz bands for, e.g., non-HT PPDUs (for more details,
-                     * see issue #408 (CLOSED))
-                     */
-                    Ptr<MultiModelSpectrumChannel> spectrumChannel =
-                        CreateObject<MultiModelSpectrumChannel>();
+                    auto spectrumChannel = CreateObject<MultiModelSpectrumChannel>();
 
-                    Ptr<LogDistancePropagationLossModel> lossModel =
-                        CreateObject<LogDistancePropagationLossModel>();
+                    auto lossModel = CreateObject<LogDistancePropagationLossModel>();
                     spectrumChannel->AddPropagationLossModel(lossModel);
 
                     SpectrumWifiPhyHelper phy;
@@ -301,7 +291,7 @@ main(int argc, char* argv[])
                 }
                 else
                 {
-                    YansWifiChannelHelper channel = YansWifiChannelHelper::Default();
+                    auto channel = YansWifiChannelHelper::Default();
                     YansWifiPhyHelper phy;
                     phy.SetPcapDataLinkType(WifiPhyHelper::DLT_IEEE802_11_RADIO);
                     phy.SetChannel(channel.Create());
@@ -323,8 +313,8 @@ main(int argc, char* argv[])
                 }
 
                 int64_t streamNumber = 150;
-                streamNumber += wifi.AssignStreams(apDevice, streamNumber);
-                streamNumber += wifi.AssignStreams(staDevices, streamNumber);
+                streamNumber += WifiHelper::AssignStreams(apDevice, streamNumber);
+                streamNumber += WifiHelper::AssignStreams(staDevices, streamNumber);
 
                 // mobility.
                 MobilityHelper mobility;
@@ -366,7 +356,8 @@ main(int argc, char* argv[])
                     clientNodes.Add(downlink ? wifiApNode.Get(0) : wifiStaNodes.Get(i));
                 }
 
-                const auto maxLoad = HePhy::GetDataRate(mcs, channelWidth, gi, 1) / nStations;
+                const auto maxLoad =
+                    HePhy::GetDataRate(mcs, channelWidth, NanoSeconds(gi), 1) / nStations;
                 if (udp)
                 {
                     // UDP flow
@@ -454,8 +445,9 @@ main(int argc, char* argv[])
 
                 Simulator::Destroy();
 
-                std::cout << mcs << "\t\t\t" << channelWidth << " MHz\t\t\t" << gi << " ns\t\t\t"
-                          << throughput << " Mbit/s" << std::endl;
+                std::cout << +mcs << "\t\t\t" << widthStr << " MHz\t\t"
+                          << (widthStr.size() > 3 ? "" : "\t") << gi << " ns\t\t\t" << throughput
+                          << " Mbit/s" << std::endl;
 
                 // test first element
                 if (mcs == minMcs && channelWidth == 20 && gi == 3200)

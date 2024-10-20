@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2023 University of Washington
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  */
 #include "ns3/ampdu-tag.h"
 #include "ns3/ap-wifi-mac.h"
@@ -269,8 +258,15 @@ TestWifiPhyRxTraceHelper::SendPpduWithTwoMpdus(double rxPowerDbm,
     tx_phy->SetTxPowerStart(txPower);
     tx_phy->SetTxPowerEnd(txPower);
 
-    WifiTxVector txVector =
-        WifiTxVector(HePhy::GetHeMcs0(), 0, WIFI_PREAMBLE_HE_SU, 800, 1, 1, 0, 20, true);
+    WifiTxVector txVector = WifiTxVector(HePhy::GetHeMcs0(),
+                                         0,
+                                         WIFI_PREAMBLE_HE_SU,
+                                         NanoSeconds(800),
+                                         1,
+                                         1,
+                                         0,
+                                         20,
+                                         true);
 
     std::vector<Ptr<WifiMpdu>> mpduList;
 
@@ -302,8 +298,15 @@ TestWifiPhyRxTraceHelper::SendPpduWithOneMpdu(double rxPowerDbm,
     tx_phy->SetTxPowerStart(txPower);
     tx_phy->SetTxPowerEnd(txPower);
 
-    WifiTxVector txVector =
-        WifiTxVector(HePhy::GetHeMcs0(), 0, WIFI_PREAMBLE_HE_SU, 800, 1, 1, 0, 20, true);
+    WifiTxVector txVector = WifiTxVector(HePhy::GetHeMcs0(),
+                                         0,
+                                         WIFI_PREAMBLE_HE_SU,
+                                         NanoSeconds(800),
+                                         1,
+                                         1,
+                                         0,
+                                         20,
+                                         true);
 
     std::vector<Ptr<WifiMpdu>> mpduList;
 
@@ -1129,8 +1132,15 @@ TestWifiPhyRxTraceHelperMloStr::SendPpduWithTwoMpdus(double rxPowerDbm,
     tx_phy->SetTxPowerStart(txPower);
     tx_phy->SetTxPowerEnd(txPower);
 
-    WifiTxVector txVector =
-        WifiTxVector(HePhy::GetHeMcs0(), 0, WIFI_PREAMBLE_HE_SU, 800, 1, 1, 0, 20, true);
+    WifiTxVector txVector = WifiTxVector(HePhy::GetHeMcs0(),
+                                         0,
+                                         WIFI_PREAMBLE_HE_SU,
+                                         NanoSeconds(800),
+                                         1,
+                                         1,
+                                         0,
+                                         20,
+                                         true);
 
     std::vector<Ptr<WifiMpdu>> mpduList;
 
@@ -1166,7 +1176,7 @@ TestWifiPhyRxTraceHelperMloStr::SendPpduWithOneMpdu(double rxPowerDbm,
         WifiTxVector(HePhy::GetHeMcs0(),
                      0,
                      WIFI_PREAMBLE_HE_SU,
-                     800,
+                     NanoSeconds(800),
                      1,
                      1,
                      0,
@@ -1883,8 +1893,15 @@ TestWifiPhyRxTraceHelperYans::SendPpduWithTwoMpdus(double rxPowerDbm,
 {
     propLoss->SetRss(rxPowerDbm);
 
-    WifiTxVector txVector =
-        WifiTxVector(HePhy::GetHeMcs0(), 0, WIFI_PREAMBLE_HE_SU, 800, 1, 1, 0, 20, true);
+    WifiTxVector txVector = WifiTxVector(HePhy::GetHeMcs0(),
+                                         0,
+                                         WIFI_PREAMBLE_HE_SU,
+                                         NanoSeconds(800),
+                                         1,
+                                         1,
+                                         0,
+                                         20,
+                                         true);
 
     std::vector<Ptr<WifiMpdu>> mpduList;
 
@@ -1922,8 +1939,15 @@ TestWifiPhyRxTraceHelperYans::SendPpduWithOneMpdu(double rxPowerDbm,
 {
     propLoss->SetRss(rxPowerDbm);
 
-    auto txVector =
-        WifiTxVector(HePhy::GetHeMcs0(), 0, WIFI_PREAMBLE_HE_SU, 800, 1, 1, 0, 20, true);
+    auto txVector = WifiTxVector(HePhy::GetHeMcs0(),
+                                 0,
+                                 WIFI_PREAMBLE_HE_SU,
+                                 NanoSeconds(800),
+                                 1,
+                                 1,
+                                 0,
+                                 20,
+                                 true);
 
     std::vector<Ptr<WifiMpdu>> mpduList;
 

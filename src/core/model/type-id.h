@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2008 INRIA
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Mathieu Lacage <mathieu.lacage@sophia.inria.fr>
  */
@@ -181,6 +170,20 @@ class TypeId
      * the full c++ typename of associated c++ object.
      */
     explicit TypeId(const std::string& name);
+
+    /**
+     * Add an deprecated name for a TypeId.
+     *
+     * \param [in] name The deprecated name.
+     * \return This TypeId instance.
+     *
+     * To allow for deprecations (such as moving a TypeId into a namespace
+     * but wishing to preserve the original string from namespace ns3),
+     * one additional deprecated name can be registered for a TypeId.  This
+     * deprecated name is not retrievable by GetName().  A runtime warning is
+     * generated if the name is used, and only one deprecated name is supported.
+     */
+    TypeId AddDeprecatedName(const std::string& name);
 
     /**
      * Get the parent of this TypeId.
@@ -465,15 +468,31 @@ class TypeId
     TypeId HideFromDocumentation();
 
     /**
+     * Find an attribute by name in the inheritance tree for a given TypeId.
+     *
+     * \param [in] tid The TypeId to start the search from.
+     * \param [in] name The name of the attribute to search for.
+     * \return A tuple containing a boolean that indicates whether the attribute was found, the
+     * TypeId where the attribute was found, and the AttributeInformation of the found attribute.
+     */
+    static std::tuple<bool, TypeId, AttributeInformation> FindAttribute(const TypeId& tid,
+                                                                        const std::string& name);
+
+    /**
      * Find an Attribute by name, retrieving the associated AttributeInformation.
      *
      * \param [in]  name The name of the requested attribute
      * \param [in,out] info A pointer to the TypeId::AttributeInformation
      *              data structure where the result value of this method
      *              will be stored.
+     * \param [in] permissive If false (by default), will generate warnings and errors for
+     * deprecated and obsolete attributes, respectively. If set to true, warnings for deprecated
+     * attributes will be suppressed.
      * \returns \c true if the requested attribute could be found.
      */
-    bool LookupAttributeByName(std::string name, AttributeInformation* info) const;
+    bool LookupAttributeByName(std::string name,
+                               AttributeInformation* info,
+                               bool permissive = false) const;
     /**
      * Find a TraceSource by name.
      *

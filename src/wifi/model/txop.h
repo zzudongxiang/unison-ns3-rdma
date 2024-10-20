@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2005 INRIA
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Mathieu Lacage <mathieu.lacage@sophia.inria.fr>
  */
@@ -55,29 +44,14 @@ enum AcIndex : uint8_t;           // opaque enum declaration
 enum WifiMacDropReason : uint8_t; // opaque enum declaration
 
 /**
- * \brief Handle packet fragmentation and retransmissions
- * for data and management frames.
+ * \brief Handles the packet queue and stores DCF/EDCA access parameters
+ * (one Txop per AC).
  * \ingroup wifi
  *
- * This class implements the packet fragmentation and
- * retransmission policy for data and management frames.
- * It uses the ns3::ChannelAccessManager helper
- * class to decide when to send a packet.
- * Packets are stored in a ns3::WifiMacQueue
- * until they can be sent.
- *
- * The policy currently implemented uses a simple fragmentation
- * threshold: any packet bigger than this threshold is fragmented
- * in fragments whose size is smaller than the threshold.
- *
- * The retransmission policy is also very simple: every packet is
- * retransmitted until it is either successfully transmitted or
- * it has been retransmitted up until the SSRC or SLRC thresholds.
- *
- * The RTS/CTS policy is similar to the fragmentation policy: when
- * a packet is bigger than a threshold, the RTS/CTS protocol is used.
+ * This class handles the packet queue and stores DCF/EDCA access
+ * parameters (one Txop per AC). It generates backoff values and stores the channel access status
+ * (not requested, requested, granted) for the corresponding DCF/EDCA and for each link.
  */
-
 class Txop : public Object
 {
   public:
@@ -353,14 +327,6 @@ class Txop : public Object
     virtual void NotifyOn();
 
     /* Event handlers */
-    /**
-     * \param packet packet to send.
-     * \param hdr header of packet to send.
-     *
-     * Store the packet in the internal queue until it
-     * can be sent safely.
-     */
-    virtual void Queue(Ptr<Packet> packet, const WifiMacHeader& hdr);
     /**
      * \param mpdu the given MPDU
      *

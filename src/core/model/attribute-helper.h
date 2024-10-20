@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2008 INRIA
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Authors: Mathieu Lacage <mathieu.lacage@sophia.inria.fr>
  */
@@ -204,7 +193,7 @@ MakeSimpleAttributeChecker(std::string name, std::string underlying)
     class name##Value : public AttributeValue                                                      \
     {                                                                                              \
       public:                                                                                      \
-        name##Value();                                                                             \
+        name##Value() = default;                                                                   \
         name##Value(const type& value);                                                            \
         void Set(const type& value);                                                               \
         type Get() const;                                                                          \
@@ -292,10 +281,6 @@ MakeSimpleAttributeChecker(std::string name, std::string underlying)
  * Typically invoked in the source file
  */
 #define ATTRIBUTE_VALUE_IMPLEMENT_WITH_NAME(type, name)                                            \
-    name##Value::name##Value()                                                                     \
-        : m_value()                                                                                \
-    {                                                                                              \
-    }                                                                                              \
     name##Value::name##Value(const type& value)                                                    \
         : m_value(value)                                                                           \
     {                                                                                              \
@@ -321,6 +306,11 @@ MakeSimpleAttributeChecker(std::string name, std::string underlying)
     bool name##Value::DeserializeFromString(std::string value,                                     \
                                             Ptr<const AttributeChecker> checker)                   \
     {                                                                                              \
+        if (value.empty())                                                                         \
+        {                                                                                          \
+            m_value = type();                                                                      \
+            return true;                                                                           \
+        }                                                                                          \
         std::istringstream iss;                                                                    \
         iss.str(value);                                                                            \
         iss >> m_value;                                                                            \

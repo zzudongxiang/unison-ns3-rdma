@@ -2,18 +2,7 @@
  * Copyright (c) 2010 TELEMATICS LAB, DEE - Politecnico di Bari
  * Copyright (c) 2018 Fraunhofer ESK : RLF extensions
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Giuseppe Piro  <g.piro@poliba.it>
  *         Marco Miozzo <marco.miozzo@cttc.es>
@@ -42,6 +31,7 @@
 
 #include <cfloat>
 #include <cmath>
+#include <numeric>
 
 namespace ns3
 {
@@ -607,19 +597,16 @@ LteUePhy::GenerateCqiRsrpRsrq(const SpectrumValue& sinr)
     {
         NS_ASSERT_MSG(m_rsReceivedPowerUpdated, " RS received power info obsolete");
         // RSRP evaluated as averaged received power among RBs
-        double sum = 0.0;
-        uint8_t rbNum = 0;
-        for (auto it = m_rsReceivedPower.ConstValuesBegin();
-             it != m_rsReceivedPower.ConstValuesEnd();
-             it++)
-        {
-            // convert PSD [W/Hz] to linear power [W] for the single RE
-            // we consider only one RE for the RS since the channel is
-            // flat within the same RB
-            double powerTxW = ((*it) * 180000.0) / 12.0;
-            sum += powerTxW;
-            rbNum++;
-        }
+        uint16_t rbNum = m_rsReceivedPower.GetValuesN();
+
+        // sum PSD [W/Hz] of all bands
+        double sum = std::reduce(m_rsReceivedPower.ConstValuesBegin(),
+                                 m_rsReceivedPower.ConstValuesEnd(),
+                                 0.0);
+
+        // convert PSD [W/Hz] to linear power [W]
+        sum *= (180000.0 / 12.0);
+
         double rsrp = (rbNum > 0) ? (sum / rbNum) : DBL_MAX;
         // averaged SINR among RBs
         double avSinr = ComputeAvgSinr(sinr);
@@ -662,10 +649,11 @@ LteUePhy::GenerateCqiRsrpRsrq(const SpectrumValue& sinr)
             {
                 rbNum++;
                 // convert PSD [W/Hz] to linear power [W] for the single RE
-                double interfPlusNoisePowerTxW = ((*itIntN) * 180000.0) / 12.0;
-                double signalPowerTxW = ((*itPj) * 180000.0) / 12.0;
+                double interfPlusNoisePowerTxW = (*itIntN);
+                double signalPowerTxW = (*itPj);
                 rssiSum += (2 * (interfPlusNoisePowerTxW + signalPowerTxW));
             }
+            rssiSum *= (180000.0 / 12.0);
 
             NS_ASSERT(rbNum == (*itPss).nRB);
             double rsrq_dB = 10 * log10((*itPss).pssPsdSum / rssiSum);
@@ -815,15 +803,10 @@ LteUePhy::ReportRsReceivedPower(const SpectrumValue& power)
 
     if (m_enableUplinkPowerControl)
     {
-        double sum = 0;
-        for (auto it = m_rsReceivedPower.ConstValuesBegin();
-             it != m_rsReceivedPower.ConstValuesEnd();
-             it++)
-        {
-            double powerTxW = ((*it) * 180000);
-            sum += powerTxW;
-        }
-        double rsrp = 10 * log10(sum) + 30;
+        double sum = std::reduce(m_rsReceivedPower.ConstValuesBegin(),
+                                 m_rsReceivedPower.ConstValuesEnd(),
+                                 0.0);
+        double rsrp = 10 * log10(sum * 180000) + 30;
 
         NS_LOG_INFO("RSRP: " << rsrp);
         m_powerControl->SetRsrp(rsrp);
@@ -1186,15 +1169,12 @@ LteUePhy::ReceivePss(uint16_t cellId, Ptr<SpectrumValue> p)
 {
     NS_LOG_FUNCTION(this << cellId << (*p));
 
-    double sum = 0.0;
-    uint16_t nRB = 0;
-    for (auto itPi = p->ConstValuesBegin(); itPi != p->ConstValuesEnd(); itPi++)
-    {
-        // convert PSD [W/Hz] to linear power [W] for the single RE
-        double powerTxW = ((*itPi) * 180000.0) / 12.0;
-        sum += powerTxW;
-        nRB++;
-    }
+    uint16_t nRB = p->GetValuesN();
+    // sum PSD [W/Hz] of all bands
+    double sum = std::reduce(p->ConstValuesBegin(), p->ConstValuesEnd(), 0.0);
+
+    // convert PSD [W/Hz] to linear power [W]
+    sum *= (180000.0 / 12.0);
 
     // measure instantaneous RSRP now
     double rsrp_dBm = 10 * log10(1000 * (sum / (double)nRB));

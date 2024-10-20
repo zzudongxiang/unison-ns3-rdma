@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2010 TELEMATICS LAB, DEE - Politecnico di Bari
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Giuseppe Piro  <g.piro@poliba.it>
  * Author: Marco Miozzo <marco.miozzo@cttc.es>
@@ -314,6 +303,7 @@ class LteEnbPhy : public LtePhy
      * \deprecated The non-const \c Ptr<SpectrumValue> argument is deprecated
      * and will be changed to \c Ptr<const SpectrumValue> in a future release.
      */
+    // NS_DEPRECATED() - tag for future removal
     typedef void (*ReportInterferenceTracedCallback)(uint16_t cellId,
                                                      Ptr<SpectrumValue> spectrumValue);
 
@@ -497,6 +487,7 @@ class LteEnbPhy : public LtePhy
      * \deprecated The non-const \c Ptr<SpectrumValue> argument is deprecated
      * and will be changed to \c Ptr<const SpectrumValue> in a future release.
      */
+    // NS_DEPRECATED() - tag for future removal
     TracedCallback<uint16_t, Ptr<SpectrumValue>> m_reportInterferenceTrace;
     /**
      * The `InterferenceSamplePeriod` attribute. The sampling period for

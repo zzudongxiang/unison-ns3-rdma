@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2015 Natale Patriciello <natale.patriciello@gmail.com>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  */
 #include "tcp-congestion-ops.h"
@@ -130,26 +119,26 @@ TcpNewReno::~TcpNewReno()
  * > SMSS bytes upon receipt of an ACK covering new data, we RECOMMEND
  * > that TCP implementations increase cwnd, per:
  * >
- * >    cwnd += min (N, SMSS)                      (2)
+ * >     cwnd += min (N, SMSS)                      (2)
  * >
  * > where N is the number of previously unacknowledged bytes acknowledged
  * > in the incoming ACK.
  *
  * The ns-3 implementation respect the RFC definition. Linux does something
  * different:
- * \verbatim
-u32 tcp_slow_start(struct tcp_sock *tp, u32 acked)
-  {
-    u32 cwnd = tp->snd_cwnd + acked;
+ * \code{.cpp}
+   u32 tcp_slow_start(struct tcp_sock *tp, u32 acked)
+   {
+     u32 cwnd = tp->snd_cwnd + acked;
 
-    if (cwnd > tp->snd_ssthresh)
-      cwnd = tp->snd_ssthresh + 1;
-    acked -= cwnd - tp->snd_cwnd;
-    tp->snd_cwnd = min(cwnd, tp->snd_cwnd_clamp);
+     if (cwnd > tp->snd_ssthresh)
+       cwnd = tp->snd_ssthresh + 1;
+     acked -= cwnd - tp->snd_cwnd;
+     tp->snd_cwnd = min(cwnd, tp->snd_cwnd_clamp);
 
-    return acked;
-  }
-  \endverbatim
+     return acked;
+   }
+   \endcode
  *
  * As stated, we want to avoid the case when a cumulative ACK increases cWnd more
  * than a segment size, but we keep count of how many segments we have ignored,

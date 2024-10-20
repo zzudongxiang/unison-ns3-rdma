@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2010 CTTC
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Authors: Nicola Baldo <nbaldo@cttc.es>
  *          Ghada Badawy <gbadawy@gmail.com>
@@ -26,6 +15,7 @@
 #include "wifi-phy-common.h"
 
 #include "ns3/he-ru.h"
+#include "ns3/nstime.h"
 
 #include <list>
 #include <optional>
@@ -125,7 +115,7 @@ class WifiTxVector
      * \param nTx the number of TX antennas
      * \param nss the number of spatial STBC streams (NSS)
      * \param ness the number of extension spatial streams (NESS)
-     * \param channelWidth the channel width in MHz
+     * \param channelWidth the channel width
      * \param aggregation enable or disable MPDU aggregation
      * \param stbc enable or disable STBC
      * \param ldpc enable or disable LDPC (BCC is used otherwise)
@@ -136,11 +126,11 @@ class WifiTxVector
     WifiTxVector(WifiMode mode,
                  uint8_t powerLevel,
                  WifiPreamble preamble,
-                 uint16_t guardInterval,
+                 Time guardInterval,
                  uint8_t nTx,
                  uint8_t nss,
                  uint8_t ness,
-                 uint16_t channelWidth,
+                 MHz_u channelWidth,
                  bool aggregation,
                  bool stbc = false,
                  bool ldpc = false,
@@ -209,25 +199,25 @@ class WifiTxVector
      */
     void SetPreambleType(WifiPreamble preamble);
     /**
-     * \returns the channel width (in MHz)
+     * \returns the channel width
      */
-    uint16_t GetChannelWidth() const;
+    MHz_u GetChannelWidth() const;
     /**
-     * Sets the selected channelWidth (in MHz)
+     * Sets the selected channelWidth
      *
-     * \param channelWidth the channel width (in MHz)
+     * \param channelWidth the channel width
      */
-    void SetChannelWidth(uint16_t channelWidth);
+    void SetChannelWidth(MHz_u channelWidth);
     /**
      * \returns the guard interval duration (in nanoseconds)
      */
-    uint16_t GetGuardInterval() const;
+    Time GetGuardInterval() const;
     /**
      * Sets the guard interval duration (in nanoseconds)
      *
      * \param guardInterval the guard interval duration (in nanoseconds)
      */
-    void SetGuardInterval(uint16_t guardInterval);
+    void SetGuardInterval(Time guardInterval);
     /**
      * \returns the number of TX antennas
      */
@@ -565,8 +555,8 @@ class WifiTxVector
                               It is the value that will be passed
                               to PMD_TXPWRLVL.request */
     WifiPreamble m_preamble;  /**< preamble */
-    uint16_t m_channelWidth;  /**< channel width in MHz */
-    uint16_t m_guardInterval; /**< guard interval duration in nanoseconds */
+    MHz_u m_channelWidth;     /**< channel width */
+    Time m_guardInterval;     /**< guard interval duration */
     uint8_t m_nTx;            /**< number of TX antennas */
     uint8_t m_nss;            /**< number of spatial streams */
     uint8_t m_ness;           /**< number of spatial streams in beamforming */

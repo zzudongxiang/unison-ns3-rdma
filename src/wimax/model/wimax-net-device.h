@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2007,2008, 2009 INRIA, UDcast
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Authors: Jahanzeb Farooq <jahanzeb.farooq@sophia.inria.fr>
  *          Mohamed Amine Ismail <amine.ismail@sophia.inria.fr>
@@ -446,6 +435,7 @@ class WimaxNetDevice : public NetDevice
      * The TracedCallback signature will then match \c Packet::Mac48Address
      * and this typedef can be removed.
      */
+    // NS_DEPRECATED() - tag for future removal
     typedef void (*TxRxTracedCallback)(Ptr<const Packet> packet, const Mac48Address& mac);
     /**
      * \deprecated The `const Mac48Address &` argument is deprecated
@@ -454,6 +444,7 @@ class WimaxNetDevice : public NetDevice
      * and this typedef can be removed.
      * \todo This member variable should be private.
      */
+    // NS_DEPRECATED() - tag for future removal
     TracedCallback<Ptr<const Packet>, const Mac48Address&> m_traceRx;
     /**
      * \deprecated The `const Mac48Address &` argument is deprecated
@@ -462,6 +453,7 @@ class WimaxNetDevice : public NetDevice
      * and this typedef can be removed.
      * \todo This member variable should be private.
      */
+    // NS_DEPRECATED() - tag for future removal
     TracedCallback<Ptr<const Packet>, const Mac48Address&> m_traceTx;
 
     void DoDispose() override;

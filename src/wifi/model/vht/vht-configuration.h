@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2018  Sébastien Deronne
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Sébastien Deronne <sebastien.deronne@gmail.com>
  */
@@ -21,6 +10,7 @@
 #define VHT_CONFIGURATION_H
 
 #include "ns3/object.h"
+#include "ns3/wifi-units.h"
 
 #include <map>
 #include <tuple>
@@ -62,8 +52,8 @@ class VhtConfiguration : public Object
     bool Get160MHzOperationSupported() const;
 
     using SecondaryCcaSensitivityThresholds =
-        std::tuple<double, double, double>; //!< Tuple identifying CCA sensitivity thresholds for
-                                            //!< secondary channels
+        std::tuple<dBm_u, dBm_u, dBm_u>; //!< Tuple identifying CCA sensitivity thresholds for
+                                         //!< secondary channels
 
     /**
      * Sets the CCA sensitivity thresholds for PPDUs that do not occupy the primary channel.
@@ -80,16 +70,16 @@ class VhtConfiguration : public Object
 
     /**
      * \return the CCA sensitivity thresholds for PPDUs that do not occupy the primary channel,
-     * indexed by signal bandwidth (MHz)
+     * indexed by signal bandwidth
      */
-    const std::map<uint16_t, double>& GetSecondaryCcaSensitivityThresholdsPerBw() const;
+    const std::map<MHz_u, dBm_u>& GetSecondaryCcaSensitivityThresholdsPerBw() const;
 
   private:
     bool m_160MHzSupported; ///< whether 160 MHz operation is supported
-    std::map<uint16_t, double>
+    std::map<MHz_u, dBm_u>
         m_secondaryCcaSensitivityThresholds; ///< CCA sensitivity thresholds for signals that do not
                                              ///< occupy the primary channel, indexed by signal
-                                             ///< bandwidth (MHz)
+                                             ///< bandwidth
 };
 
 } // namespace ns3

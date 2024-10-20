@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2009 IITP RAS
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Authors: Kirill Andreev <andreev@iitp.ru>
  */
@@ -53,7 +42,7 @@ class PeerLinkOpenStart : public Header
     PeerLinkOpenStart(const PeerLinkOpenStart&) = delete;
     PeerLinkOpenStart& operator=(const PeerLinkOpenStart&) = delete;
 
-    ///\brief fields:
+    /// \brief fields:
     struct PlinkOpenStartFields
     {
         IePeeringProtocol protocol; ///< Peering protocol version - 3 octets
@@ -123,7 +112,7 @@ class PeerLinkCloseStart : public Header
     PeerLinkCloseStart(const PeerLinkCloseStart&) = delete;
     PeerLinkCloseStart& operator=(const PeerLinkCloseStart&) = delete;
 
-    ///\brief fields:
+    /// \brief fields:
     struct PlinkCloseStartFields
     {
         IePeeringProtocol protocol; ///< Peering protocol version - 3 octets
@@ -187,7 +176,7 @@ class PeerLinkConfirmStart : public Header
     PeerLinkConfirmStart(const PeerLinkConfirmStart&) = delete;
     PeerLinkConfirmStart& operator=(const PeerLinkConfirmStart&) = delete;
 
-    ///\brief fields:
+    /// \brief fields:
     struct PlinkConfirmStartFields
     {
         IePeeringProtocol protocol; ///< Peering protocol version - 3 octets

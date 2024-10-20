@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2012 Mathieu Lacage
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  */
 
@@ -104,6 +93,11 @@ class RngSeedManager
      * \returns The next stream index.
      */
     static uint64_t GetNextStreamIndex();
+
+    /**
+     * Resets the global stream index counter.
+     */
+    static void ResetNextStreamIndex();
 };
 
 /** Alias for compatibility. */

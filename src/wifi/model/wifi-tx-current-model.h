@@ -1,24 +1,15 @@
 /*
  * Copyright (c) 2014 Universita' degli Studi di Napoli "Federico II"
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Stefano Avallone <stefano.avallone@unina.it>
  */
 
 #ifndef WIFI_TX_CURRENT_MODEL_H
 #define WIFI_TX_CURRENT_MODEL_H
+
+#include "wifi-units.h"
 
 #include "ns3/object.h"
 
@@ -44,10 +35,10 @@ class WifiTxCurrentModel : public Object
     ~WifiTxCurrentModel() override;
 
     /**
-     * \param txPowerDbm the nominal TX power in dBm
-     * \returns the transmit current (in Ampere)
+     * \param txPower the nominal TX power
+     * \returns the transmit current
      */
-    virtual double CalcTxCurrent(double txPowerDbm) const = 0;
+    virtual ampere_u CalcTxCurrent(dBm_u txPower) const = 0;
 };
 
 /**
@@ -93,12 +84,12 @@ class LinearWifiTxCurrentModel : public WifiTxCurrentModel
     LinearWifiTxCurrentModel();
     ~LinearWifiTxCurrentModel() override;
 
-    double CalcTxCurrent(double txPowerDbm) const override;
+    ampere_u CalcTxCurrent(dBm_u txPower) const override;
 
   private:
-    double m_eta;         ///< ETA
-    double m_voltage;     ///< voltage in Volts
-    double m_idleCurrent; ///< idle current in Amperes
+    double m_eta;           ///< ETA
+    volt_u m_voltage;       ///< voltage
+    ampere_u m_idleCurrent; ///< idle current
 };
 
 } // namespace ns3

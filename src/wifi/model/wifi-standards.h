@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2007 INRIA
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Mathieu Lacage <mathieu.lacage@sophia.inria.fr>
  */
@@ -21,6 +10,8 @@
 #define WIFI_STANDARD_H
 
 #include "wifi-phy-band.h"
+#include "wifi-types.h"
+#include "wifi-units.h"
 
 #include "ns3/abort.h"
 
@@ -90,17 +81,6 @@ operator<<(std::ostream& os, WifiStandard standard)
 extern const std::map<WifiStandard, std::list<WifiPhyBand>> wifiStandards;
 
 /**
- * \ingroup wifi
- * \brief Enumeration of frequency channel types
- */
-enum FrequencyChannelType : uint8_t
-{
-    WIFI_PHY_DSSS_CHANNEL = 0,
-    WIFI_PHY_OFDM_CHANNEL,
-    WIFI_PHY_80211p_CHANNEL
-};
-
-/**
  * Get the type of the frequency channel for the given standard
  *
  * \param standard the standard
@@ -112,11 +92,11 @@ GetFrequencyChannelType(WifiStandard standard)
     switch (standard)
     {
     case WIFI_STANDARD_80211b:
-        return WIFI_PHY_DSSS_CHANNEL;
+        return FrequencyChannelType::DSSS;
     case WIFI_STANDARD_80211p:
-        return WIFI_PHY_80211p_CHANNEL;
+        return FrequencyChannelType::CH_80211P;
     default:
-        return WIFI_PHY_OFDM_CHANNEL;
+        return FrequencyChannelType::OFDM;
     }
 }
 
@@ -125,9 +105,9 @@ GetFrequencyChannelType(WifiStandard standard)
  *
  * \param standard the given standard
  * \param band the given PHY band
- * \return the default channel width (MHz) for the given standard
+ * \return the default channel width for the given standard
  */
-inline uint16_t
+inline MHz_u
 GetDefaultChannelWidth(WifiStandard standard, WifiPhyBand band)
 {
     switch (standard)

@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2010 CTTC
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Authors: Nicola Baldo <nbaldo@cttc.es>
  *          Ghada Badawy <gbadawy@gmail.com>
@@ -37,7 +26,7 @@ WifiTxVector::WifiTxVector()
     : m_txPowerLevel(1),
       m_preamble(WIFI_PREAMBLE_LONG),
       m_channelWidth(20),
-      m_guardInterval(800),
+      m_guardInterval(NanoSeconds(800)),
       m_nTx(1),
       m_nss(1),
       m_ness(0),
@@ -58,11 +47,11 @@ WifiTxVector::WifiTxVector()
 WifiTxVector::WifiTxVector(WifiMode mode,
                            uint8_t powerLevel,
                            WifiPreamble preamble,
-                           uint16_t guardInterval,
+                           Time guardInterval,
                            uint8_t nTx,
                            uint8_t nss,
                            uint8_t ness,
-                           uint16_t channelWidth,
+                           MHz_u channelWidth,
                            bool aggregation,
                            bool stbc,
                            bool ldpc,
@@ -181,13 +170,13 @@ WifiTxVector::GetPreambleType() const
     return m_preamble;
 }
 
-uint16_t
+MHz_u
 WifiTxVector::GetChannelWidth() const
 {
     return m_channelWidth;
 }
 
-uint16_t
+Time
 WifiTxVector::GetGuardInterval() const
 {
     return m_guardInterval;
@@ -309,13 +298,13 @@ WifiTxVector::SetPreambleType(WifiPreamble preamble)
 }
 
 void
-WifiTxVector::SetChannelWidth(uint16_t channelWidth)
+WifiTxVector::SetChannelWidth(MHz_u channelWidth)
 {
     m_channelWidth = channelWidth;
 }
 
 void
-WifiTxVector::SetGuardInterval(uint16_t guardInterval)
+WifiTxVector::SetGuardInterval(Time guardInterval)
 {
     m_guardInterval = guardInterval;
 }
@@ -452,7 +441,7 @@ WifiTxVector::IsValid(WifiPhyBand band) const
     {
         return false;
     }
-    std::string modeName = m_mode.GetUniqueName();
+    const auto& modeName = m_mode.GetUniqueName();
     if (m_channelWidth == 20)
     {
         if (m_nss != 3 && m_nss != 6)
@@ -670,8 +659,9 @@ WifiTxVector::SetInactiveSubchannels(const std::vector<bool>& inactiveSubchannel
     NS_ABORT_MSG_IF(
         m_channelWidth < 80,
         "Preamble puncturing only possible for transmission bandwidth of 80 MHz or larger");
+    [[maybe_unused]] const std::size_t num20MhzSubchannels = m_channelWidth / 20;
     NS_ABORT_MSG_IF(!inactiveSubchannels.empty() &&
-                        inactiveSubchannels.size() != (m_channelWidth / 20),
+                        inactiveSubchannels.size() != num20MhzSubchannels,
                     "The size of the inactive subchannnels bitmap should be equal to the number of "
                     "20 MHz subchannels");
     m_inactiveSubchannels = inactiveSubchannels;
@@ -828,7 +818,8 @@ WifiTxVector::DeriveRuAllocation(uint8_t p20Index) const
         const auto index =
             (ruBw < 20) ? ((ruIndex - 1) / rusPerSubchannel.size()) : ((ruIndex - 1) * (ruBw / 20));
         const auto numSubchannelsForRu = (ruBw < 20) ? 1 : (ruBw / 20);
-        NS_ABORT_IF(index >= (m_channelWidth / 20));
+        [[maybe_unused]] const std::size_t num20MhzSubchannels = m_channelWidth / 20;
+        NS_ABORT_IF(index >= num20MhzSubchannels);
         auto ruAlloc = HeRu::GetEqualizedRuAllocation(ruType, false);
         if (ruAllocations.at(index) != HeRu::EMPTY_242_TONE_RU)
         {

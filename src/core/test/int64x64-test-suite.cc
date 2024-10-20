@@ -1,19 +1,7 @@
 /*
  * Copyright (c) 2011 INRIA
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
+ * SPDX-License-Identifier: GPL-2.0-only
  */
 
 #include "ns3/int64x64.h"
@@ -182,7 +170,8 @@ Int64x64HiLoTestCase::DoRun()
     if (int64x64_t::implementation == int64x64_t::ld_impl)
     {
         // Darwin 12.5.0 (Mac 10.8.5) g++ 4.2.1
-        low = static_cast<uint64_t>(HP_MAX_64 * std::numeric_limits<long double>::epsilon());
+        low = static_cast<uint64_t>(int64x64_t::HP_MAX_64 *
+                                    std::numeric_limits<long double>::epsilon());
     }
 
     Check(0, 0);

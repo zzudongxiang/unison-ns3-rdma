@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2017
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Authors: Sébastien Deronne <sebastien.deronne@gmail.com>
  */
@@ -42,18 +31,6 @@ class ExtendedCapabilities : public WifiInformationElement
     void SerializeInformationField(Buffer::Iterator start) const override;
     uint16_t DeserializeInformationField(Buffer::Iterator start, uint16_t length) override;
     void Print(std::ostream& os) const override;
-    /**
-     * Set the HT Supported flag.
-     *
-     * \param htSupported flag whether HT is supported
-     */
-    void SetHtSupported(uint8_t htSupported);
-    /**
-     * Set the VHT Supported flag.
-     *
-     * \param vhtSupported flag whether VHT is supported
-     */
-    void SetVhtSupported(uint8_t vhtSupported);
 
     /**
      * Set the first byte in the Extended Capabilities information element.
@@ -160,7 +137,6 @@ class ExtendedCapabilities : public WifiInformationElement
     uint8_t m_psmpCapability;                        ///< PSMP Capability
     uint8_t m_spsmpSupport;                          ///< S-PSMP Support
 
-    // fields if VHT supported
     uint8_t m_event;                           ///< Event
     uint8_t m_diagnostics;                     ///< Diagnostics
     uint8_t m_multicastDiagnostics;            ///< Multicast Diagnostics
@@ -220,11 +196,6 @@ class ExtendedCapabilities : public WifiInformationElement
     uint8_t m_tdlsWiderBandwidth;         ///< TDLS Wider Bandwidth
     uint8_t m_operatingModeNotification;  ///< Operating Mode Notification
     uint8_t m_maxNumberOfMsdusInAmsdu;    ///< Max Number Of MSDUs In A-MSDU
-
-    uint8_t m_htSupported;  ///< Flag to indicate HT is supported in order to decide whether this
-                            ///< element should be added to the frame or not
-    uint8_t m_vhtSupported; ///< Flag to indicate VHT is supported in order to decide whether this
-                            ///< element should be added to the frame or not
 };
 
 } // namespace ns3

@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2018 Natale Patriciello <natale.patriciello@gmail.com>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  */
 #include "tcp-socket-state.h"
 
@@ -91,7 +80,11 @@ TcpSocketState::GetTypeId()
                             MakeTraceSourceAccessor(&TcpSocketState::m_bytesInFlight),
                             "ns3::TracedValueCallback::Uint32")
             .AddTraceSource("RTT",
-                            "Last RTT sample",
+                            "Smoothed RTT",
+                            MakeTraceSourceAccessor(&TcpSocketState::m_srtt),
+                            "ns3::TracedValueCallback::Time")
+            .AddTraceSource("LastRTT",
+                            "RTT of the last (S)ACKed packet",
                             MakeTraceSourceAccessor(&TcpSocketState::m_lastRtt),
                             "ns3::TracedValueCallback::Time");
     return tid;
@@ -120,6 +113,7 @@ TcpSocketState::TcpSocketState(const TcpSocketState& other)
       m_minRtt(other.m_minRtt),
       m_bytesInFlight(other.m_bytesInFlight),
       m_isCwndLimited(other.m_isCwndLimited),
+      m_srtt(other.m_srtt),
       m_lastRtt(other.m_lastRtt),
       m_ecnMode(other.m_ecnMode),
       m_useEcn(other.m_useEcn),

@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2018 NITK Surathkal
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Authors: Vivek Jain <jain.vivek.anand@gmail.com>
  *          Viyom Mittal <viyommittal@gmail.com>
@@ -352,8 +341,8 @@ class TcpBbr : public TcpCongestionOps
     MaxBandwidthFilter_t m_maxBwFilter;        //!< Maximum bandwidth filter
     uint32_t m_bandwidthWindowLength{0}; //!< A constant specifying the length of the BBR.BtlBw max
                                          //!< filter window, default 10 packet-timed round trips.
-    double m_pacingGain{0};              //!< The dynamic pacing gain factor
-    double m_cWndGain{0};                //!< The dynamic congestion window gain factor
+    TracedValue<double> m_pacingGain{0}; //!< The dynamic pacing gain factor
+    TracedValue<double> m_cWndGain{0};   //!< The dynamic congestion window gain factor
     double m_highGain{0};       //!< A constant specifying highest gain factor, default is 2.89
     bool m_isPipeFilled{false}; //!< A boolean that records whether BBR has filled the pipe
     uint32_t m_minPipeCwnd{
@@ -373,7 +362,7 @@ class TcpBbr : public TcpCongestionOps
     uint32_t m_targetCWnd{0}; //!< Target value for congestion window, adapted to the estimated BDP
     DataRate m_fullBandwidth{0};      //!< Value of full bandwidth recorded
     uint32_t m_fullBandwidthCount{0}; //!< Count of full bandwidth recorded consistently
-    Time m_minRtt{
+    TracedValue<Time> m_minRtt{
         Time::Max()}; //!< Estimated two-way round-trip propagation delay of the path, estimated
                       //!< from the windowed minimum recent round-trip delay sample.
     uint32_t m_sendQuantum{

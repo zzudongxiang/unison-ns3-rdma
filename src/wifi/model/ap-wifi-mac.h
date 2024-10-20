@@ -2,18 +2,7 @@
  * Copyright (c) 2006, 2009 INRIA
  * Copyright (c) 2009 MIRKO BANCHI
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Authors: Mathieu Lacage <mathieu.lacage@sophia.inria.fr>
  *          Mirko Banchi <mk.banchi@gmail.com>
@@ -53,6 +42,7 @@ class MgtAssocRequestHeader;
 class MgtReassocRequestHeader;
 class MgtAssocResponseHeader;
 class MgtEmlOmn;
+class ApEmlsrManager;
 
 /// variant holding a  reference to a (Re)Association Request
 using AssocReqRefVariant = std::variant<std::reference_wrapper<MgtAssocRequestHeader>,
@@ -83,11 +73,21 @@ class ApWifiMac : public WifiMac
 
     void SetLinkUpCallback(Callback<void> linkUp) override;
     bool CanForwardPacketsTo(Mac48Address to) const override;
-    void Enqueue(Ptr<Packet> packet, Mac48Address to) override;
-    void Enqueue(Ptr<Packet> packet, Mac48Address to, Mac48Address from) override;
     bool SupportsSendFrom() const override;
     Ptr<WifiMacQueue> GetTxopQueue(AcIndex ac) const override;
     int64_t AssignStreams(int64_t stream) override;
+
+    /**
+     * Set the AP EMLSR Manager.
+     *
+     * \param apEmlsrManager the AP EMLSR Manager
+     */
+    void SetApEmlsrManager(Ptr<ApEmlsrManager> apEmlsrManager);
+
+    /**
+     * \return the AP EMLSR Manager
+     */
+    Ptr<ApEmlsrManager> GetApEmlsrManager() const;
 
     /**
      * \param interval the interval between two beacon transmissions.
@@ -266,6 +266,7 @@ class ApWifiMac : public WifiMac
     Mac48Address DoGetLocalAddress(const Mac48Address& remoteAddr) const override;
     void Receive(Ptr<const WifiMpdu> mpdu, uint8_t linkId) override;
     void DoCompleteConfig() override;
+    void Enqueue(Ptr<WifiMpdu> mpdu, Mac48Address to, Mac48Address from) override;
 
     /**
      * Check whether the supported rate set included in the received (Re)Association
@@ -334,24 +335,6 @@ class ApWifiMac : public WifiMac
      * \param mpdu the MPDU containing the A-MSDU.
      */
     void DeaggregateAmsduAndForward(Ptr<const WifiMpdu> mpdu) override;
-    /**
-     * Forward the packet down to DCF/EDCAF (enqueue the packet). This method
-     * is a wrapper for ForwardDown with traffic id.
-     *
-     * \param packet the packet we are forwarding to DCF/EDCAF
-     * \param from the address to be used for Address 3 field in the header
-     * \param to the address to be used for Address 1 field in the header
-     */
-    void ForwardDown(Ptr<Packet> packet, Mac48Address from, Mac48Address to);
-    /**
-     * Forward the packet down to DCF/EDCAF (enqueue the packet).
-     *
-     * \param packet the packet we are forwarding to DCF/EDCAF
-     * \param from the address to be used for Address 3 field in the header
-     * \param to the address to be used for Address 1 field in the header
-     * \param tid the traffic id for the packet
-     */
-    void ForwardDown(Ptr<Packet> packet, Mac48Address from, Mac48Address to, uint8_t tid);
     /**
      * Send a Probe Response in response to a Probe Request received from the STA with the
      * given address on the given link.
@@ -584,10 +567,9 @@ class ApWifiMac : public WifiMac
     void DoInitialize() override;
 
     /**
-     * \param linkIds the IDs of the links for which the next Association ID is requested
-     * \return the next Association ID to be allocated by the AP on the given links
+     * \return the next Association ID to be allocated by the AP
      */
-    uint16_t GetNextAssociationId(std::list<uint8_t> linkIds);
+    uint16_t GetNextAssociationId() const;
 
     Ptr<Txop> m_beaconTxop;        //!< Dedicated Txop for beacons
     bool m_enableBeaconGeneration; //!< Flag whether beacons are being generated
@@ -600,6 +582,7 @@ class ApWifiMac : public WifiMac
     Time m_bsrLifetime;            //!< Lifetime of Buffer Status Reports
     /// transition timeout events running for EMLSR clients
     std::map<Mac48Address, EventId> m_transitionTimeoutEvents;
+    Ptr<ApEmlsrManager> m_apEmlsrManager; ///< AP EMLSR Manager
 
     UintAccessParamsMap m_cwMinsForSta;     //!< Per-AC CW min values to advertise to stations
     UintAccessParamsMap m_cwMaxsForSta;     //!< Per-AC CW max values to advertise to stations

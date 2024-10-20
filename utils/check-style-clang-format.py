@@ -2,18 +2,7 @@
 
 # Copyright (c) 2022 Eduardo Nuno Almeida.
 #
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation;
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Author: Eduardo Nuno Almeida <enmsa@outlook.pt> [INESC TEC and FEUP, Portugal]
 
@@ -22,10 +11,11 @@ Check and apply the ns-3 coding style recursively to all files in the PATH argum
 
 The coding style is defined with the clang-format tool, whose definitions are in
 the ".clang-format" file. This script performs the following checks / fixes:
-- Check / fix local #include headers with "ns3/" prefix. Respects clang-format guards.
 - Check / apply clang-format. Respects clang-format guards.
+- Check / fix local #include headers with "ns3/" prefix. Respects clang-format guards.
 - Check / trim trailing whitespace. Always checked.
 - Check / replace tabs with spaces. Respects clang-format guards.
+- Check / fix SPDX licenses rather than GPL text. Respects clang-format guards.
 
 This script can be applied to all text files in a given path or to individual files.
 
@@ -54,8 +44,17 @@ CLANG_FORMAT_VERSIONS = [
     14,
 ]
 
-CLANG_FORMAT_GUARD_ON = "// clang-format on"
-CLANG_FORMAT_GUARD_OFF = "// clang-format off"
+FORMAT_GUARD_ON = [
+    "// clang-format on",
+    "# cmake-format: on",
+    "# fmt: on",
+]
+
+FORMAT_GUARD_OFF = [
+    "// clang-format off",
+    "# cmake-format: off",
+    "# fmt: off",
+]
 
 DIRECTORIES_TO_SKIP = [
     "__pycache__",
@@ -74,15 +73,44 @@ FILES_TO_SKIP = [
     "valgrind.h",
 ]
 
-FILE_EXTENSIONS_TO_CHECK_FORMATTING = [
+# List of checks
+CHECKS = [
+    "include_prefixes",
+    "whitespace",
+    "tabs",
+    "license",
+    "formatting",
+]
+
+# Files to check
+FILES_TO_CHECK: Dict[str, List[str]] = {c: [] for c in CHECKS}
+
+FILES_TO_CHECK["tabs"] = [
+    ".clang-format",
+    ".clang-tidy",
+    ".codespellrc",
+    "CMakeLists.txt",
+    "codespell-ignored-lines",
+    "codespell-ignored-words",
+    "ns3",
+]
+
+FILES_TO_CHECK["whitespace"] = FILES_TO_CHECK["tabs"] + [
+    "Makefile",
+]
+
+# File extensions to check
+FILE_EXTENSIONS_TO_CHECK: Dict[str, List[str]] = {c: [] for c in CHECKS}
+
+FILE_EXTENSIONS_TO_CHECK["formatting"] = [
     ".c",
     ".cc",
     ".h",
 ]
 
-FILE_EXTENSIONS_TO_CHECK_INCLUDE_PREFIXES = FILE_EXTENSIONS_TO_CHECK_FORMATTING
+FILE_EXTENSIONS_TO_CHECK["include_prefixes"] = FILE_EXTENSIONS_TO_CHECK["formatting"]
 
-FILE_EXTENSIONS_TO_CHECK_TABS = [
+FILE_EXTENSIONS_TO_CHECK["tabs"] = [
     ".c",
     ".cc",
     ".cmake",
@@ -101,17 +129,7 @@ FILE_EXTENSIONS_TO_CHECK_TABS = [
     ".yml",
 ]
 
-FILES_TO_CHECK_TABS = [
-    ".clang-format",
-    ".clang-tidy",
-    ".codespellrc",
-    "CMakeLists.txt",
-    "codespell-ignored-lines",
-    "codespell-ignored-words",
-    "ns3",
-]
-
-FILE_EXTENSIONS_TO_CHECK_WHITESPACE = FILE_EXTENSIONS_TO_CHECK_TABS + [
+FILE_EXTENSIONS_TO_CHECK["whitespace"] = FILE_EXTENSIONS_TO_CHECK["tabs"] + [
     ".click",
     ".cfg",
     ".conf",
@@ -127,10 +145,15 @@ FILE_EXTENSIONS_TO_CHECK_WHITESPACE = FILE_EXTENSIONS_TO_CHECK_TABS + [
     ".txt",
 ]
 
-FILES_TO_CHECK_WHITESPACE = FILES_TO_CHECK_TABS + [
-    "Makefile",
+FILE_EXTENSIONS_TO_CHECK["license"] = [
+    ".c",
+    ".cc",
+    ".cmake",
+    ".h",
+    ".py",
 ]
 
+# Other check parameters
 TAB_SIZE = 4
 
 
@@ -176,24 +199,26 @@ def should_analyze_file(
 
 def find_files_to_check_style(
     paths: List[str],
-) -> Tuple[List[str], List[str], List[str], List[str]]:
+) -> Dict[str, List[str]]:
     """
     Find all files to be checked in a given list of paths.
 
     @param paths List of paths to the files to check.
-    @return Tuple [List of files to check include prefixes,
-                   List of files to check formatting,
-                   List of files to check trailing whitespace,
-                   List of files to check tabs].
+    @return Dictionary of checks and corresponding list of files to check.
+            Example: {
+                "formatting": list_of_files_to_check_formatting,
+                ...,
+            }
     """
 
-    files_to_check: List[str] = []
+    # Get list of files found in the given path
+    files_found: List[str] = []
 
     for path in paths:
         abs_path = os.path.abspath(os.path.expanduser(path))
 
         if os.path.isfile(abs_path):
-            files_to_check.append(path)
+            files_found.append(path)
 
         elif os.path.isdir(abs_path):
             for dirpath, dirnames, filenames in os.walk(path, topdown=True):
@@ -202,37 +227,22 @@ def find_files_to_check_style(
                     dirnames[:] = []
                     continue
 
-                files_to_check.extend([os.path.join(dirpath, f) for f in filenames])
+                files_found.extend([os.path.join(dirpath, f) for f in filenames])
 
         else:
-            raise ValueError(f"Error: {path} is not a file nor a directory")
+            raise ValueError(f"{path} is not a valid file nor a directory")
 
-    files_to_check.sort()
+    files_found.sort()
 
-    files_to_check_include_prefixes: List[str] = []
-    files_to_check_formatting: List[str] = []
-    files_to_check_whitespace: List[str] = []
-    files_to_check_tabs: List[str] = []
+    # Check which files should be checked
+    files_to_check: Dict[str, List[str]] = {c: [] for c in CHECKS}
 
-    for f in files_to_check:
-        if should_analyze_file(f, [], FILE_EXTENSIONS_TO_CHECK_INCLUDE_PREFIXES):
-            files_to_check_include_prefixes.append(f)
+    for f in files_found:
+        for check in CHECKS:
+            if should_analyze_file(f, FILES_TO_CHECK[check], FILE_EXTENSIONS_TO_CHECK[check]):
+                files_to_check[check].append(f)
 
-        if should_analyze_file(f, [], FILE_EXTENSIONS_TO_CHECK_FORMATTING):
-            files_to_check_formatting.append(f)
-
-        if should_analyze_file(f, FILES_TO_CHECK_WHITESPACE, FILE_EXTENSIONS_TO_CHECK_WHITESPACE):
-            files_to_check_whitespace.append(f)
-
-        if should_analyze_file(f, FILES_TO_CHECK_TABS, FILE_EXTENSIONS_TO_CHECK_TABS):
-            files_to_check_tabs.append(f)
-
-    return (
-        files_to_check_include_prefixes,
-        files_to_check_formatting,
-        files_to_check_whitespace,
-        files_to_check_tabs,
-    )
+    return files_to_check
 
 
 def find_clang_format_path() -> str:
@@ -261,16 +271,20 @@ def find_clang_format_path() -> str:
             check=True,
         )
 
-        version = process.stdout.strip().split(" ")[-1]
-        major_version = int(version.split(".")[0])
+        clang_format_version = process.stdout.strip()
+        version_regex = re.findall(r"\b(\d+)(\.\d+){0,2}\b", clang_format_version)
 
-        if major_version in CLANG_FORMAT_VERSIONS:
-            return clang_format_path
+        if version_regex:
+            major_version = int(version_regex[0][0])
+
+            if major_version in CLANG_FORMAT_VERSIONS:
+                return clang_format_path
 
     # No supported version of clang-format found
     raise RuntimeError(
         f"Could not find any supported version of clang-format installed on this system. "
-        f"List of supported versions: {CLANG_FORMAT_VERSIONS}."
+        f"List of supported versions: {CLANG_FORMAT_VERSIONS}. "
+        + (f"Found clang-format {major_version}." if version_regex else "")
     )
 
 
@@ -279,10 +293,7 @@ def find_clang_format_path() -> str:
 ###########################################################
 def check_style_clang_format(
     paths: List[str],
-    enable_check_include_prefixes: bool,
-    enable_check_formatting: bool,
-    enable_check_whitespace: bool,
-    enable_check_tabs: bool,
+    checks_enabled: Dict[str, bool],
     fix: bool,
     verbose: bool,
     n_jobs: int = 1,
@@ -291,89 +302,85 @@ def check_style_clang_format(
     Check / fix the coding style of a list of files.
 
     @param paths List of paths to the files to check.
-    @param enable_check_include_prefixes Whether to enable checking #include headers from the same module with the "ns3/" prefix.
-    @param enable_check_formatting Whether to enable checking code formatting.
-    @param enable_check_whitespace Whether to enable checking trailing whitespace.
-    @param enable_check_tabs Whether to enable checking tabs.
+    @param checks_enabled Dictionary of checks indicating whether to enable each of them.
     @param fix Whether to fix (True) or just check (False) the file.
     @param verbose Show the lines that are not compliant with the style.
     @param n_jobs Number of parallel jobs.
     @return Whether all files are compliant with all enabled style checks.
     """
 
-    (
-        files_to_check_include_prefixes,
-        files_to_check_formatting,
-        files_to_check_whitespace,
-        files_to_check_tabs,
-    ) = find_files_to_check_style(paths)
+    files_to_check = find_files_to_check_style(paths)
+    checks_successful = {c: True for c in CHECKS}
 
-    check_include_prefixes_successful = True
-    check_formatting_successful = True
-    check_whitespace_successful = True
-    check_tabs_successful = True
+    style_check_strs = {
+        "include_prefixes": '#include headers from the same module with the "ns3/" prefix',
+        "whitespace": "trailing whitespace",
+        "tabs": "tabs",
+        "license": "GPL license text instead of SPDX license",
+        "formatting": "bad code formatting",
+    }
 
-    if enable_check_include_prefixes:
-        check_include_prefixes_successful = check_style_files(
-            '#include headers from the same module with the "ns3/" prefix',
-            check_manually_file,
-            files_to_check_include_prefixes,
-            fix,
-            verbose,
-            n_jobs,
-            respect_clang_format_guards=True,
-            check_style_line_function=check_include_prefixes_line,
-        )
+    check_style_file_functions_kwargs = {
+        "include_prefixes": {
+            "function": check_manually_file,
+            "kwargs": {
+                "respect_clang_format_guards": True,
+                "check_style_line_function": check_include_prefixes_line,
+            },
+        },
+        "whitespace": {
+            "function": check_manually_file,
+            "kwargs": {
+                "respect_clang_format_guards": False,
+                "check_style_line_function": check_whitespace_line,
+            },
+        },
+        "tabs": {
+            "function": check_manually_file,
+            "kwargs": {
+                "respect_clang_format_guards": True,
+                "check_style_line_function": check_tabs_line,
+            },
+        },
+        "license": {
+            "function": check_manually_file,
+            "kwargs": {
+                "respect_clang_format_guards": True,
+                "check_style_line_function": check_licenses_line,
+            },
+        },
+        "formatting": {
+            "function": check_formatting_file,
+            "kwargs": {},  # The formatting keywords are added below
+        },
+    }
 
-        print("")
+    if checks_enabled["formatting"]:
+        check_style_file_functions_kwargs["formatting"]["kwargs"] = {
+            "clang_format_path": find_clang_format_path(),
+        }
 
-    if enable_check_formatting:
-        check_formatting_successful = check_style_files(
-            "bad code formatting",
-            check_formatting_file,
-            files_to_check_formatting,
-            fix,
-            verbose,
-            n_jobs,
-            clang_format_path=find_clang_format_path(),
-        )
+    n_checks_enabled = sum(checks_enabled.values())
+    n_check = 0
 
-        print("")
+    for check in CHECKS:
+        if checks_enabled[check]:
+            checks_successful[check] = check_style_files(
+                style_check_strs[check],
+                check_style_file_functions_kwargs[check]["function"],
+                files_to_check[check],
+                fix,
+                verbose,
+                n_jobs,
+                **check_style_file_functions_kwargs[check]["kwargs"],
+            )
 
-    if enable_check_whitespace:
-        check_whitespace_successful = check_style_files(
-            "trailing whitespace",
-            check_manually_file,
-            files_to_check_whitespace,
-            fix,
-            verbose,
-            n_jobs,
-            respect_clang_format_guards=False,
-            check_style_line_function=check_whitespace_line,
-        )
+            n_check += 1
 
-        print("")
+            if n_check < n_checks_enabled:
+                print("")
 
-    if enable_check_tabs:
-        check_tabs_successful = check_style_files(
-            "tabs",
-            check_manually_file,
-            files_to_check_tabs,
-            fix,
-            verbose,
-            n_jobs,
-            respect_clang_format_guards=True,
-            check_style_line_function=check_tabs_line,
-        )
-
-    return all(
-        [
-            check_include_prefixes_successful,
-            check_formatting_successful,
-            check_whitespace_successful,
-            check_tabs_successful,
-        ]
-    )
+    return all(checks_successful.values())
 
 
 def check_style_files(
@@ -454,7 +461,7 @@ def check_formatting_file(
     Check / fix the coding style of a file with clang-format.
 
     @param filename Name of the file to be checked.
-    @param fix Whether to fix (True) or just check (False) the style of the file (True).
+    @param fix Whether to fix (True) or just check (False) the style of the file.
     @param verbose Show the lines that are not compliant with the style.
     @param clang_format_path Path to clang-format.
     @return Tuple [Filename,
@@ -513,7 +520,7 @@ def check_manually_file(
     Check / fix a file manually using a function to check / fix each line.
 
     @param filename Name of the file to be checked.
-    @param fix Whether to fix (True) or just check (False) the style of the file (True).
+    @param fix Whether to fix (True) or just check (False) the style of the file.
     @param verbose Show the lines that are not compliant with the style.
     @param respect_clang_format_guards Whether to respect clang-format guards.
     @param check_style_line_function Function used to check each line.
@@ -534,14 +541,13 @@ def check_manually_file(
         if respect_clang_format_guards:
             line_stripped = line.strip()
 
-            if line_stripped == CLANG_FORMAT_GUARD_ON:
+            if line_stripped in FORMAT_GUARD_ON:
                 clang_format_enabled = True
-            elif line_stripped == CLANG_FORMAT_GUARD_OFF:
+            elif line_stripped in FORMAT_GUARD_OFF:
                 clang_format_enabled = False
 
             if not clang_format_enabled and line_stripped not in (
-                CLANG_FORMAT_GUARD_ON,
-                CLANG_FORMAT_GUARD_OFF,
+                FORMAT_GUARD_ON + FORMAT_GUARD_OFF
             ):
                 continue
 
@@ -686,20 +692,82 @@ def check_tabs_line(
     return (is_line_compliant, line_fixed, verbose_infos)
 
 
+def check_licenses_line(
+    line: str,
+    filename: str,
+    line_number: int,
+) -> Tuple[bool, str, List[str]]:
+    """
+    Check / fix SPDX licenses rather than GPL text in a line.
+
+    @param line The line to check.
+    @param filename Name of the file to be checked.
+    @param line_number The number of the line checked.
+    @return Tuple [Whether the line is compliant with the style (before the check),
+                   Fixed line,
+                   Verbose information].
+    """
+
+    # fmt: off
+    GPL_LICENSE_LINES = [
+        "This program is free software; you can redistribute it and/or modify",
+        "it under the terms of the GNU General Public License version 2 as",
+        "published by the Free Software Foundation;",
+        "This program is distributed in the hope that it will be useful,",
+        "but WITHOUT ANY WARRANTY; without even the implied warranty of",
+        "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the",
+        "GNU General Public License for more details.",
+        "You should have received a copy of the GNU General Public License",
+        "along with this program; if not, write to the Free Software",
+        "Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA",
+    ]
+    # fmt: on
+
+    SPDX_LICENSE = "SPDX-License-Identifier: GPL-2.0-only"
+
+    is_line_compliant = True
+    line_fixed = line
+    verbose_infos: List[str] = []
+
+    # Check if the line is a GPL license text
+    line_stripped = line.strip()
+    line_stripped_no_leading_comments = line_stripped.strip("*#/").strip()
+
+    if line_stripped_no_leading_comments in GPL_LICENSE_LINES:
+        is_line_compliant = False
+        col_index = 0
+
+        # Replace GPL text with SPDX license.
+        # Replace the first line of the GPL text with SPDX.
+        # Delete the remaining GPL text lines.
+        if line_stripped_no_leading_comments == GPL_LICENSE_LINES[0]:
+            line_fixed = line.replace(line_stripped_no_leading_comments, SPDX_LICENSE)
+        else:
+            line_fixed = ""
+
+        verbose_infos.extend(
+            [
+                f"{filename}:{line_number + 1}:{col_index}: error: GPL license text detected instead of SPDX license",
+                f"    {line_stripped}",
+                f'    {"":{col_index}}^',
+            ]
+        )
+
+    return (is_line_compliant, line_fixed, verbose_infos)
+
+
 ###########################################################
 # MAIN
 ###########################################################
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Check and apply the ns-3 coding style recursively to all files in the given PATHs. "
-        "The script checks the formatting of the file with clang-format. "
-        'Additionally, it checks #include headers from the same module with the "ns3/" prefix, '
-        "the presence of trailing whitespace and tabs. "
-        'Formatting, local #include "ns3/" prefixes and tabs checks respect clang-format guards. '
-        'When used in "check mode" (default), the script checks if all files are well '
-        "formatted and do not have trailing whitespace nor tabs. "
-        "If it detects non-formatted files, they will be printed and this process exits with a "
-        'non-zero code. When used in "fix mode", this script automatically fixes the files.'
+        "The script checks the formatting of the files using clang-format and"
+        " other coding style rules manually (see script arguments). "
+        "All checks respect clang-format guards, except trailing whitespace, which is always checked. "
+        'When used in "check mode" (default), the script runs all checks in all files. '
+        "If it detects non-formatted files, they will be printed and this process exits with a non-zero code. "
+        'When used in "fix mode", this script automatically fixes the files and exits with 0 code.'
     )
 
     parser.add_argument(
@@ -713,13 +781,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--no-include-prefixes",
         action="store_true",
-        help='Do not check / fix #include headers from the same module with the "ns3/" prefix',
-    )
-
-    parser.add_argument(
-        "--no-formatting",
-        action="store_true",
-        help="Do not check / fix code formatting",
+        help='Do not check / fix #include headers from the same module with the "ns3/" prefix (respects clang-format guards)',
     )
 
     parser.add_argument(
@@ -731,7 +793,19 @@ if __name__ == "__main__":
     parser.add_argument(
         "--no-tabs",
         action="store_true",
-        help="Do not check / fix tabs",
+        help="Do not check / fix tabs (respects clang-format guards)",
+    )
+
+    parser.add_argument(
+        "--no-licenses",
+        action="store_true",
+        help="Do not check / fix SPDX licenses rather than GPL text (respects clang-format guards)",
+    )
+
+    parser.add_argument(
+        "--no-formatting",
+        action="store_true",
+        help="Do not check / fix code formatting (respects clang-format guards)",
     )
 
     parser.add_argument(
@@ -760,22 +834,32 @@ if __name__ == "__main__":
     try:
         all_checks_successful = check_style_clang_format(
             paths=args.paths,
-            enable_check_include_prefixes=(not args.no_include_prefixes),
-            enable_check_formatting=(not args.no_formatting),
-            enable_check_whitespace=(not args.no_whitespace),
-            enable_check_tabs=(not args.no_tabs),
+            checks_enabled={
+                "include_prefixes": not args.no_include_prefixes,
+                "whitespace": not args.no_whitespace,
+                "tabs": not args.no_tabs,
+                "license": not args.no_licenses,
+                "formatting": not args.no_formatting,
+            },
             fix=args.fix,
             verbose=args.verbose,
             n_jobs=args.jobs,
         )
 
     except Exception as e:
-        print(e)
+        print("ERROR:", e)
         sys.exit(1)
 
     if not all_checks_successful:
         if args.verbose:
-            print("")
-            print('NOTE: To fix the files automatically, run this script with the flag "--fix"')
+            print(
+                "",
+                "Notes to fix the above formatting issues:",
+                '  - To fix the formatting of specific files, run this script with the flag "--fix":',
+                "      $ ./utils/check-style-clang-format.py --fix path [path ...]",
+                "  - To fix the formatting of all files modified by this branch, run this script in the following way:",
+                "      $ git diff --name-only master | xargs ./utils/check-style-clang-format.py --fix",
+                sep="\n",
+            )
 
         sys.exit(1)

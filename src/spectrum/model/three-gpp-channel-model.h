@@ -4,18 +4,7 @@
  * Copyright (c) 2019 SIGNET Lab, Department of Information Engineering,
  * University of Padova
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  */
 
 #ifndef THREE_GPP_CHANNEL_H
@@ -251,8 +240,6 @@ class ThreeGppChannelModel : public MatrixBasedChannelModel
      * \param hUT the height of the UT
      * \param distance2D the 2D distance between tx and rx
      * \return the parameters table
-     * \deprecated Use GetThreeGppTable(const Ptr<const MobilityModel> aMob, const Ptr<const
-     *  MobilityModel> bMob, Ptr<const ChannelCondition> channelCondition) instead
      */
     NS_DEPRECATED_3_41("Use GetThreeGppTable(const Ptr<const MobilityModel>, const Ptr<const "
                        "MobilityModel>, Ptr<const ChannelCondition>) instead")

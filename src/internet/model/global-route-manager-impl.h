@@ -1,18 +1,7 @@
 /*
  * Copyright 2007 University of Washington
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Authors:  Craig Dowell (craigdo@ee.washington.edu)
  *           Tom Henderson (tomhend@u.washington.edu)
@@ -542,7 +531,7 @@ class SPFVertex
     Ipv4Address m_nextHop;                          //!< next hop
     typedef std::list<NodeExit_t> ListOfNodeExit_t; //!< container of Exit nodes
     ListOfNodeExit_t m_ecmpRootExits; //!< store the multiple root's exits for supporting ECMP
-    typedef std::list<SPFVertex*> ListOfSPFVertex_t; //!< container of SPFVertexes
+    typedef std::list<SPFVertex*> ListOfSPFVertex_t; //!< container of SPFVertex items
     ListOfSPFVertex_t m_parents;                     //!< parent list
     ListOfSPFVertex_t m_children;                    //!< Children list
     bool m_vertexProcessed; //!< Flag to note whether vertex has been processed in stage two of SPF
@@ -552,7 +541,7 @@ class SPFVertex
      * \brief Stream insertion operator.
      *
      * \param os the reference to the output stream
-     * \param vs a list of SPFVertexes
+     * \param vs a list of SPFVertex items
      * \returns the reference to the output stream
      */
     friend std::ostream& operator<<(std::ostream& os, const SPFVertex::ListOfSPFVertex_t& vs);

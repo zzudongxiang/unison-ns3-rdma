@@ -2,18 +2,7 @@
  * Copyright (c) 2006, 2009 INRIA
  * Copyright (c) 2009 MIRKO BANCHI
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Authors: Mathieu Lacage <mathieu.lacage@sophia.inria.fr>
  *          Mirko Banchi <mk.banchi@gmail.com>
@@ -187,15 +176,6 @@ class StaWifiMac : public WifiMac
     StaWifiMac();
     ~StaWifiMac() override;
 
-    /**
-     * \param packet the packet to send.
-     * \param to the address to which the packet should be sent.
-     *
-     * The packet should be enqueued in a TX queue, and should be
-     * dequeued as soon as the channel access function determines that
-     * access is granted to this MAC.
-     */
-    void Enqueue(Ptr<Packet> packet, Mac48Address to) override;
     bool CanForwardPacketsTo(Mac48Address to) const override;
     int64_t AssignStreams(int64_t stream) override;
 
@@ -410,6 +390,8 @@ class StaWifiMac : public WifiMac
     void Receive(Ptr<const WifiMpdu> mpdu, uint8_t linkId) override;
     std::unique_ptr<LinkEntity> CreateLinkEntity() const override;
     Mac48Address DoGetLocalAddress(const Mac48Address& remoteAddr) const override;
+    void Enqueue(Ptr<WifiMpdu> mpdu, Mac48Address to, Mac48Address from) override;
+    void NotifyDropPacketToEnqueue(Ptr<Packet> packet, Mac48Address to) override;
 
     /**
      * Process the Beacon frame received on the given link.
@@ -603,21 +585,23 @@ class StaWifiMac : public WifiMac
     void DoInitialize() override;
     void DoDispose() override;
 
-    MacState m_state;                       ///< MAC state
-    uint16_t m_aid;                         ///< Association AID
-    Ptr<WifiAssocManager> m_assocManager;   ///< Association Manager
-    Ptr<EmlsrManager> m_emlsrManager;       ///< EMLSR Manager
-    Time m_waitBeaconTimeout;               ///< wait beacon timeout
-    Time m_probeRequestTimeout;             ///< probe request timeout
-    Time m_assocRequestTimeout;             ///< association request timeout
-    EventId m_assocRequestEvent;            ///< association request event
-    uint32_t m_maxMissedBeacons;            ///< maximum missed beacons
-    EventId m_beaconWatchdog;               //!< beacon watchdog
-    Time m_beaconWatchdogEnd{0};            //!< beacon watchdog end
-    bool m_activeProbing;                   ///< active probing
-    Ptr<RandomVariableStream> m_probeDelay; ///< RandomVariable used to randomize the time
-                                            ///< of the first Probe Response on each channel
-    Time m_pmModeSwitchTimeout;             ///< PM mode switch timeout
+    MacState m_state;                             ///< MAC state
+    uint16_t m_aid;                               ///< Association AID
+    Ptr<WifiAssocManager> m_assocManager;         ///< Association Manager
+    Ptr<EmlsrManager> m_emlsrManager;             ///< EMLSR Manager
+    Time m_waitBeaconTimeout;                     ///< wait beacon timeout
+    Time m_probeRequestTimeout;                   ///< probe request timeout
+    Time m_assocRequestTimeout;                   ///< association request timeout
+    EventId m_assocRequestEvent;                  ///< association request event
+    uint32_t m_maxMissedBeacons;                  ///< maximum missed beacons
+    EventId m_beaconWatchdog;                     //!< beacon watchdog
+    Time m_beaconWatchdogEnd{0};                  //!< beacon watchdog end
+    bool m_activeProbing;                         ///< active probing
+    Ptr<RandomVariableStream> m_probeDelay;       ///< RandomVariable used to randomize the time
+                                                  ///< of the first Probe Response on each channel
+    Time m_pmModeSwitchTimeout;                   ///< PM mode switch timeout
+    std::map<uint8_t, EventId> m_emlsrLinkSwitch; ///< maps PHY ID to the event scheduled to switch
+                                                  ///< the corresponding PHY to a new EMLSR link
 
     /// store the DL TID-to-Link Mapping included in the Association Request frame
     WifiTidLinkMapping m_dlTidLinkMappingInAssocReq;

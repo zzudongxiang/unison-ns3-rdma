@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2005,2006,2007 INRIA
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Authors: Mathieu Lacage <mathieu.lacage@sophia.inria.fr>
  *          Sébastien Deronne <sebastien.deronne@gmail.com>
@@ -65,7 +54,7 @@ operator>>(std::istream& is, WifiMode& mode)
 }
 
 bool
-WifiMode::IsAllowed(uint16_t channelWidth, uint8_t nss) const
+WifiMode::IsAllowed(MHz_u channelWidth, uint8_t nss) const
 {
     WifiTxVector txVector;
     txVector.SetMode(WifiMode(m_uid));
@@ -82,13 +71,13 @@ WifiMode::IsAllowed(const WifiTxVector& txVector) const
 }
 
 uint64_t
-WifiMode::GetPhyRate(uint16_t channelWidth) const
+WifiMode::GetPhyRate(MHz_u channelWidth) const
 {
-    return GetPhyRate(channelWidth, 800, 1);
+    return GetPhyRate(channelWidth, NanoSeconds(800), 1);
 }
 
 uint64_t
-WifiMode::GetPhyRate(uint16_t channelWidth, uint16_t guardInterval, uint8_t nss) const
+WifiMode::GetPhyRate(MHz_u channelWidth, Time guardInterval, uint8_t nss) const
 {
     WifiTxVector txVector;
     txVector.SetMode(WifiMode(m_uid));
@@ -106,9 +95,9 @@ WifiMode::GetPhyRate(const WifiTxVector& txVector, uint16_t staId) const
 }
 
 uint64_t
-WifiMode::GetDataRate(uint16_t channelWidth) const
+WifiMode::GetDataRate(MHz_u channelWidth) const
 {
-    return GetDataRate(channelWidth, 800, 1);
+    return GetDataRate(channelWidth, NanoSeconds(800), 1);
 }
 
 uint64_t
@@ -119,7 +108,7 @@ WifiMode::GetDataRate(const WifiTxVector& txVector, uint16_t staId) const
 }
 
 uint64_t
-WifiMode::GetDataRate(uint16_t channelWidth, uint16_t guardInterval, uint8_t nss) const
+WifiMode::GetDataRate(MHz_u channelWidth, Time guardInterval, uint8_t nss) const
 {
     NS_ASSERT(nss <= 8);
     WifiTxVector txVector;
@@ -144,7 +133,7 @@ WifiMode::GetConstellationSize() const
     return item->GetConstellationSizeCallback();
 }
 
-std::string
+const std::string&
 WifiMode::GetUniqueName() const
 {
     // needed for ostream printing of the invalid mode

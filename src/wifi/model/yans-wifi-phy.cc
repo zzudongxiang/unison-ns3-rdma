@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2005,2006 INRIA
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Authors: Mathieu Lacage <mathieu.lacage@sophia.inria.fr>
  *          Ghada Badawy <gbadawy@gmail.com>
@@ -58,7 +47,7 @@ YansWifiPhy::SetInterferenceHelper(const Ptr<InterferenceHelper> helper)
 {
     WifiPhy::SetInterferenceHelper(helper);
     // add dummy band for Yans
-    m_interference->AddBand({{0, 0}, {0, 0}});
+    m_interference->AddBand({{{0, 0}}, {{0, 0}}});
 }
 
 YansWifiPhy::~YansWifiPhy()
@@ -93,7 +82,7 @@ YansWifiPhy::StartTx(Ptr<const WifiPpdu> ppdu)
 {
     NS_LOG_FUNCTION(this << ppdu);
     NS_LOG_DEBUG("Start transmission: signal power before antenna gain="
-                 << GetPowerDbm(ppdu->GetTxVector().GetTxPowerLevel()) << "dBm");
+                 << GetPower(ppdu->GetTxVector().GetTxPowerLevel()) << "dBm");
     m_signalTransmissionCb(ppdu, ppdu->GetTxVector());
     m_channel->Send(this, ppdu, GetTxPowerForTransmission(ppdu) + GetTxGain());
 }
@@ -105,14 +94,14 @@ YansWifiPhy::TraceSignalArrival(Ptr<const WifiPpdu> ppdu, double rxPowerDbm, Tim
     m_signalArrivalCb(ppdu, rxPowerDbm, ppdu->GetTxDuration());
 }
 
-uint16_t
-YansWifiPhy::GetGuardBandwidth(uint16_t currentChannelWidth) const
+MHz_u
+YansWifiPhy::GetGuardBandwidth(MHz_u currentChannelWidth) const
 {
     NS_ABORT_MSG("Guard bandwidth not relevant for Yans");
     return 0;
 }
 
-std::tuple<double, double, double>
+std::tuple<dBr_u, dBr_u, dBr_u>
 YansWifiPhy::GetTxMaskRejectionParams() const
 {
     NS_ABORT_MSG("Tx mask rejection params not relevant for Yans");
@@ -120,9 +109,9 @@ YansWifiPhy::GetTxMaskRejectionParams() const
 }
 
 WifiSpectrumBandInfo
-YansWifiPhy::GetBand(uint16_t /*bandWidth*/, uint8_t /*bandIndex*/)
+YansWifiPhy::GetBand(MHz_u /*bandWidth*/, uint8_t /*bandIndex*/)
 {
-    return {{0, 0}, {0, 0}};
+    return {{{0, 0}}, {{0, 0}}};
 }
 
 FrequencyRange
@@ -135,6 +124,14 @@ WifiSpectrumBandFrequencies
 YansWifiPhy::ConvertIndicesToFrequencies(const WifiSpectrumBandIndices& /*indices*/) const
 {
     return {0, 0};
+}
+
+void
+YansWifiPhy::FinalizeChannelSwitch()
+{
+    NS_LOG_FUNCTION(this);
+    NS_ABORT_MSG_IF(GetOperatingChannel().GetNSegments() > 1,
+                    "operating channel made of non-contiguous segments cannot be used with Yans");
 }
 
 } // namespace ns3

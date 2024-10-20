@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2005 INRIA
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Mathieu Lacage <mathieu.lacage@sophia.inria.fr>
  */
@@ -617,16 +606,6 @@ Txop::HasFramesToTransmit(uint8_t linkId)
     bool ret = static_cast<bool>(m_queue->Peek(linkId));
     NS_LOG_FUNCTION(this << linkId << ret);
     return ret;
-}
-
-void
-Txop::Queue(Ptr<Packet> packet, const WifiMacHeader& hdr)
-{
-    NS_LOG_FUNCTION(this << packet << &hdr);
-    // remove the priority tag attached, if any
-    SocketPriorityTag priorityTag;
-    packet->RemovePacketTag(priorityTag);
-    Queue(Create<WifiMpdu>(packet, hdr));
 }
 
 void

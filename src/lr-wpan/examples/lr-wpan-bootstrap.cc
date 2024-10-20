@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2022 Tokushima University, Japan.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author:  Alberto Gallegos Ramonet <alramonet@is.tokushima-u.ac.jp>
  */
@@ -369,17 +358,9 @@ main(int argc, char* argv[])
     mobility.SetPositionAllocator(listPositionAlloc);
     mobility.Install(coordinators);
 
-    Ptr<SingleModelSpectrumChannel> channel = CreateObject<SingleModelSpectrumChannel>();
-    Ptr<LogDistancePropagationLossModel> propModel =
-        CreateObject<LogDistancePropagationLossModel>();
-    Ptr<ConstantSpeedPropagationDelayModel> delayModel =
-        CreateObject<ConstantSpeedPropagationDelayModel>();
-
-    channel->AddPropagationLossModel(propModel);
-    channel->SetPropagationDelayModel(delayModel);
-
     LrWpanHelper lrWpanHelper;
-    lrWpanHelper.SetChannel(channel);
+    lrWpanHelper.SetPropagationDelayModel("ns3::ConstantSpeedPropagationDelayModel");
+    lrWpanHelper.AddPropagationLossModel("ns3::LogDistancePropagationLossModel");
 
     NetDeviceContainer lrwpanDevices = lrWpanHelper.Install(nodes);
     lrwpanDevices.Add(lrWpanHelper.Install(coordinators));

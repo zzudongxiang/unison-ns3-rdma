@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2020 Orange Labs
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Authors: Rediet <getachew.redieteab@orange.com>
  *          Sébastien Deronne <sebastien.deronne@gmail.com> (for logic ported from wifi-phy)
@@ -208,7 +197,7 @@ ErpOfdmPhy::GetConstellationSize(const std::string& name)
 }
 
 uint64_t
-ErpOfdmPhy::GetPhyRate(const std::string& name, uint16_t channelWidth)
+ErpOfdmPhy::GetPhyRate(const std::string& name, MHz_u channelWidth)
 {
     WifiCodeRate codeRate = GetCodeRate(name);
     uint16_t constellationSize = GetConstellationSize(name);
@@ -229,7 +218,7 @@ ErpOfdmPhy::GetDataRateFromTxVector(const WifiTxVector& txVector, uint16_t /* st
 }
 
 uint64_t
-ErpOfdmPhy::GetDataRate(const std::string& name, uint16_t channelWidth)
+ErpOfdmPhy::GetDataRate(const std::string& name, MHz_u channelWidth)
 {
     WifiCodeRate codeRate = GetCodeRate(name);
     uint16_t constellationSize = GetConstellationSize(name);

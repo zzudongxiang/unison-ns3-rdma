@@ -2,18 +2,7 @@
  * Copyright (c) 2022 Universita' degli Studi di Napoli "Federico II"
  * Copyright (c) 2022 University of Washington (port logic to WifiBandwidthFilter)
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  */
 
 #include "wifi-bandwidth-filter.h"
@@ -82,57 +71,64 @@ WifiBandwidthFilter::DoFilter(Ptr<const SpectrumSignalParameters> params,
                   "SpectrumWifiPhy::TrackSignalsFromInactiveInterfaces attribute is not enabled");
 
     NS_ASSERT((interface != wifiPhy->GetCurrentInterface()) ||
-              (wifiPhy->GetOperatingChannel().GetFrequency() == interface->GetCenterFrequency()));
-    NS_ASSERT((interface != wifiPhy->GetCurrentInterface()) ||
-              (wifiPhy->GetOperatingChannel().GetWidth() == interface->GetChannelWidth()));
+              (wifiPhy->GetOperatingChannel().GetTotalWidth() == interface->GetChannelWidth()));
+    NS_ASSERT(
+        (interface != wifiPhy->GetCurrentInterface()) ||
+        (wifiPhy->GetOperatingChannel().GetFrequencies() == interface->GetCenterFrequencies()));
 
     // The signal power is spread over a frequency interval that includes a guard
     // band on the left and a guard band on the right of the nominal TX band
-
-    const auto rxCenterFreq = wifiRxParams->ppdu->GetTxCenterFreq();
-    const auto rxWidth = wifiRxParams->ppdu->GetTxVector().GetChannelWidth();
+    const auto rxCenterFreqs = wifiRxParams->ppdu->GetTxCenterFreqs();
+    // all segments have the same width
+    const auto rxWidth =
+        (wifiRxParams->ppdu->GetTxVector().GetChannelWidth() / rxCenterFreqs.size());
     const auto guardBandwidth = wifiPhy->GetGuardBandwidth(rxWidth);
-    const auto operatingFrequency = interface->GetCenterFrequency();
-    const auto operatingChannelWidth = interface->GetChannelWidth();
-
-    const auto rxMinFreq = rxCenterFreq - rxWidth / 2 - guardBandwidth;
-    const auto rxMaxFreq = rxCenterFreq + rxWidth / 2 + guardBandwidth;
-
-    const auto channelMinFreq = operatingFrequency - operatingChannelWidth / 2;
-    const auto channelMaxFreq = operatingFrequency + operatingChannelWidth / 2;
-
-    /**
-     * The PPDU can be ignored if the two bands do not overlap.
-     *
-     * First non-overlapping case:
-     *
-     *                                        ┌─────────┬─────────┬─────────┐
-     *                                PPDU    │  Guard  │ Nominal │  Guard  │
-     *                                        │  Band   │   Band  │  Band   │
-     *                                        └─────────┴─────────┴─────────┘
-     *                                    rxMinFreq                     rxMaxFreq
-     *
-     * channelMinFreq                channelMaxFreq
-     *         ┌──────────────────────────────┐
-     *         │         Operating            │
-     *         │           Channel            │
-     *         └──────────────────────────────┘
-     *
-     * Second non-overlapping case:
-     *
-     *         ┌─────────┬─────────┬─────────┐
-     * PPDU    │  Guard  │ Nominal │  Guard  │
-     *         │  Band   │   Band  │  Band   │
-     *         └─────────┴─────────┴─────────┘
-     *     rxMinFreq                     rxMaxFreq
-     *
-     *                               channelMinFreq                channelMaxFreq
-     *                                       ┌──────────────────────────────┐
-     *                                       │         Operating            │
-     *                                       │           Channel            │
-     *                                       └──────────────────────────────┘
-     */
-    auto filter = (rxMinFreq >= channelMaxFreq || rxMaxFreq <= channelMinFreq);
+    bool filter = true;
+    for (auto rxCenterFreq : rxCenterFreqs)
+    {
+        const auto rxMinFreq = rxCenterFreq - rxWidth / 2 - guardBandwidth;
+        const auto rxMaxFreq = rxCenterFreq + rxWidth / 2 + guardBandwidth;
+        const auto operatingFrequencies = interface->GetCenterFrequencies();
+        const auto operatingChannelWidth =
+            interface->GetChannelWidth() / operatingFrequencies.size();
+        for (auto operatingFrequency : operatingFrequencies)
+        {
+            const auto channelMinFreq = operatingFrequency - operatingChannelWidth / 2;
+            const auto channelMaxFreq = operatingFrequency + operatingChannelWidth / 2;
+            /**
+             * The PPDU can be ignored if the two bands do not overlap.
+             *
+             * First non-overlapping case:
+             *
+             *                                        ┌─────────┬─────────┬─────────┐
+             *                                PPDU    │  Guard  │ Nominal │  Guard  │
+             *                                        │  Band   │   Band  │  Band   │
+             *                                        └─────────┴─────────┴─────────┘
+             *                                    rxMinFreq                     rxMaxFreq
+             *
+             * channelMinFreq                channelMaxFreq
+             *         ┌──────────────────────────────┐
+             *         │         Operating            │
+             *         │           Channel            │
+             *         └──────────────────────────────┘
+             *
+             * Second non-overlapping case:
+             *
+             *         ┌─────────┬─────────┬─────────┐
+             * PPDU    │  Guard  │ Nominal │  Guard  │
+             *         │  Band   │   Band  │  Band   │
+             *         └─────────┴─────────┴─────────┘
+             *     rxMinFreq                     rxMaxFreq
+             *
+             *                               channelMinFreq                channelMaxFreq
+             *                                       ┌──────────────────────────────┐
+             *                                       │         Operating            │
+             *                                       │           Channel            │
+             *                                       └──────────────────────────────┘
+             */
+            filter &= ((rxMinFreq >= channelMaxFreq) || (rxMaxFreq <= channelMinFreq));
+        }
+    }
     NS_LOG_DEBUG("Returning " << filter);
     return filter;
 }

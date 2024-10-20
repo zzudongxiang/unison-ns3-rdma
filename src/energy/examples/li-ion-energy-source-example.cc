@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2010 Andrea Sacco
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Andrea Sacco <andrea.sacco85@gmail.com>
  */
@@ -45,9 +34,19 @@ using namespace ns3::energy;
  * http://www.panasonic.com/industrial/includes/pdf/Panasonic_LiIon_CGR18650DA.pdf
  */
 
+// NS_DEPRECATED_3_43() - tag for future removal
+// LiIonEnergySource was deprecated in commit
+// https://gitlab.com/nsnam/ns-3-dev/-/commit/086913b0
+//
+// The new battery model is illustrated in
+// `src/energy/examples/generic-battery-discharge-example.cc`
+
+NS_WARNING_PUSH_DEPRECATED;
+
 static void
 PrintCellInfo(Ptr<LiIonEnergySource> es)
 {
+    NS_WARNING_POP;
     std::cout << "At " << Simulator::Now().As(Time::S)
               << " Cell voltage: " << es->GetSupplyVoltage()
               << " V Remaining Capacity: " << es->GetRemainingEnergy() / (3.6 * 3600) << " Ah"
@@ -72,7 +71,9 @@ main(int argc, char** argv)
 
     Ptr<SimpleDeviceEnergyModel> sem = CreateObject<SimpleDeviceEnergyModel>();
     Ptr<EnergySourceContainer> esCont = CreateObject<EnergySourceContainer>();
+    NS_WARNING_PUSH_DEPRECATED;
     Ptr<LiIonEnergySource> es = CreateObject<LiIonEnergySource>();
+    NS_WARNING_POP;
     esCont->Add(es);
     es->SetNode(node);
     sem->SetEnergySource(es);

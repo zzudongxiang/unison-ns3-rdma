@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2020 Universita' degli Studi di Napoli Federico II
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Stefano Avallone <stavallo@unina.it>
  */
@@ -110,13 +99,13 @@ class HeFrameExchangeManager : public VhtFrameExchangeManager
     virtual void SetTargetRssi(CtrlTriggerHeader& trigger) const;
 
     /**
-     * Get the RSSI (in dBm) of the most recent packet received from the station having
+     * Get the RSSI of the most recent packet received from the station having
      * the given address.
      *
      * \param address of the remote station
-     * \return the RSSI (in dBm) of the most recent packet received from the remote station
+     * \return the RSSI of the most recent packet received from the remote station
      */
-    virtual std::optional<double> GetMostRecentRssi(const Mac48Address& address) const;
+    virtual std::optional<dBm_u> GetMostRecentRssi(const Mac48Address& address) const;
 
     /**
      * Return whether the received frame is classified as intra-BSS. It is assumed that
@@ -212,6 +201,17 @@ class HeFrameExchangeManager : public VhtFrameExchangeManager
      * \param txVector the TXVECTOR used to transmit the MU-RTS frame
      */
     virtual void CtsAfterMuRtsTimeout(Ptr<WifiMpdu> muRts, const WifiTxVector& txVector);
+
+    /**
+     * Called when no CTS frame is received after an MU-RTS.
+     *
+     * \param muRts the MU-RTS that solicited CTS responses
+     * \param txVector the TXVECTOR used to transmit the MU-RTS frame
+     * \param updateFailedCw whether to update CW in case of retransmission after TX failure
+     */
+    void DoCtsAfterMuRtsTimeout(Ptr<WifiMpdu> muRts,
+                                const WifiTxVector& txVector,
+                                bool updateFailedCw);
 
     /**
      * Send CTS after receiving an MU-RTS.

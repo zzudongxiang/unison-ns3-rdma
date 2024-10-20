@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2009 IITP RAS
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Authors: Kirill Andreev <andreev@iitp.ru>
  *          Pavel Boyko <boyko@iitp.ru>
@@ -96,20 +85,6 @@ bool
 MeshWifiInterfaceMac::CanForwardPacketsTo(Mac48Address to) const
 {
     return true;
-}
-
-void
-MeshWifiInterfaceMac::Enqueue(Ptr<Packet> packet, Mac48Address to, Mac48Address from)
-{
-    NS_LOG_FUNCTION(this << packet << to << from);
-    ForwardDown(packet, from, to);
-}
-
-void
-MeshWifiInterfaceMac::Enqueue(Ptr<Packet> packet, Mac48Address to)
-{
-    NS_LOG_FUNCTION(this << packet << to);
-    ForwardDown(packet, GetAddress(), to);
 }
 
 bool
@@ -223,20 +198,18 @@ MeshWifiInterfaceMac::SwitchFrequencyChannel(uint16_t new_id)
 // Forward frame down
 //-----------------------------------------------------------------------------
 void
-MeshWifiInterfaceMac::ForwardDown(Ptr<Packet> packet, Mac48Address from, Mac48Address to)
+MeshWifiInterfaceMac::Enqueue(Ptr<WifiMpdu> mpdu, Mac48Address to, Mac48Address from)
 {
-    WifiMacHeader hdr;
-    hdr.SetType(WIFI_MAC_QOSDATA);
+    NS_LOG_FUNCTION(this << *mpdu << to << from);
+
+    auto& hdr = mpdu->GetHeader();
+    auto packet = mpdu->GetPacket()->Copy();
+
     hdr.SetAddr2(GetAddress());
     hdr.SetAddr3(to);
     hdr.SetAddr4(from);
     hdr.SetDsFrom();
     hdr.SetDsTo();
-    // Fill QoS fields:
-    hdr.SetQosAckPolicy(WifiMacHeader::NORMAL_ACK);
-    hdr.SetQosNoEosp();
-    hdr.SetQosNoAmsdu();
-    hdr.SetQosTxopLimit(0);
     // Address 1 is unknown here. Routing plugin is responsible to correctly set it.
     hdr.SetAddr1(Mac48Address());
     // Filter packet through all installed plugins
@@ -261,24 +234,12 @@ MeshWifiInterfaceMac::ForwardDown(Ptr<Packet> packet, Mac48Address from, Mac48Ad
         }
         GetWifiRemoteStationManager()->RecordDisassociated(hdr.GetAddr1());
     }
-    // Classify: application may have set a tag, which is removed here
-    AcIndex ac;
-    SocketPriorityTag tag;
-    if (packet->RemovePacketTag(tag))
-    {
-        hdr.SetQosTid(tag.GetPriority());
-        ac = QosUtilsMapTidToAc(tag.GetPriority());
-    }
-    else
-    {
-        // No tag found; set to best effort
-        ac = AC_BE;
-        hdr.SetQosTid(0);
-    }
+
     m_stats.sentFrames++;
     m_stats.sentBytes += packet->GetSize();
-    NS_ASSERT(GetQosTxop(ac) != nullptr);
-    GetQosTxop(ac)->Queue(packet, hdr);
+    auto tid = hdr.GetQosTid();
+    NS_ASSERT(GetQosTxop(tid) != nullptr);
+    GetQosTxop(tid)->Queue(Create<WifiMpdu>(packet, hdr));
 }
 
 void
@@ -310,11 +271,11 @@ MeshWifiInterfaceMac::SendManagementFrame(Ptr<Packet> packet, const WifiMacHeade
      */
     if (hdr.GetAddr1() != Mac48Address::GetBroadcast())
     {
-        GetQosTxop(AC_VO)->Queue(packet, header);
+        GetQosTxop(AC_VO)->Queue(Create<WifiMpdu>(packet, header));
     }
     else
     {
-        GetQosTxop(AC_BK)->Queue(packet, header);
+        GetQosTxop(AC_BK)->Queue(Create<WifiMpdu>(packet, header));
     }
 }
 
@@ -326,14 +287,14 @@ MeshWifiInterfaceMac::GetSupportedRates() const
     AllSupportedRates rates;
     for (const auto& mode : GetWifiPhy()->GetModeList())
     {
-        uint16_t gi = ConvertGuardIntervalToNanoSeconds(mode, GetWifiPhy()->GetDevice());
+        const auto gi = GetGuardIntervalForMode(mode, GetWifiPhy()->GetDevice());
         rates.AddSupportedRate(mode.GetDataRate(GetWifiPhy()->GetChannelWidth(), gi, 1));
     }
     // set the basic rates
     for (uint32_t j = 0; j < GetWifiRemoteStationManager()->GetNBasicModes(); j++)
     {
-        WifiMode mode = GetWifiRemoteStationManager()->GetBasicMode(j);
-        uint16_t gi = ConvertGuardIntervalToNanoSeconds(mode, GetWifiPhy()->GetDevice());
+        const auto mode = GetWifiRemoteStationManager()->GetBasicMode(j);
+        const auto gi = GetGuardIntervalForMode(mode, GetWifiPhy()->GetDevice());
         rates.SetBasicRate(mode.GetDataRate(GetWifiPhy()->GetChannelWidth(), gi, 1));
     }
     return rates;
@@ -344,8 +305,8 @@ MeshWifiInterfaceMac::CheckSupportedRates(AllSupportedRates rates) const
 {
     for (uint32_t i = 0; i < GetWifiRemoteStationManager()->GetNBasicModes(); i++)
     {
-        WifiMode mode = GetWifiRemoteStationManager()->GetBasicMode(i);
-        uint16_t gi = ConvertGuardIntervalToNanoSeconds(mode, GetWifiPhy()->GetDevice());
+        const auto mode = GetWifiRemoteStationManager()->GetBasicMode(i);
+        const auto gi = GetGuardIntervalForMode(mode, GetWifiPhy()->GetDevice());
         if (!rates.IsSupportedRate(mode.GetDataRate(GetWifiPhy()->GetChannelWidth(), gi, 1)))
         {
             return false;
@@ -433,7 +394,8 @@ MeshWifiInterfaceMac::SendBeacon()
     {
         (*i)->UpdateBeacon(beacon);
     }
-    m_txop->Queue(beacon.CreatePacket(), beacon.CreateHeader(GetAddress(), GetMeshPointAddress()));
+    m_txop->Queue(Create<WifiMpdu>(beacon.CreatePacket(),
+                                   beacon.CreateHeader(GetAddress(), GetMeshPointAddress())));
 
     ScheduleNextBeacon();
 }
@@ -468,8 +430,8 @@ MeshWifiInterfaceMac::Receive(Ptr<const WifiMpdu> mpdu, uint8_t linkId)
 
             for (const auto& mode : GetWifiPhy()->GetModeList())
             {
-                uint16_t gi = ConvertGuardIntervalToNanoSeconds(mode, GetWifiPhy()->GetDevice());
-                uint64_t rate = mode.GetDataRate(GetWifiPhy()->GetChannelWidth(), gi, 1);
+                const auto gi = GetGuardIntervalForMode(mode, GetWifiPhy()->GetDevice());
+                const auto rate = mode.GetDataRate(GetWifiPhy()->GetChannelWidth(), gi, 1);
                 if (rates.IsSupportedRate(rate))
                 {
                     GetWifiRemoteStationManager()->AddSupportedMode(hdr->GetAddr2(), mode);

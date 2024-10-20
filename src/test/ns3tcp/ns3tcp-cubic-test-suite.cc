@@ -3,18 +3,7 @@
  * Copyright (c) 2018-20 NITK Surathkal (topology setup)
  * Copyright (c) 2024 Tom Henderson (test definition)
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  */
 
 // Test suite based on tcp-bbr-example.cc modified topology setup:
@@ -359,7 +348,7 @@ Ns3TcpCubicTestCase::DoRun()
     if (m_prefix == "ns3-tcp-cubic-no-heuristic")
     {
         // Check overall min and max
-        NS_TEST_ASSERT_MSG_EQ(CheckValues(Seconds(1), Seconds(19), 50, 90),
+        NS_TEST_ASSERT_MSG_EQ(CheckValues(Seconds(1), Seconds(19), 60, 98),
                               true,
                               "cwnd outside range");
         // Time just before a reduction does not have much variation
@@ -370,7 +359,7 @@ Ns3TcpCubicTestCase::DoRun()
     else if (m_prefix == "ns3-tcp-cubic-fast-conv")
     {
         // Check overall min and max
-        NS_TEST_ASSERT_MSG_EQ(CheckValues(Seconds(1), Seconds(19), 50, 90),
+        NS_TEST_ASSERT_MSG_EQ(CheckValues(Seconds(1), Seconds(19), 60, 98),
                               true,
                               "cwnd outside range");
         // Initial convex region does not have much variation
@@ -386,7 +375,7 @@ Ns3TcpCubicTestCase::DoRun()
                               true,
                               "cwnd outside range");
         // After time 17.5, cwnd should have grown much higher
-        NS_TEST_ASSERT_MSG_EQ(CheckValues(Seconds(17.5), Seconds(18.5), 170, 215),
+        NS_TEST_ASSERT_MSG_EQ(CheckValues(Seconds(17.5), Seconds(18.5), 169, 215),
                               true,
                               "cwnd outside range");
     }

@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2022
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Sebastien Deronne <sebastien.deronne@gmail.com>
  */
@@ -145,6 +134,7 @@ main(int argc, char* argv[])
     bool udp{true};
     bool downlink{true};
     bool useRts{false};
+    bool use80Plus80{false};
     uint16_t mpduBufferSize{512};
     std::string emlsrLinks;
     uint16_t paddingDelayUsec{32};
@@ -154,7 +144,7 @@ main(int argc, char* argv[])
     uint16_t auxPhyChWidth{20};
     bool auxPhyTxCapable{true};
     Time simulationTime{"10s"};
-    double distance{1.0}; // meters
+    meter_u distance{1.0};
     double frequency{5};  // whether the first link operates in the 2.4, 5 or 6 GHz
     double frequency2{0}; // whether the second link operates in the 2.4, 5 or 6 GHz (0 means no
                           // second link exists)
@@ -218,6 +208,7 @@ main(int argc, char* argv[])
                  "Generate downlink flows if set to 1, uplink flows otherwise",
                  downlink);
     cmd.AddValue("useRts", "Enable/disable RTS/CTS", useRts);
+    cmd.AddValue("use80Plus80", "Enable/disable use of 80+80 MHz", use80Plus80);
     cmd.AddValue("mpduBufferSize",
                  "Size (in number of MPDUs) of the BlockAck buffer",
                  mpduBufferSize);
@@ -298,6 +289,9 @@ main(int argc, char* argv[])
         int minGi = enableUlOfdma ? 1600 : 800;
         for (int channelWidth = 20; channelWidth <= maxChannelWidth;) // MHz
         {
+            const auto is80Plus80 = (use80Plus80 && (channelWidth == 160));
+            const std::string widthStr = is80Plus80 ? "80+80" : std::to_string(channelWidth);
+            const auto segmentWidthStr = is80Plus80 ? "80" : widthStr;
             for (int gi = 3200; gi >= minGi;) // Nanoseconds
             {
                 if (!udp)
@@ -335,7 +329,7 @@ main(int argc, char* argv[])
                     {
                         break;
                     }
-                    channelStr[nLinks] = "{0, " + std::to_string(channelWidth) + ", ";
+                    channelStr[nLinks] = "{0, " + segmentWidthStr + ", ";
                     if (freq == 6)
                     {
                         channelStr[nLinks] += "BAND_6GHZ, 0}";
@@ -379,6 +373,12 @@ main(int argc, char* argv[])
                     {
                         NS_FATAL_ERROR("Wrong frequency value!");
                     }
+
+                    if (is80Plus80)
+                    {
+                        channelStr[nLinks] += std::string(";") + channelStr[nLinks];
+                    }
+
                     nLinks++;
                 }
 
@@ -389,12 +389,6 @@ main(int argc, char* argv[])
 
                 Ssid ssid = Ssid("ns3-80211be");
 
-                /*
-                 * SingleModelSpectrumChannel cannot be used with 802.11be because two
-                 * spectrum models are required: one with 78.125 kHz bands for HE PPDUs
-                 * and one with 312.5 kHz bands for, e.g., non-HT PPDUs (for more details,
-                 * see issue #408 (CLOSED))
-                 */
                 SpectrumWifiPhyHelper phy(nLinks);
                 phy.SetPcapDataLinkType(WifiPhyHelper::DLT_IEEE802_11_RADIO);
                 phy.Set("ChannelSwitchDelay", TimeValue(MicroSeconds(channelSwitchDelayUsec)));
@@ -442,8 +436,8 @@ main(int argc, char* argv[])
                 apDevice = wifi.Install(phy, mac, wifiApNode);
 
                 int64_t streamNumber = 100;
-                streamNumber += wifi.AssignStreams(apDevice, streamNumber);
-                streamNumber += wifi.AssignStreams(staDevices, streamNumber);
+                streamNumber += WifiHelper::AssignStreams(apDevice, streamNumber);
+                streamNumber += WifiHelper::AssignStreams(staDevices, streamNumber);
 
                 // Set guard interval and MPDU buffer size
                 Config::Set(
@@ -493,7 +487,7 @@ main(int argc, char* argv[])
                 }
 
                 const auto maxLoad =
-                    nLinks * EhtPhy::GetDataRate(mcs, channelWidth, gi, 1) / nStations;
+                    nLinks * EhtPhy::GetDataRate(mcs, channelWidth, NanoSeconds(gi), 1) / nStations;
                 if (udp)
                 {
                     // UDP flow
@@ -580,8 +574,9 @@ main(int argc, char* argv[])
 
                 Simulator::Destroy();
 
-                std::cout << mcs << "\t\t\t" << channelWidth << " MHz\t\t\t" << gi << " ns\t\t\t"
-                          << throughput << " Mbit/s" << std::endl;
+                std::cout << +mcs << "\t\t\t" << widthStr << " MHz\t\t"
+                          << (widthStr.size() > 3 ? "" : "\t") << gi << " ns\t\t\t" << throughput
+                          << " Mbit/s" << std::endl;
 
                 // test first element
                 if (mcs == minMcs && channelWidth == 20 && gi == 3200)

@@ -1,24 +1,14 @@
 /*
  * Copyright (c) 2016
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Sébastien Deronne <sebastien.deronne@gmail.com>
  */
 
 #include "wifi-mac-helper.h"
 
+#include "ns3/ap-emlsr-manager.h"
 #include "ns3/boolean.h"
 #include "ns3/eht-configuration.h"
 #include "ns3/emlsr-manager.h"
@@ -59,6 +49,7 @@ WifiMacHelper::WifiMacHelper()
     m_protectionManager.SetTypeId("ns3::WifiDefaultProtectionManager");
     m_ackManager.SetTypeId("ns3::WifiDefaultAckManager");
     m_emlsrManager.SetTypeId("ns3::DefaultEmlsrManager");
+    m_apEmlsrManager.SetTypeId("ns3::DefaultApEmlsrManager");
 }
 
 WifiMacHelper::~WifiMacHelper()
@@ -165,6 +156,16 @@ WifiMacHelper::Create(Ptr<WifiNetDevice> device, WifiStandard standard) const
     {
         auto emlsrManager = m_emlsrManager.Create<EmlsrManager>();
         staMac->SetEmlsrManager(emlsrManager);
+    }
+
+    // create and install the AP EMLSR Manager if this is an EHT AP MLD with EMLSR activated
+    if (BooleanValue emlsrActivated;
+        standard >= WIFI_STANDARD_80211be && apMac && apMac->GetNLinks() > 1 &&
+        device->GetEhtConfiguration()->GetAttributeFailSafe("EmlsrActivated", emlsrActivated) &&
+        emlsrActivated.Get())
+    {
+        auto apEmlsrManager = m_apEmlsrManager.Create<ApEmlsrManager>();
+        apMac->SetApEmlsrManager(apEmlsrManager);
     }
 
     return mac;

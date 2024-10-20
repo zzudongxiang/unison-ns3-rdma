@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2020 Universita' degli Studi di Napoli Federico II
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Stefano Avallone <stavallo@unina.it>
  */
@@ -292,7 +281,7 @@ TestMultiUserScheduler::ComputeWifiTxVector()
         return;
     }
 
-    uint16_t bw = m_apMac->GetWifiPhy()->GetChannelWidth();
+    const auto bw = m_apMac->GetWifiPhy()->GetChannelWidth();
 
     m_txVector.SetPreambleType(m_modClass == WIFI_MOD_CLASS_HE ? WIFI_PREAMBLE_HE_MU
                                                                : WIFI_PREAMBLE_EHT_MU);
@@ -301,7 +290,7 @@ TestMultiUserScheduler::ComputeWifiTxVector()
         m_txVector.SetEhtPpduType(0);
     }
     m_txVector.SetChannelWidth(bw);
-    m_txVector.SetGuardInterval(m_apMac->GetHeConfiguration()->GetGuardInterval().GetNanoSeconds());
+    m_txVector.SetGuardInterval(m_apMac->GetHeConfiguration()->GetGuardInterval());
     m_txVector.SetTxPowerLevel(
         GetWifiRemoteStationManager(SINGLE_LINK_OP_ID)->GetDefaultTxPowerLevel());
 
@@ -314,7 +303,7 @@ TestMultiUserScheduler::ComputeWifiTxVector()
     NS_ABORT_MSG_IF(staList.size() != 4, "There must be 4 associated stations");
 
     HeRu::RuType ruType;
-    switch (bw)
+    switch (static_cast<uint16_t>(bw))
     {
     case 20:
         ruType = HeRu::RU_52_TONE;
@@ -416,7 +405,7 @@ class OfdmaAckSequenceTest : public TestCase
      * \param muEdcaParameterSet the MU EDCA Parameter Set
      * \param scenario the OFDMA scenario to test
      */
-    OfdmaAckSequenceTest(uint16_t width,
+    OfdmaAckSequenceTest(MHz_u width,
                          WifiAcknowledgment::Method dlType,
                          uint32_t maxAmpduSize,
                          uint16_t txopLimit,
@@ -475,7 +464,7 @@ class OfdmaAckSequenceTest : public TestCase
     NetDeviceContainer m_staDevices;            ///< stations' devices
     Ptr<WifiNetDevice> m_apDevice;              ///< AP's device
     std::vector<PacketSocketAddress> m_sockets; ///< packet socket addresses for STAs
-    uint16_t m_channelWidth;                    ///< PHY channel bandwidth in MHz
+    MHz_u m_channelWidth;                       ///< PHY channel bandwidth
     uint8_t m_muRtsRuAllocation;                ///< B7-B1 of RU Allocation subfield of MU-RTS
     std::vector<FrameInfo> m_txPsdus;           ///< transmitted PSDUs
     WifiAcknowledgment::Method m_dlMuAckType;   ///< DL MU ack sequence type
@@ -493,7 +482,7 @@ class OfdmaAckSequenceTest : public TestCase
     std::vector<uint32_t> m_cwValues; ///< CW used by stations after MU exchange
 };
 
-OfdmaAckSequenceTest::OfdmaAckSequenceTest(uint16_t width,
+OfdmaAckSequenceTest::OfdmaAckSequenceTest(MHz_u width,
                                            WifiAcknowledgment::Method dlType,
                                            uint32_t maxAmpduSize,
                                            uint16_t txopLimit,
@@ -529,7 +518,7 @@ OfdmaAckSequenceTest::OfdmaAckSequenceTest(uint16_t width,
         break;
     }
 
-    switch (m_channelWidth)
+    switch (static_cast<uint16_t>(m_channelWidth))
     {
     case 20:
         m_muRtsRuAllocation = 61; // p20 index is 0
@@ -1999,7 +1988,7 @@ OfdmaAckSequenceTest::DoRun()
     phy.SetPcapDataLinkType(WifiPhyHelper::DLT_IEEE802_11_RADIO);
     phy.SetErrorRateModel("ns3::NistErrorRateModel");
     phy.SetChannel(spectrumChannel);
-    switch (m_channelWidth)
+    switch (static_cast<uint16_t>(m_channelWidth))
     {
     case 20:
         phy.Set("ChannelSettings", StringValue("{36, 20, BAND_5GHZ, 0}"));
@@ -2145,8 +2134,8 @@ OfdmaAckSequenceTest::DoRun()
     m_apDevice = DynamicCast<WifiNetDevice>(wifi.Install(phy, mac, wifiApNode).Get(0));
 
     // Assign fixed streams to random variables in use
-    streamNumber += wifi.AssignStreams(NetDeviceContainer(m_apDevice), streamNumber);
-    streamNumber += wifi.AssignStreams(m_staDevices, streamNumber);
+    streamNumber += WifiHelper::AssignStreams(NetDeviceContainer(m_apDevice), streamNumber);
+    streamNumber += WifiHelper::AssignStreams(m_staDevices, streamNumber);
 
     MobilityHelper mobility;
     Ptr<ListPositionAllocator> positionAlloc = CreateObject<ListPositionAllocator>();

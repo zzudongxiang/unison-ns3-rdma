@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2018-20 NITK Surathkal
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Authors: Aarti Nandagiri <aarti.nandagiri@gmail.com>
  *          Vivek Jain <jain.vivek.anand@gmail.com>
@@ -41,7 +30,7 @@
 //     * bbr-3-0.pcap for the first interface on R2
 //     * bbr-3-1.pcap for the second interface on R2
 // (2) cwnd.dat file contains congestion window trace for the sender node
-// (3) throughput.dat file contains sender side throughput trace
+// (3) throughput.dat file contains sender side throughput trace (throughput is in Mbit/s)
 // (4) queueSize.dat file contains queue length trace from the bottleneck link
 //
 // BBR algorithm enters PROBE_RTT phase in every 10 seconds. The congestion
@@ -81,9 +70,12 @@ TraceThroughput(Ptr<FlowMonitor> monitor)
     {
         auto itr = stats.begin();
         Time curTime = Now();
-        throughput << curTime << " "
+
+        // Convert (curTime - prevTime) to microseconds so that throughput is in bits per
+        // microsecond (which is equivalent to Mbps)
+        throughput << curTime.GetSeconds() << "s "
                    << 8 * (itr->second.txBytes - prev) / ((curTime - prevTime).ToDouble(Time::US))
-                   << std::endl;
+                   << " Mbps" << std::endl;
         prevTime = curTime;
         prev = itr->second.txBytes;
     }

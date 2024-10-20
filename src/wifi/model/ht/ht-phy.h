@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2020 Orange Labs
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Authors: Rediet <getachew.redieteab@orange.com>
  *          Sébastien Deronne <sebastien.deronne@gmail.com> (for logic ported from wifi-phy)
@@ -396,15 +385,15 @@ class HtPhy : public OfdmPhy
      * and is mainly used as a callback for WifiMode operation.
      *
      * \param mcsValue the HT MCS index
-     * \param channelWidth the considered channel width in MHz
-     * \param guardInterval the considered guard interval duration in nanoseconds
+     * \param channelWidth the considered channel width
+     * \param guardInterval the considered guard interval duration
      * \param nss the considered number of stream
      *
      * \return the physical bit rate of this signal in bps.
      */
     static uint64_t GetPhyRate(uint8_t mcsValue,
-                               uint16_t channelWidth,
-                               uint16_t guardInterval,
+                               MHz_u channelWidth,
+                               Time guardInterval,
                                uint8_t nss);
     /**
      * Return the PHY rate corresponding to
@@ -435,14 +424,14 @@ class HtPhy : public OfdmPhy
      * callback for WifiMode operation.
      *
      * \param mcsValue the HT MCS index
-     * \param channelWidth the channel width in MHz
+     * \param channelWidth the channel width
      * \param guardInterval the guard interval duration in nanoseconds
      * \param nss the number of spatial streams
      * \return the data bit rate in bps.
      */
     static uint64_t GetDataRate(uint8_t mcsValue,
-                                uint16_t channelWidth,
-                                uint16_t guardInterval,
+                                MHz_u channelWidth,
+                                Time guardInterval,
                                 uint8_t nss);
     /**
      * Calculate the rate in bps of the non-HT Reference Rate corresponding
@@ -466,7 +455,7 @@ class HtPhy : public OfdmPhy
     PhyFieldRxStatus DoEndReceiveField(WifiPpduField field, Ptr<Event> event) override;
     bool IsAllConfigSupported(WifiPpduField field, Ptr<const WifiPpdu> ppdu) const override;
     bool IsConfigSupported(Ptr<const WifiPpdu> ppdu) const override;
-    Ptr<SpectrumValue> GetTxPowerSpectralDensity(double txPowerW,
+    Ptr<SpectrumValue> GetTxPowerSpectralDensity(Watt_u txPower,
                                                  Ptr<const WifiPpdu> ppdu) const override;
     uint32_t GetMaxPsduSize() const override;
     CcaIndication GetCcaIndication(const Ptr<const WifiPpdu> ppdu) override;
@@ -538,16 +527,10 @@ class HtPhy : public OfdmPhy
                                       uint8_t nss);
 
     /**
-     * \param channelWidth the channel width in MHz
-     * \return the symbol duration excluding guard interval
-     */
-    static Time GetSymbolDuration(uint16_t channelWidth);
-
-    /**
-     * \param channelWidth the channel width in MHz
+     * \param channelWidth the channel width
      * \return the number of usable subcarriers for data
      */
-    static uint16_t GetUsableSubcarriers(uint16_t channelWidth);
+    static uint16_t GetUsableSubcarriers(MHz_u channelWidth);
 
     /**
      * \param guardInterval the guard interval duration

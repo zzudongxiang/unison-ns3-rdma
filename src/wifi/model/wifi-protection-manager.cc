@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2020 Universita' degli Studi di Napoli Federico II
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Stefano Avallone <stavallo@unina.it>
  */
@@ -80,7 +69,7 @@ WifiProtectionManager::SetLinkId(uint8_t linkId)
 
 void
 WifiProtectionManager::AddUserInfoToMuRts(CtrlTriggerHeader& muRts,
-                                          uint16_t txWidth,
+                                          MHz_u txWidth,
                                           const Mac48Address& receiver) const
 {
     NS_LOG_FUNCTION(this << muRts << txWidth << receiver);
@@ -91,16 +80,17 @@ WifiProtectionManager::AddUserInfoToMuRts(CtrlTriggerHeader& muRts,
     auto apMac = StaticCast<ApWifiMac>(m_mac);
     ui.SetAid12(apMac->GetAssociationId(receiver, m_linkId));
 
-    const uint16_t ctsTxWidth =
+    const auto ctsTxWidth =
         std::min(txWidth, GetWifiRemoteStationManager()->GetChannelWidthSupported(receiver));
     auto phy = m_mac->GetWifiPhy(m_linkId);
     std::size_t primaryIdx = phy->GetOperatingChannel().GetPrimaryChannelIndex(ctsTxWidth);
-    if (phy->GetChannelWidth() == 160 && ctsTxWidth <= 40 && primaryIdx >= 80 / ctsTxWidth)
+    std::size_t idx80MHz = 80 / ctsTxWidth;
+    if ((phy->GetChannelWidth() == 160) && (ctsTxWidth <= 40) && (primaryIdx >= idx80MHz))
     {
         // the primary80 is in the higher part of the 160 MHz channel
         primaryIdx -= 80 / ctsTxWidth;
     }
-    switch (ctsTxWidth)
+    switch (static_cast<uint16_t>(ctsTxWidth))
     {
     case 20:
         ui.SetMuRtsRuAllocation(61 + primaryIdx);

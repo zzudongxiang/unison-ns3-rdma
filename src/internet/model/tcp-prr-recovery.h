@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2018 NITK Surathkal
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Viyom Mittal <viyommittal@gmail.com>
  *         Vivek Jain <jain.vivek.anand@gmail.com>
@@ -61,15 +50,6 @@ class TcpPrrRecovery : public TcpClassicRecovery
 
     ~TcpPrrRecovery() override;
 
-    /**
-     * \brief Reduction Bound variant (CRB or SSRB)
-     */
-    enum ReductionBound_t
-    {
-        CRB, /**< Conservative Reduction Bound */
-        SSRB /**< Slow Start Reduction Bound */
-    };
-
     std::string GetName() const override;
 
     void EnterRecovery(Ptr<TcpSocketState> tcb,
@@ -77,7 +57,7 @@ class TcpPrrRecovery : public TcpClassicRecovery
                        uint32_t unAckDataCount,
                        uint32_t deliveredBytes) override;
 
-    void DoRecovery(Ptr<TcpSocketState> tcb, uint32_t deliveredBytes) override;
+    void DoRecovery(Ptr<TcpSocketState> tcb, uint32_t deliveredBytes, bool isDupAck) override;
 
     void ExitRecovery(Ptr<TcpSocketState> tcb) override;
 
@@ -89,7 +69,6 @@ class TcpPrrRecovery : public TcpClassicRecovery
     uint32_t m_prrDelivered{0};       //!< total bytes delivered during recovery phase
     uint32_t m_prrOut{0};             //!< total bytes sent during recovery phase
     uint32_t m_recoveryFlightSize{0}; //!< value of bytesInFlight at the start of recovery phase
-    ReductionBound_t m_reductionBoundMode{SSRB}; //!< mode of Reduction Bound to be used
 };
 } // namespace ns3
 

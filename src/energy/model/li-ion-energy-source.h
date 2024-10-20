@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2010 Andrea Sacco
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Andrea Sacco <andrea.sacco85@gmail.com>
  */
@@ -35,9 +24,6 @@ namespace energy
 /**
  * \ingroup energy
  * \brief Model a generic Lithium Ion Battery basing on [1][2].
- *
- * \deprecated The LiIonEnergySource was deprecated in ns-3.40 in favor of GenericBatteryModel, and
- * will be removed in a future release.
  *
  * The model can be fitted to any type of Li-Ion Battery, simply changing the
  * model parameters.
@@ -76,9 +62,15 @@ namespace energy
  * Generic Battery Model for the Dynamic Simulation of Hybrid Electric Vehicles," Ecole de
  * Technologie Superieure, Universite du Quebec, 2007 [3]
  * http://www.panasonic.com/industrial/includes/pdf/Panasonic_LiIon_CGR18650DA.pdf
- *
+
  */
-class LiIonEnergySource : public EnergySource
+// clang-format off
+class
+NS_DEPRECATED_3_40("The LiIonEnergySource was deprecated in ns-3.40 "
+                   "in favor of GenericBatteryModel, and will be removed "
+                   "in a future release.")
+LiIonEnergySource : public EnergySource
+// clang-format on
 {
   public:
     /**

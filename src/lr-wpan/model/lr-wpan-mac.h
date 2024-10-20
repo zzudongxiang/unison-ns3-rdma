@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2011 The Boeing Company
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Authors:
  *  Gary Pei <guangyu.pei@boeing.com>
@@ -520,11 +509,11 @@ class LrWpanMac : public LrWpanMacBase
     SequenceNumber8 m_macBsn;
 
     /**
-     * The contents of the beacon payload.
+     * The set with the contents of the beacon payload.
      * This value is set directly by the MLME-SET primitive.
      * See IEEE 802.15.4-2011, section 6.4.2, Table 52.
      */
-    Ptr<Packet> m_macBeaconPayload;
+    std::vector<uint8_t> m_macBeaconPayload;
 
     /**
      * The length, in octets, of the beacon payload.
@@ -668,14 +657,14 @@ class LrWpanMac : public LrWpanMacBase
     /**
      * Check if the packet destination is its coordinator
      *
-     *\param mac The coordinator short MAC Address
+     * \param mac The coordinator short MAC Address
      */
     void SetAssociatedCoor(Mac16Address mac);
 
     /**
      * Check if the packet destination is its coordinator
      *
-     *\param mac The coordinator extended MAC Address
+     * \param mac The coordinator extended MAC Address
      */
     void SetAssociatedCoor(Mac64Address mac);
 
@@ -689,15 +678,15 @@ class LrWpanMac : public LrWpanMacBase
     /**
      * Obtain the number of symbols in the packet which is currently being sent by the MAC layer.
      *
-     *\return packet number of symbols
-     * */
+     * \return packet number of symbols
+     */
     uint64_t GetTxPacketSymbols();
 
     /**
      * Check if the packet to transmit requires acknowledgment
      *
-     *\return True if the Tx packet requires acknowledgment
-     * */
+     * \return True if the Tx packet requires acknowledgment
+     */
     bool IsTxAckReq();
 
     /**
@@ -711,6 +700,15 @@ class LrWpanMac : public LrWpanMacBase
      * \param os The reference to the output stream used by this print function.
      */
     void PrintTxQueue(std::ostream& os) const;
+
+    /**
+     * Assign a fixed random variable stream number to the random variables
+     * used by this model.  Return the number of streams that have been assigned.
+     *
+     * \param stream first stream index to use
+     * \return the number of stream indices assigned by this model
+     */
+    int64_t AssignStreams(int64_t stream);
 
     /**
      * TracedCallback signature for sent packets.
@@ -730,6 +728,7 @@ class LrWpanMac : public LrWpanMacBase
      * TracedValue \c MacStateValue. The \c MacState TracedCallback will
      * be removed in a future release.
      */
+    // NS_DEPRECATED() - tag for future removal
     typedef void (*StateTracedCallback)(MacState oldState, MacState newState);
 
   protected:
@@ -855,6 +854,14 @@ class LrWpanMac : public LrWpanMacBase
      * Called if the device is unable to locate a beacon in the time set by MLME-SYNC.request.
      */
     void BeaconSearchTimeout();
+
+    /**
+     * Used to process the reception of a beacon packet.
+     *
+     * \param lqi The value of the link quality indicator (LQI) of the received packet
+     * \param p The packet containing the MAC header and the beacon payload information
+     */
+    void ReceiveBeacon(uint8_t lqi, Ptr<Packet> p);
 
     /**
      * Send an acknowledgment packet for the given sequence number.
@@ -1121,6 +1128,7 @@ class LrWpanMac : public LrWpanMacBase
      * removed in a future release,  Instead, use the \c MacStateValue
      * TracedValue.
      */
+    // NS_DEPRECATED() - tag for future removal
     TracedCallback<MacState, MacState> m_macStateLogger;
 
     /**
@@ -1323,6 +1331,11 @@ class LrWpanMac : public LrWpanMacBase
      * Scheduler event for the end of a ED channel scan.
      */
     EventId m_scanEnergyEvent;
+
+    /**
+     * The uniform random variable used in this mac layer
+     */
+    Ptr<UniformRandomVariable> m_uniformVar;
 };
 } // namespace lrwpan
 } // namespace ns3

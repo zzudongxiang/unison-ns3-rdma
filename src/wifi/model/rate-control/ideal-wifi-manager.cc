@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2006 INRIA
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Mathieu Lacage <mathieu.lacage@sophia.inria.fr>
  */
@@ -38,15 +27,14 @@ namespace ns3
 struct IdealWifiRemoteStation : public WifiRemoteStation
 {
     double m_lastSnrObserved; //!< SNR of most recently reported packet sent to the remote station
-    uint16_t m_lastChannelWidthObserved; //!< Channel width (in MHz) of most recently reported
-                                         //!< packet sent to the remote station
+    MHz_u m_lastChannelWidthObserved; //!< Channel width of most recently
+                                      //!< reported packet sent to the remote station
     uint16_t m_lastNssObserved; //!<  Number of spatial streams of most recently reported packet
                                 //!<  sent to the remote station
     double m_lastSnrCached;     //!< SNR most recently used to select a rate
     uint8_t m_lastNss;   //!< Number of spatial streams most recently used to the remote station
     WifiMode m_lastMode; //!< Mode most recently used to the remote station
-    uint16_t
-        m_lastChannelWidth; //!< Channel width (in MHz) most recently used to the remote station
+    MHz_u m_lastChannelWidth; //!< Channel width most recently used to the remote station
 };
 
 /// To avoid using the cache before a valid value has been cached
@@ -94,7 +82,7 @@ IdealWifiManager::SetupPhy(const Ptr<WifiPhy> phy)
     WifiRemoteStationManager::SetupPhy(phy);
 }
 
-uint16_t
+MHz_u
 IdealWifiManager::GetChannelWidthForNonHtMode(WifiMode mode) const
 {
     NS_ASSERT(mode.GetModulationClass() < WIFI_MOD_CLASS_HT);
@@ -136,12 +124,13 @@ IdealWifiManager::BuildSnrThresholds()
     {
         for (const auto& mode : GetPhy()->GetMcsList())
         {
-            for (uint16_t j = 20; j <= GetPhy()->GetChannelWidth(); j *= 2)
+            for (MHz_u j = 20; j <= GetPhy()->GetChannelWidth(); j *= 2)
             {
                 txVector.SetChannelWidth(j);
                 if (mode.GetModulationClass() == WIFI_MOD_CLASS_HT)
                 {
-                    uint16_t guardInterval = GetShortGuardIntervalSupported() ? 400 : 800;
+                    const auto guardInterval =
+                        NanoSeconds(GetShortGuardIntervalSupported() ? 400 : 800);
                     txVector.SetGuardInterval(guardInterval);
                     // derive NSS from the MCS index
                     nss = (mode.GetMcsValue() / 8) + 1;
@@ -153,10 +142,10 @@ IdealWifiManager::BuildSnrThresholds()
                 }
                 else
                 {
-                    uint16_t guardInterval;
+                    Time guardInterval{};
                     if (mode.GetModulationClass() == WIFI_MOD_CLASS_VHT)
                     {
-                        guardInterval = GetShortGuardIntervalSupported() ? 400 : 800;
+                        guardInterval = NanoSeconds(GetShortGuardIntervalSupported() ? 400 : 800);
                     }
                     else
                     {
@@ -280,7 +269,7 @@ IdealWifiManager::DoReportDataOk(WifiRemoteStation* st,
                                  double ackSnr,
                                  WifiMode ackMode,
                                  double dataSnr,
-                                 uint16_t dataChannelWidth,
+                                 MHz_u dataChannelWidth,
                                  uint8_t dataNss)
 {
     NS_LOG_FUNCTION(this << st << ackSnr << ackMode.GetUniqueName() << dataSnr << dataChannelWidth
@@ -302,7 +291,7 @@ IdealWifiManager::DoReportAmpduTxStatus(WifiRemoteStation* st,
                                         uint16_t nFailedMpdus,
                                         double rxSnr,
                                         double dataSnr,
-                                        uint16_t dataChannelWidth,
+                                        MHz_u dataChannelWidth,
                                         uint8_t dataNss)
 {
     NS_LOG_FUNCTION(this << st << nSuccessfulMpdus << nFailedMpdus << rxSnr << dataSnr
@@ -333,7 +322,7 @@ IdealWifiManager::DoReportFinalDataFailed(WifiRemoteStation* station)
 }
 
 WifiTxVector
-IdealWifiManager::DoGetDataTxVector(WifiRemoteStation* st, uint16_t allowedWidth)
+IdealWifiManager::DoGetDataTxVector(WifiRemoteStation* st, MHz_u allowedWidth)
 {
     NS_LOG_FUNCTION(this << st << allowedWidth);
     auto station = static_cast<IdealWifiRemoteStation*>(st);
@@ -344,8 +333,8 @@ IdealWifiManager::DoGetDataTxVector(WifiRemoteStation* st, uint16_t allowedWidth
     WifiTxVector txVector;
     uint64_t bestRate = 0;
     uint8_t selectedNss = 1;
-    uint16_t guardInterval;
-    uint16_t channelWidth = std::min(GetChannelWidth(station), allowedWidth);
+    Time guardInterval{};
+    const auto channelWidth = std::min(GetChannelWidth(station), allowedWidth);
     txVector.SetChannelWidth(channelWidth);
     if ((station->m_lastSnrCached != CACHE_INITIAL_VALUE) &&
         (station->m_lastSnrObserved == station->m_lastSnrCached) &&
@@ -373,16 +362,16 @@ IdealWifiManager::DoGetDataTxVector(WifiRemoteStation* st, uint16_t allowedWidth
                     continue;
                 }
                 txVector.SetMode(mode);
-                uint16_t guardInterval;
+                Time guardInterval{};
                 if (mode.GetModulationClass() >= WIFI_MOD_CLASS_HE)
                 {
                     guardInterval = std::max(GetGuardInterval(station), GetGuardInterval());
                 }
                 else
                 {
-                    guardInterval = static_cast<uint16_t>(
-                        std::max(GetShortGuardIntervalSupported(station) ? 400 : 800,
-                                 GetShortGuardIntervalSupported() ? 400 : 800));
+                    guardInterval =
+                        std::max(NanoSeconds(GetShortGuardIntervalSupported(station) ? 400 : 800),
+                                 NanoSeconds(GetShortGuardIntervalSupported() ? 400 : 800));
                 }
                 txVector.SetGuardInterval(guardInterval);
                 if (mode.GetModulationClass() == WIFI_MOD_CLASS_HT)
@@ -466,7 +455,7 @@ IdealWifiManager::DoGetDataTxVector(WifiRemoteStation* st, uint16_t allowedWidth
                 auto mode = GetSupported(station, i);
                 txVector.SetMode(mode);
                 txVector.SetNss(selectedNss);
-                uint16_t channelWidth = GetChannelWidthForNonHtMode(mode);
+                const auto channelWidth = GetChannelWidthForNonHtMode(mode);
                 txVector.SetChannelWidth(channelWidth);
                 double threshold = GetSnrThreshold(txVector);
                 uint64_t dataRate = mode.GetDataRate(txVector.GetChannelWidth(),
@@ -500,13 +489,12 @@ IdealWifiManager::DoGetDataTxVector(WifiRemoteStation* st, uint16_t allowedWidth
     }
     else if ((maxMode.GetModulationClass() >= WIFI_MOD_CLASS_HT))
     {
-        guardInterval =
-            static_cast<uint16_t>(std::max(GetShortGuardIntervalSupported(station) ? 400 : 800,
-                                           GetShortGuardIntervalSupported() ? 400 : 800));
+        guardInterval = std::max(NanoSeconds(GetShortGuardIntervalSupported(station) ? 400 : 800),
+                                 NanoSeconds(GetShortGuardIntervalSupported() ? 400 : 800));
     }
     else
     {
-        guardInterval = 800;
+        guardInterval = NanoSeconds(800);
     }
     WifiTxVector bestTxVector{
         maxMode,
@@ -558,7 +546,7 @@ IdealWifiManager::DoGetRtsTxVector(WifiRemoteStation* st)
         maxMode,
         GetDefaultTxPowerLevel(),
         GetPreambleForTransmission(maxMode.GetModulationClass(), GetShortPreambleEnabled()),
-        800,
+        NanoSeconds(800),
         GetNumberOfAntennas(),
         nss,
         0,
@@ -568,7 +556,7 @@ IdealWifiManager::DoGetRtsTxVector(WifiRemoteStation* st)
 
 double
 IdealWifiManager::GetLastObservedSnr(IdealWifiRemoteStation* station,
-                                     uint16_t channelWidth,
+                                     MHz_u channelWidth,
                                      uint8_t nss) const
 {
     double snr = station->m_lastSnrObserved;

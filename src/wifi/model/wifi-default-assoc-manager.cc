@@ -2,18 +2,7 @@
  * Copyright (c) 2022 Universita' degli Studi di Napoli Federico II
 
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Stefano Avallone <stavallo@unina.it>
  */
@@ -21,10 +10,12 @@
 #include "wifi-default-assoc-manager.h"
 
 #include "sta-wifi-mac.h"
+#include "wifi-net-device.h"
 #include "wifi-phy.h"
 
 #include "ns3/log.h"
 #include "ns3/simulator.h"
+#include "ns3/vht-configuration.h"
 
 #include <algorithm>
 
@@ -212,14 +203,17 @@ WifiDefaultAssocManager::EndScanning()
                     // switching channel while a PHY is in sleep state fails
                     phy->ResumeFromSleep();
                 }
-                // switch this link to using the channel used by a reported AP
-                // TODO check if the STA only supports a narrower channel width
+                // switch this link to using the channel used by a reported AP (or its primary80
+                // in case the reported AP is using a 160 MHz and the non-AP MLD does not support
+                // 160 MHz operations)
+                if (apChannel.GetTotalWidth() > 80 &&
+                    !phy->GetDevice()->GetVhtConfiguration()->Get160MHzOperationSupported())
+                {
+                    apChannel = apChannel.GetPrimaryChannel(80);
+                }
+
                 NS_LOG_DEBUG("Switch link " << +linkId << " to using " << apChannel);
-                WifiPhy::ChannelTuple chTuple{apChannel.GetNumber(),
-                                              apChannel.GetWidth(),
-                                              apChannel.GetPhyBand(),
-                                              apChannel.GetPrimaryChannelIndex(20)};
-                phy->SetOperatingChannel(chTuple);
+                phy->SetOperatingChannel(apChannel);
                 // actual channel switching may be delayed, thus setup a channel switch timer
                 m_channelSwitchInfo.resize(m_mac->GetNLinks());
                 m_channelSwitchInfo[linkId].timer.Cancel();

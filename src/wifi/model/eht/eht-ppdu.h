@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2021 DERONNE SOFTWARE ENGINEERING
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Sébastien Deronne <sebastien.deronne@gmail.com>
  */
@@ -107,7 +96,7 @@ class EhtPpdu : public HePpdu
      * Get the number of RUs per EHT-SIG-B content channel.
      * This function will be used once EHT PHY headers are implemented.
      *
-     * \param channelWidth the channel width occupied by the PPDU (in MHz)
+     * \param channelWidth the channel width occupied by the PPDU
      * \param ehtPpduType the EHT_PPDU_TYPE used by the PPDU
      * \param ruAllocation 8 bit RU_ALLOCATION per 20 MHz
      * \param compression flag whether compression mode is used by the PPDU
@@ -115,7 +104,7 @@ class EhtPpdu : public HePpdu
      * \return a pair containing the number of RUs in each EHT-SIG-B content channel (resp. 1 and 2)
      */
     static std::pair<std::size_t, std::size_t> GetNumRusPerEhtSigBContentChannel(
-        uint16_t channelWidth,
+        MHz_u channelWidth,
         uint8_t ehtPpduType,
         const std::vector<uint8_t>& ruAllocation,
         bool compression,
@@ -134,14 +123,14 @@ class EhtPpdu : public HePpdu
 
     /**
      * Get variable length EHT-SIG field size
-     * \param channelWidth the channel width occupied by the PPDU (in MHz)
+     * \param channelWidth the channel width occupied by the PPDU
      * \param ruAllocation 8 bit RU_ALLOCATION per 20 MHz
      * \param ehtPpduType the EHT_PPDU_TYPE used by the PPDU
      * \param compression flag whether compression mode is used by the PPDU
      * \param numMuMimoUsers the number of MU-MIMO users addressed by the PPDU
      * \return field size in bytes
      */
-    static uint32_t GetEhtSigFieldSize(uint16_t channelWidth,
+    static uint32_t GetEhtSigFieldSize(MHz_u channelWidth,
                                        const std::vector<uint8_t>& ruAllocation,
                                        uint8_t ehtPpduType,
                                        bool compression,

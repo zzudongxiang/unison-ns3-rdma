@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2009 MIRKO BANCHI
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Mirko Banchi <mk.banchi@gmail.com>
  */
@@ -1128,13 +1117,13 @@ class CtrlTriggerHeader : public Header
      *
      * \param bw bandwidth (allowed values: 20, 40, 80, 160)
      */
-    void SetUlBandwidth(uint16_t bw);
+    void SetUlBandwidth(MHz_u bw);
     /**
      * Get the bandwidth of the solicited HE TB PPDU.
      *
      * \return the bandwidth (20, 40, 80 or 160)
      */
-    uint16_t GetUlBandwidth() const;
+    MHz_u GetUlBandwidth() const;
     /**
      * Set the GI And LTF Type subfield of the Common Info field.
      * Allowed combinations are:
@@ -1142,16 +1131,16 @@ class CtrlTriggerHeader : public Header
      *   - 2x LTF + 1.6us GI
      *   - 4x LTF + 3.2us GI
      *
-     * \param guardInterval the guard interval duration (in nanoseconds)
+     * \param guardInterval the guard interval duration
      * \param ltfType the HE-LTF type (1, 2 or 4)
      */
-    void SetGiAndLtfType(uint16_t guardInterval, uint8_t ltfType);
+    void SetGiAndLtfType(Time guardInterval, uint8_t ltfType);
     /**
-     * Get the guard interval duration (in nanoseconds) of the solicited HE TB PPDU.
+     * Get the guard interval duration of the solicited HE TB PPDU.
      *
-     * \return the guard interval duration (in nanoseconds) of the solicited HE TB PPDU
+     * \return the guard interval duration  of the solicited HE TB PPDU
      */
-    uint16_t GetGuardInterval() const;
+    Time GetGuardInterval() const;
     /**
      * Get the LTF type of the solicited HE TB PPDU.
      *

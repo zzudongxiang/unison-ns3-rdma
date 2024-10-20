@@ -1,18 +1,7 @@
 //
 // Copyright (c) 2006 Georgia Tech Research Corporation
 //
-// This program is free software; you can redistribute it and/or modify
-// it under the terms of the GNU General Public License version 2 as
-// published by the Free Software Foundation;
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+// SPDX-License-Identifier: GPL-2.0-only
 //
 // Author: George F. Riley<riley@ece.gatech.edu>
 //
@@ -256,6 +245,7 @@ class Ipv4L3Protocol : public Ipv4
      * \deprecated The non-const \c Ptr<Ipv4> argument is deprecated
      * and will be changed to \c Ptr<const Ipv4> in a future release.
      */
+    // NS_DEPRECATED() - tag for future removal
     typedef void (*TxRxTracedCallback)(Ptr<const Packet> packet,
                                        Ptr<Ipv4> ipv4,
                                        uint32_t interface);
@@ -271,6 +261,7 @@ class Ipv4L3Protocol : public Ipv4
      * \deprecated The non-const \c Ptr<Ipv4> argument is deprecated
      * and will be changed to \c Ptr<const Ipv4> in a future release.
      */
+    // NS_DEPRECATED() - tag for future removal
     typedef void (*DropTracedCallback)(const Ipv4Header& header,
                                        Ptr<const Packet> packet,
                                        DropReason reason,
@@ -297,8 +288,10 @@ class Ipv4L3Protocol : public Ipv4
     void SetIpForward(bool forward) override;
     bool GetIpForward() const override;
 
+    /** \copydoc Ipv4::SetWeakEsModel */
     NS_DEPRECATED_3_41("Use SetStrongEndSystemModel instead")
     void SetWeakEsModel(bool model) override;
+    /** \copydoc Ipv4::GetWeakEsModel */
     NS_DEPRECATED_3_41("Use GetStrongEndSystemModel instead")
     bool GetWeakEsModel() const override;
 
@@ -490,15 +483,18 @@ class Ipv4L3Protocol : public Ipv4
     /// Trace of transmitted packets
     /// \deprecated The non-const \c Ptr<Ipv4> argument is deprecated
     /// and will be changed to \c Ptr<const Ipv4> in a future release.
+    // NS_DEPRECATED() - tag for future removal
     TracedCallback<Ptr<const Packet>, Ptr<Ipv4>, uint32_t> m_txTrace;
     /// Trace of received packets
     /// \deprecated The non-const \c Ptr<Ipv4> argument is deprecated
     /// and will be changed to \c Ptr<const Ipv4> in a future release.
+    // NS_DEPRECATED() - tag for future removal
     TracedCallback<Ptr<const Packet>, Ptr<Ipv4>, uint32_t> m_rxTrace;
     // <ip-header, payload, reason, ifindex> (ifindex not valid if reason is DROP_NO_ROUTE)
     /// Trace of dropped packets
     /// \deprecated The non-const \c Ptr<Ipv4> argument is deprecated
     /// and will be changed to \c Ptr<const Ipv4> in a future release.
+    // NS_DEPRECATED() - tag for future removal
     TracedCallback<const Ipv4Header&, Ptr<const Packet>, DropReason, Ptr<Ipv4>, uint32_t>
         m_dropTrace;
 

@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2022 DERONNE SOFTWARE ENGINEERING
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Sébastien Deronne <sebastien.deronne@gmail.com>
  */
@@ -49,8 +38,8 @@ using namespace ns3;
 
 NS_LOG_COMPONENT_DEFINE("WifiPhyMuMimoTest");
 
-constexpr uint32_t DEFAULT_FREQUENCY = 5180;   // MHz
-constexpr uint16_t DEFAULT_CHANNEL_WIDTH = 20; // MHz
+constexpr MHz_u DEFAULT_FREQUENCY = 5180;
+constexpr MHz_u DEFAULT_CHANNEL_WIDTH = 20;
 
 /**
  * \ingroup wifi-test
@@ -69,12 +58,12 @@ class TestDlMuTxVector : public TestCase
     /**
      * Build a TXVECTOR for DL MU with the given bandwidth and user information.
      *
-     * \param bw the channel width of the PPDU in MHz
+     * \param bw the channel width of the PPDU
      * \param userInfos the list of HE MU specific user transmission parameters
      *
      * \return the configured MU TXVECTOR
      */
-    static WifiTxVector BuildTxVector(uint16_t bw, const std::list<HeMuUserInfo>& userInfos);
+    static WifiTxVector BuildTxVector(MHz_u bw, const std::list<HeMuUserInfo>& userInfos);
 };
 
 TestDlMuTxVector::TestDlMuTxVector()
@@ -83,7 +72,7 @@ TestDlMuTxVector::TestDlMuTxVector()
 }
 
 WifiTxVector
-TestDlMuTxVector::BuildTxVector(uint16_t bw, const std::list<HeMuUserInfo>& userInfos)
+TestDlMuTxVector::BuildTxVector(MHz_u bw, const std::list<HeMuUserInfo>& userInfos)
 {
     WifiTxVector txVector;
     txVector.SetPreambleType(WIFI_PREAMBLE_HE_MU);
@@ -495,8 +484,8 @@ class TestDlMuMimoPhyTransmission : public TestCase
     Ptr<MuMimoSpectrumWifiPhy> m_phySta3; ///< PHY of STA 3
 
     uint8_t m_nss;               ///< number of spatial streams per STA
-    uint16_t m_frequency;        ///< frequency in MHz
-    uint16_t m_channelWidth;     ///< channel width in MHz
+    MHz_u m_frequency;           ///< frequency
+    MHz_u m_channelWidth;        ///< channel width
     Time m_expectedPpduDuration; ///< expected duration to send MU PPDU
 };
 
@@ -541,7 +530,7 @@ TestDlMuMimoPhyTransmission::SendMuPpdu(const std::vector<StaInfo>& staInfos)
     WifiTxVector txVector = WifiTxVector(HePhy::GetHeMcs7(),
                                          0,
                                          WIFI_PREAMBLE_HE_MU,
-                                         800,
+                                         NanoSeconds(800),
                                          1,
                                          1,
                                          0,
@@ -800,11 +789,12 @@ TestDlMuMimoPhyTransmission::RunOne()
     m_phySta1->AssignStreams(streamNumber);
     m_phySta2->AssignStreams(streamNumber);
 
-    auto channelNum = std::get<0>(*WifiPhyOperatingChannel::FindFirst(0,
-                                                                      m_frequency,
-                                                                      m_channelWidth,
-                                                                      WIFI_STANDARD_80211ax,
-                                                                      WIFI_PHY_BAND_5GHZ));
+    auto channelNum = WifiPhyOperatingChannel::FindFirst(0,
+                                                         m_frequency,
+                                                         m_channelWidth,
+                                                         WIFI_STANDARD_80211ax,
+                                                         WIFI_PHY_BAND_5GHZ)
+                          ->number;
 
     m_phyAp->SetOperatingChannel(
         WifiPhy::ChannelTuple{channelNum, m_channelWidth, WIFI_PHY_BAND_5GHZ, 0});
@@ -1265,8 +1255,8 @@ class TestUlMuMimoPhyTransmission : public TestCase
     std::vector<uint32_t> m_countRxBytesFromStas;   ///< count RX bytes from STAs
 
     Time m_delayStart;           ///< delay between the start of each HE TB PPDUs
-    uint16_t m_frequency;        ///< frequency in MHz
-    uint16_t m_channelWidth;     ///< channel width in MHz
+    MHz_u m_frequency;           ///< frequency
+    MHz_u m_channelWidth;        ///< channel width
     Time m_expectedPpduDuration; ///< expected duration to send MU PPDU
 };
 
@@ -1294,7 +1284,7 @@ TestUlMuMimoPhyTransmission::SendHeSuPpdu(uint16_t txStaId,
     WifiTxVector txVector = WifiTxVector(HePhy::GetHeMcs7(),
                                          0,
                                          WIFI_PREAMBLE_HE_SU,
-                                         800,
+                                         NanoSeconds(800),
                                          1,
                                          1,
                                          0,
@@ -1329,7 +1319,7 @@ TestUlMuMimoPhyTransmission::GetTxVectorForHeTbPpdu(uint16_t txStaId,
     WifiTxVector txVector = WifiTxVector(HePhy::GetHeMcs7(),
                                          0,
                                          WIFI_PREAMBLE_HE_TB,
-                                         1600,
+                                         NanoSeconds(1600),
                                          1,
                                          nss,
                                          0,
@@ -1353,7 +1343,7 @@ TestUlMuMimoPhyTransmission::SetTrigVector(const std::vector<uint16_t>& staIds, 
     WifiTxVector txVector(HePhy::GetHeMcs7(),
                           0,
                           WIFI_PREAMBLE_HE_TB,
-                          1600,
+                          NanoSeconds(1600),
                           1,
                           1,
                           0,
@@ -1421,7 +1411,7 @@ TestUlMuMimoPhyTransmission::RxSuccess(Ptr<const WifiPsdu> psdu,
                                        std::vector<bool> /*statusPerMpdu*/)
 {
     NS_LOG_FUNCTION(this << *psdu << psdu->GetAddr2() << RatioToDb(rxSignalInfo.snr) << txVector);
-    NS_TEST_ASSERT_MSG_EQ((RatioToDb(rxSignalInfo.snr) > 0), true, "Incorrect SNR value");
+    NS_TEST_ASSERT_MSG_EQ((RatioToDb(rxSignalInfo.snr) > dB_u{0.0}), true, "Incorrect SNR value");
     for (std::size_t index = 0; index < m_countRxSuccessFromStas.size(); ++index)
     {
         std::ostringstream addr;
@@ -1708,11 +1698,12 @@ TestUlMuMimoPhyTransmission::RunOne()
         phy->AssignStreams(streamNumber);
     }
 
-    auto channelNum = std::get<0>(*WifiPhyOperatingChannel::FindFirst(0,
-                                                                      m_frequency,
-                                                                      m_channelWidth,
-                                                                      WIFI_STANDARD_80211ax,
-                                                                      WIFI_PHY_BAND_5GHZ));
+    auto channelNum = WifiPhyOperatingChannel::FindFirst(0,
+                                                         m_frequency,
+                                                         m_channelWidth,
+                                                         WIFI_STANDARD_80211ax,
+                                                         WIFI_PHY_BAND_5GHZ)
+                          ->number;
 
     m_phyAp->SetOperatingChannel(
         WifiPhy::ChannelTuple{channelNum, m_channelWidth, WIFI_PHY_BAND_5GHZ, 0});

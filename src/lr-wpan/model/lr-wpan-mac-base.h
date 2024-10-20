@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2023 Tokushima University, Japan.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  *  Author: Alberto Gallegos Ramonet <alramonet@is.tokushima-u.ac.jp>
  */
@@ -311,13 +300,18 @@ enum MacPibAttributeIdentifier
  */
 struct MacPibAttributes : public SimpleRefCount<MacPibAttributes>
 {
-    Ptr<Packet> macBeaconPayload;      //!< The contents of the beacon payload.
-    uint8_t macBeaconPayloadLength{0}; //!< The length in octets of the beacon payload.
-    Mac16Address macShortAddress;      //!< The 16 bit mac short address
-    Mac64Address macExtendedAddress;   //!< The EUI-64 bit address
-    uint16_t macPanId{0xffff};         //!< The identifier of the PAN
-    uint8_t pCurrentChannel{11};       //!< The current logical channel in used in the PHY
-    uint8_t pCurrentPage{0};           //!< The current logical page in use in the PHY
+    std::vector<uint8_t> macBeaconPayload; //!< The set with the contents of the beacon payload.
+    uint8_t macBeaconPayloadLength{0};     //!< The length in octets of the beacon payload.
+    Mac16Address macShortAddress;          //!< The 16 bit mac short address
+    Mac64Address macExtendedAddress;       //!< The EUI-64 bit address
+    uint16_t macPanId{0xffff};             //!< The identifier of the PAN
+    bool macAssociationPermit{true};       //!< Indication of whether the coordinator is allowing
+                                           //!< association.
+    bool macRxOnWhenIdle{true}; //!< Indication of whether the MAC is enabled during idle periods.
+    bool macPromiscuousMode{false}; //!< Indication of whether the mac is in promiscuous mode
+                                    //!<  (Receive all mode).
+    uint8_t pCurrentChannel{11};    //!< The current logical channel in used in the PHY
+    uint8_t pCurrentPage{0};        //!< The current logical page in use in the PHY
     // TODO: complete other MAC pib attributes
 };
 
@@ -875,7 +869,7 @@ class LrWpanMacBase : public Object
      * The callback implements MLME-GET.confirm SAP of IEEE 802.15.4-2011,
      * section 6.2.5.2
      *
-     *\param c the callback
+     * \param c the callback
      */
     void SetMlmeGetConfirmCallback(MlmeGetConfirmCallback c);
 

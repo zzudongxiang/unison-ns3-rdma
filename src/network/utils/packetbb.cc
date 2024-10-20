@@ -2,18 +2,7 @@
 /*
  * Copyright (c) 2009 Drexel University
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Tom Wambold <tom5760@gmail.com>
  */
@@ -545,6 +534,7 @@ PbbPacket::PbbPacket()
     NS_LOG_FUNCTION(this);
     m_version = VERSION;
     m_hasseqnum = false;
+    m_forceTlv = false;
 }
 
 PbbPacket::~PbbPacket()
@@ -581,6 +571,13 @@ PbbPacket::HasSequenceNumber() const
 {
     NS_LOG_FUNCTION(this);
     return m_hasseqnum;
+}
+
+void
+PbbPacket::ForceTlv(bool forceTlv)
+{
+    NS_LOG_FUNCTION(this);
+    m_forceTlv = forceTlv;
 }
 
 /* Manipulating Packet TLVs */
@@ -857,7 +854,7 @@ PbbPacket::GetSerializedSize() const
         size += 2;
     }
 
-    if (!TlvEmpty())
+    if (!TlvEmpty() || m_forceTlv)
     {
         size += m_tlvList.GetSerializedSize();
     }
@@ -889,7 +886,7 @@ PbbPacket::Serialize(Buffer::Iterator start) const
         start.WriteHtonU16(GetSequenceNumber());
     }
 
-    if (!TlvEmpty())
+    if (!TlvEmpty() || m_forceTlv)
     {
         flags |= PHAS_TLV;
         m_tlvList.Serialize(start);

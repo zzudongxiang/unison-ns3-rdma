@@ -153,15 +153,52 @@ command to enable pcap tracing:
 
 .. sourcecode:: cpp
 
-  YansWifiPhyHelper::SetPcapDataLinkType(enum SupportedPcapDataLinkTypes dlt)
+  WifiPhyHelper::SetPcapDataLinkType(enum SupportedPcapDataLinkTypes dlt)
 
 |ns3| supports RadioTap and Prism tracing extensions for 802.11.
+
+For MLD devices, it is also possible to select one of these PCAP capture type:
+
+.. sourcecode:: cpp
+
+  WifiPhyHelper::SetPcapCaptureType(PcapCaptureType type)
+
+|ns3| supports three PCAP capture types for MLD devices:
+* a single PCAP file for the device, regardless of PHYs and links
+
+.. sourcecode:: cpp
+
+  phyHelper.SetPcapCaptureType(WifiPhyHelper::PcapCaptureType::PCAP_PER_DEVICE);
+
+* a PCAP file generated per PHY (default behavior)
+
+.. sourcecode:: cpp
+
+  phyHelper.SetPcapCaptureType(WifiPhyHelper::PcapCaptureType::PCAP_PER_PHY);
+
+* a PCAP file generated per link
+
+.. sourcecode:: cpp
+
+  phyHelper.SetPcapCaptureType(WifiPhyHelper::PcapCaptureType::PCAP_PER_LINK);
+
+The PCAP files will always be generated with the suffix of nodeId-deviceId.pcap, unless the user has enabled
+object names on either the Node or the NetDevice, in which case the string name will be used. When PCAP files
+are generated per PHY, that suffix is nodeId-deviceId-linkId.pcap. When PCAP files are generated per link, the
+suffix is nodeId-deviceId-phyId.pcap.
+
+When PCAP files are generated per link, if there is no generated PCAP for a given link, it means
+no packet has been transmitted nor received on that link. Since PHYs of non-AP MLDs may swap their
+links during setup, the link ID appended to the PCAP file might be higher than the highest PHY ID.
+
+In case of SLD devices, the configuration of the capture type has no impact since a single PCAP file
+will always be generated per device.
 
 Note that we haven't actually created any WifiPhy objects yet; we've just
 prepared the YansWifiPhyHelper by telling it which channel it is connected to.
 The Phy objects are created in the next step.
 
-In order to enable 802.11n/ac/ax MIMO, the number of antennas as well as the number of supported spatial streams need to be configured.
+In order to enable 802.11n/ac/ax/be MIMO, the number of antennas as well as the number of supported spatial streams need to be configured.
 For example, this code enables MIMO with 2 antennas and 2 spatial streams:
 
 .. sourcecode:: cpp
@@ -213,22 +250,22 @@ Channel, frequency, channel width, and band configuration
 
 There is a unique ``ns3::WifiPhy`` attribute, named ``ChannelSettings``, that
 enables to set channel number, channel width, frequency band and primary20 index
-all together, in order to eliminate the possibility of inconsistent settings.
+for each segment all together, in order to eliminate the possibility of inconsistent settings.
 The ``ChannelSettings`` attribute can be set in a number of ways (see below) by
-providing either a StringValue object or a TupleValue object:
+providing either a StringValue object or an AttributeContainerValue object:
 
 * Defining a StringValue object to set the ``ChannelSettings`` attribute
 
 .. sourcecode:: cpp
 
-  StringValue value("{38, 40, BAND_5GHZ, 0}"));
+  StringValue value("{38, 40, BAND_5GHZ, 0}");
 
-* Defining a TupleValue object to set the ``ChannelSettings`` attribute
+* Defining an AttributeContainerValue object to set the ``ChannelSettings`` attribute
 
 .. sourcecode:: cpp
 
-  TupleValue<UintegerValue, UintegerValue, EnumValue, UintegerValue> value;
-  value.Set(WifiPhy::ChannelTuple {38, 40, WIFI_PHY_BAND_5GHZ, 0});
+  AttributeContainerValue<TupleValue<UintegerValue, UintegerValue, EnumValue, UintegerValue>, ';'> value;
+  value.Set(WifiPhy::ChannelSegments{{38, 40, WIFI_PHY_BAND_5GHZ, 0}});
 
 In both cases, the operating channel will be channel 38 in the 5 GHz band, which
 has a width of 40 MHz, and the primary20 channel will be the 20 MHz subchannel
@@ -246,8 +283,8 @@ The operating channel settings can then be configured in a number of ways:
 
 .. sourcecode:: cpp
 
-  TupleValue<UintegerValue, UintegerValue, EnumValue, UintegerValue> value;
-  value.Set(WifiPhy::ChannelTuple {38, 40, WIFI_PHY_BAND_5GHZ, 0});
+  AttributeContainerValue<TupleValue<UintegerValue, UintegerValue, EnumValue, UintegerValue>, ';'> value;
+  value.Set(WifiPhy::ChannelSegments{{38, 40, WIFI_PHY_BAND_5GHZ, 0}});
   YansWifiPhyHelper wifiPhyHelper = YansWifiPhyHelper::Default();
   wifiPhyHelper.Set("ChannelSettings", value);
 
@@ -266,11 +303,15 @@ This section provides guidance on how to properly configure these settings.
 WifiHelper::SetStandard()
 +++++++++++++++++++++++++
 
-``WifiHelper::SetStandard ()`` is a method required to set various parameters
+``WifiHelper::SetStandard()`` is a method required to set various parameters
 in the Mac and Phy to standard values, but also to check that the channel
 settings as described above are allowed. For instance, a channel in the 2.4 GHz
 band cannot be configured if the standard is 802.11ac, or a channel in the 6 GHz
 band can only be configured if the standard is 802.11ax (or beyond).
+
+``WifiHelper::SetStandard()`` can also be called by passing a string with the
+standard name. For example any of the strings "802.11ax", "11ax" or "HE" can
+be passed in order to set the standard as ``WIFI_STANDARD_80211ax``.
 
 The following values for WifiStandard are defined in
 ``src/wifi/model/wifi-standards.h``:
@@ -283,7 +324,8 @@ The following values for WifiStandard are defined in
   WIFI_STANDARD_80211p,
   WIFI_STANDARD_80211n,
   WIFI_STANDARD_80211ac,
-  WIFI_STANDARD_80211ax
+  WIFI_STANDARD_80211ax,
+  WIFI_STANDARD_80211be
 
 By default, the WifiHelper (the typical use case for WifiPhy creation) will
 configure the WIFI_STANDARD_80211ax standard by default.  Other values
@@ -301,12 +343,12 @@ as soon as the WifiStandard is set. Here are the rules (applied in the given ord
 
 * If the band is unspecified (i.e., it is set to WIFI_PHY_BAND_UNSPECIFIED or
   "BAND_UNSPECIFIED"), the default band for the configured standard is set
-  (5 GHz band for 802.11{a, ac, ax, p} and 2.4 GHz band for all the others).
+  (5 GHz band for 802.11{a, ac, ax, be, p} and 2.4 GHz band for all the others).
 
 * If both the channel width and the channel number are unspecified (i.e., they
   are set to zero), the default channel width for the configured standard and
-  band is set (22 MHz for 802.11b, 10 MHz for 802.11p, 80 MHz for 802.11ac and
-  for 802.11ax if the band is 5 GHz, and 20 MHz for all other cases).
+  band is set (22 MHz for 802.11b, 10 MHz for 802.11p, 80 MHz for 802.11ac,
+  for 802.11ax and for 802.11be if the band is 5 GHz, and 20 MHz for all other cases).
 
 * If the channel width is unspecified but the channel number is valid, the settings
   are valid only if there exists a unique channel with the given number for the
@@ -497,6 +539,31 @@ WifiPhy::Primary20MHzIndex
 The configured WifiPhy primary 20MHz channel index can be got via the attribute
 ``Primary20MHzIndex`` in the class ``WifiPhy``.
 
+Non-contiguous 160 MHz operating channel configuration (80+80 MHz)
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+An 80+80 MHz operating channel can be configured by setting each 80 MHz channel
+for each segment. For example, the following example code snippet configures an
+non-contiguous 160 MHz channel where the first segment operates on channel 42
+and the second segment operates on channel 106:
+
+::
+
+  Ptr<WifiPhy> wifiPhy = ...;
+  wifiPhy->SetAttribute("ChannelSettings", StringValue("{42, 80, BAND_5GHZ, 0};{106, 80, BAND_5GHZ, 0}"));
+
+It is still possible to have channel numbers set to zero in order to select the default 80+80 MHz channel:
+
+::
+
+  Ptr<WifiPhy> wifiPhy = ...;
+  wifiPhy->SetAttribute("ChannelSettings", StringValue("{0, 80, BAND_UNSPECIFIED, 0};{0, 80, BAND_UNSPECIFIED, 0}"));
+
+which results in the use of channels 42 and 106.
+
+Note that only the primary 20 MHz channel index of the first specified segment is considered.
+80+80MHz requires the use of ``SpectrumWifiPhy``.
+
 Order of operation issues
 +++++++++++++++++++++++++
 
@@ -524,8 +591,8 @@ that will be created upon a call to ``ns3::WifiHelper::Install``:
 
 .. sourcecode:: cpp
 
-  SpectrumWifiPhyHelper::SetPcapDataLinkType(const Ptr<SpectrumChannel> channel,
-                                             const FrequencyRange& freqRange)
+  SpectrumWifiPhyHelper::AddChannel(const Ptr<SpectrumChannel> channel,
+                                    const FrequencyRange& freqRange)
 
 where FrequencyRange is a structure that contains the start and stop frequencies
 expressed in MHz which corresponds to the spectrum portion that is covered by the channel.
@@ -651,8 +718,8 @@ with the desired type of service value and pass it to the application helpers:
 .. sourcecode:: cpp
 
     InetSocketAddress destAddress(ipv4Address, udpPort);
-    destAddress.SetTos(tos);
     OnOffHelper onoff("ns3::UdpSocketFactory", destAddress);
+    onoff.SetAttribute("Tos", UintegerValue(tos));
 
 Mapping the values of the DS field onto user priorities is performed similarly to the
 Linux mac80211 subsystem. Basically, the :cpp:func:`ns3::WifiNetDevice::SelectQueue()`
@@ -673,11 +740,11 @@ UP   Access Category
  1     AC_BK
 ===  ===============
 
-TOS and DSCP values map onto user priorities and access categories according
+ToS and DSCP values map onto user priorities and access categories according
 to the following table.
 
 ============  ============  ==  ===============
-DiffServ PHB  TOS (binary)  UP  Access Category
+DiffServ PHB  ToS (binary)  UP  Access Category
 ============  ============  ==  ===============
 EF            101110xx      5   AC_VI
 AF11          001010xx      1   AC_BK
@@ -702,12 +769,7 @@ CS6           110000xx      6   AC_VO
 CS7           111000xx      7   AC_VO
 ============  ============  ==  ===============
 
-So, for example,
-
-.. sourcecode:: cpp
-
-    destAddress.SetTos(0xc0);
-
+So, for example, a ToS equal to 0xc0 (binary 11000000)
 will map to CS6, User Priority 6, and Access Category AC_VO.
 Also, the ns3-wifi-ac-mapping test suite (defined in
 src/test/ns3wifi/wifi-ac-mapping-test-suite.cc) can provide additional
@@ -1270,6 +1332,7 @@ Multiple RF interfaces configuration
   // SpectrumWifiPhyHelper (3 links)
   SpectrumWifiPhyHelper phy(3);
   phy.SetPcapDataLinkType(WifiPhyHelper::DLT_IEEE802_11_RADIO);
+  phy.SetPcapCaptureType(WifiPhyHelper::PcapCaptureType::PCAP_PER_LINK);
   phy.AddChannel(spectrumChannel2_4Ghz, WIFI_SPECTRUM_2_4_GHZ);
   phy.AddChannel(spectrumChannel5Ghz, WIFI_SPECTRUM_5_GHZ);
   phy.AddChannel(spectrumChannel6Ghz, WIFI_SPECTRUM_6_GHZ);
@@ -1381,6 +1444,7 @@ Note that the channel switch delay should be less than the transition delay:
   // SpectrumWifiPhyHelper (3 links)
   SpectrumWifiPhyHelper phy(3);
   phy.SetPcapDataLinkType(WifiPhyHelper::DLT_IEEE802_11_RADIO);
+  phy.SetPcapCaptureType(WifiPhyHelper::PcapCaptureType::PCAP_PER_LINK);
   phy.AddChannel(spectrumChannel2_4Ghz, WIFI_SPECTRUM_2_4_GHZ);
   phy.AddChannel(spectrumChannel5Ghz, WIFI_SPECTRUM_5_GHZ);
   phy.AddChannel(spectrumChannel6Ghz, WIFI_SPECTRUM_6_GHZ);

@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2020 Orange Labs
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Authors: Rediet <getachew.redieteab@orange.com>
  *          Sébastien Deronne <sebastien.deronne@gmail.com> (for logic ported from wifi-phy)
@@ -244,7 +233,7 @@ DsssPhy::EndReceiveHeader(Ptr<Event> event)
     return status;
 }
 
-uint16_t
+MHz_u
 DsssPhy::GetRxChannelWidth(const WifiTxVector& txVector) const
 {
     if (m_wifiPhy->GetChannelWidth() > 20)
@@ -260,23 +249,24 @@ DsssPhy::GetRxChannelWidth(const WifiTxVector& txVector) const
     return PhyEntity::GetRxChannelWidth(txVector);
 }
 
-uint16_t
+MHz_u
 DsssPhy::GetMeasurementChannelWidth(const Ptr<const WifiPpdu> ppdu) const
 {
     return ppdu ? GetRxChannelWidth(ppdu->GetTxVector()) : 22;
 }
 
 Ptr<SpectrumValue>
-DsssPhy::GetTxPowerSpectralDensity(double txPowerW, Ptr<const WifiPpdu> ppdu) const
+DsssPhy::GetTxPowerSpectralDensity(Watt_u txPower, Ptr<const WifiPpdu> ppdu) const
 {
+    const auto& centerFrequencies = ppdu->GetTxCenterFreqs();
+    NS_ASSERT(centerFrequencies.size() == 1);
     const auto& txVector = ppdu->GetTxVector();
-    uint16_t centerFrequency = GetCenterFrequencyForChannelWidth(txVector);
-    uint16_t channelWidth = txVector.GetChannelWidth();
-    NS_LOG_FUNCTION(this << centerFrequency << channelWidth << txPowerW);
+    const auto channelWidth = txVector.GetChannelWidth();
+    NS_LOG_FUNCTION(this << centerFrequencies.front() << channelWidth << txPower);
     NS_ABORT_MSG_IF(channelWidth != 22, "Invalid channel width for DSSS");
-    Ptr<SpectrumValue> v =
-        WifiSpectrumValueHelper::CreateDsssTxPowerSpectralDensity(centerFrequency,
-                                                                  txPowerW,
+    auto v =
+        WifiSpectrumValueHelper::CreateDsssTxPowerSpectralDensity(centerFrequencies.front(),
+                                                                  txPower,
                                                                   GetGuardBandwidth(channelWidth));
     return v;
 }

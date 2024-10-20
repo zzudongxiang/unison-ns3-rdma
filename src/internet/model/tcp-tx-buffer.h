@@ -2,18 +2,7 @@
  * Copyright (c) 2010-2015 Adrian Sai-wah Tam
  * Copyright (c) 2016 Natale Patriciello <natale.patriciello@gmail.com>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Original author: Adrian Sai-wah Tam <adrian.sw.tam@gmail.com>
  */
@@ -499,7 +488,7 @@ class TcpTxBuffer : public Object
      * The cases we need to manage are two, and they are depicted in the following
      * image:
      *
-     *\verbatim
+     * \verbatim
                          |------|     |----|     |----|
                   list = |      | --> |    | --> |    |
                          |------|     |----|     |----|
@@ -525,7 +514,7 @@ class TcpTxBuffer : public Object
      * and we reduce case (2) to case (1) through sequentially applying fragment
      * or merge. For instance:
      *
-     *\verbatim
+     * \verbatim
         |------|
         |      |
         |------|
@@ -621,6 +610,7 @@ class TcpTxBuffer : public Object
     uint32_t m_segmentSize{0};  //!< Segment size from TcpSocketBase
     bool m_renoSack{false};     //!< Indicates if AddRenoSack was called
     bool m_sackEnabled{true};   //!< Indicates if SACK is enabled on this connection
+    bool m_sackSeen{false};     //!< Indicates if a SACK was received
 
     static Callback<void, TcpTxItem*> m_nullCb; //!< Null callback for an item
 };

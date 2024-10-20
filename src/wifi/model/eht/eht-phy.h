@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2021 DERONNE SOFTWARE ENGINEERING
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Sébastien Deronne <sebastien.deronne@gmail.com>
  */
@@ -192,15 +181,15 @@ class EhtPhy : public HePhy
      * and is mainly used as a callback for WifiMode operation.
      *
      * \param mcsValue the EHT MCS index
-     * \param channelWidth the considered channel width in MHz
-     * \param guardInterval the considered guard interval duration in nanoseconds
+     * \param channelWidth the considered channel width
+     * \param guardInterval the considered guard interval duration
      * \param nss the considered number of stream
      *
      * \return the physical bit rate of this signal in bps.
      */
     static uint64_t GetPhyRate(uint8_t mcsValue,
-                               uint16_t channelWidth,
-                               uint16_t guardInterval,
+                               MHz_u channelWidth,
+                               Time guardInterval,
                                uint8_t nss);
 
     /**
@@ -232,14 +221,14 @@ class EhtPhy : public HePhy
      * streams.
      *
      * \param mcsValue the EHT MCS index
-     * \param channelWidth the channel width in MHz
-     * \param guardInterval the guard interval duration in nanoseconds
+     * \param channelWidth the channel width
+     * \param guardInterval the guard interval duration
      * \param nss the number of spatial streams
      * \return the data bit rate in bps.
      */
     static uint64_t GetDataRate(uint8_t mcsValue,
-                                uint16_t channelWidth,
-                                uint16_t guardInterval,
+                                MHz_u channelWidth,
+                                Time guardInterval,
                                 uint8_t nss);
 
     /**

@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2005,2006 INRIA
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Mathieu Lacage <mathieu.lacage@sophia.inria.fr>
  */
@@ -34,6 +23,7 @@
 #include <vector>
 
 class EmlsrUlTxopTest;
+class EmlsrCcaBusyTest;
 
 namespace ns3
 {
@@ -62,6 +52,7 @@ class ChannelAccessManager : public Object
 {
     /// Allow test cases to access private members
     friend class ::EmlsrUlTxopTest;
+    friend class ::EmlsrCcaBusyTest;
 
   public:
     ChannelAccessManager();
@@ -158,6 +149,26 @@ class ChannelAccessManager : public Object
     Time GetAccessGrantStart(bool ignoreNav = false) const;
 
     /**
+     * Return the time when the backoff procedure
+     * started for the given Txop.
+     *
+     * \param txop the Txop
+     *
+     * \return the time when the backoff procedure started
+     */
+    Time GetBackoffStartFor(Ptr<Txop> txop) const;
+
+    /**
+     * Return the time when the backoff procedure
+     * ended (or will end) for the given Txop.
+     *
+     * \param txop the Txop
+     *
+     * \return the time when the backoff procedure ended (or will end)
+     */
+    Time GetBackoffEndFor(Ptr<Txop> txop) const;
+
+    /**
      * \param qosTxop a QosTxop that needs to be disabled
      * \param duration the amount of time during which the QosTxop is disabled
      *
@@ -191,11 +202,10 @@ class ChannelAccessManager : public Object
      *
      * \param interval the given time interval
      * \param end the given end time
-     * \return the width of the largest primary channel that has been idle for the
-     *         given time interval before the given time, if any primary channel has
-     *         been idle, or zero, otherwise
+     * \return the width of the largest primary channel that has been idle for the given time
+     * interval before the given time, if any primary channel has been idle, or zero, otherwise
      */
-    uint16_t GetLargestIdlePrimaryChannel(Time interval, Time end);
+    MHz_u GetLargestIdlePrimaryChannel(Time interval, Time end);
 
     /**
      * \param indices a set of indices (starting at 0) specifying the 20 MHz channels to test
@@ -301,15 +311,6 @@ class ChannelAccessManager : public Object
     void NotifyCtsTimeoutResetNow();
 
     /**
-     * Notify that another EMLSR link is being used, hence medium access should be disabled.
-     */
-    void NotifyStartUsingOtherEmlsrLink();
-    /**
-     * Notify that another EMLSR link is no longer being used, hence medium access can be resumed.
-     */
-    void NotifyStopUsingOtherEmlsrLink();
-
-    /**
      * Check if the device is busy sending or receiving,
      * or NAV or CCA busy.
      *
@@ -359,33 +360,46 @@ class ChannelAccessManager : public Object
      * \return the current registered listener for PHY events on the given PHY
      */
     std::shared_ptr<PhyListener> GetPhyListener(Ptr<WifiPhy> phy) const;
+
     /**
-     * Initialize the structures holding busy end times per channel type (primary,
-     * secondary, etc.) and per 20 MHz channel.
+     * Initialize the structures holding busy end times per channel type (primary, secondary, etc.)
+     * and per 20 MHz channel. All values are set to the current time.
      */
     void InitLastBusyStructs();
+
+    /**
+     * Resize the structures holding busy end times per channel type (primary, secondary, etc.)
+     * and per 20 MHz channel. If a value (e.g., the busy end time for secondary40 channel) already
+     * exists, it is not changed; otherwise, it is set to the current time.
+     */
+    void ResizeLastBusyStructs();
     /**
      * Update backoff slots for all Txops.
      */
     void UpdateBackoff();
+
     /**
-     * Return the time when the backoff procedure
-     * started for the given Txop.
+     * This overload is provided to enable caching the value returned by GetAccessGrantStart(),
+     * which is independent of the given Txop object.
      *
      * \param txop the Txop
+     * \param accessGrantStart the value returned by GetAccessGrantStart()
      *
      * \return the time when the backoff procedure started
      */
-    Time GetBackoffStartFor(Ptr<Txop> txop);
+    Time GetBackoffStartFor(Ptr<Txop> txop, Time accessGrantStart) const;
+
     /**
-     * Return the time when the backoff procedure
-     * ended (or will ended) for the given Txop.
+     * This overload is provided to enable caching the value returned by GetAccessGrantStart(),
+     * which is independent of the given Txop object.
      *
      * \param txop the Txop
+     * \param accessGrantStart the value returned by GetAccessGrantStart()
      *
-     * \return the time when the backoff procedure ended (or will ended)
+     * \return the time when the backoff procedure ended (or will end)
      */
-    Time GetBackoffEndFor(Ptr<Txop> txop);
+    Time GetBackoffEndFor(Ptr<Txop> txop, Time accessGrantStart) const;
+
     /**
      * This method determines whether the medium has been idle during a period (of
      * non-null duration) immediately preceding the time this method is called. If
@@ -404,6 +418,7 @@ class ChannelAccessManager : public Object
      * (e.g. backoff procedure expired).
      */
     void AccessTimeout();
+
     /**
      * Grant access to Txop using DCF/EDCF contention rules
      */
@@ -415,12 +430,14 @@ class ChannelAccessManager : public Object
      * \return the SIFS duration
      */
     virtual Time GetSifs() const;
+
     /**
      * Return the slot duration for this PHY.
      *
      * \return the slot duration
      */
     virtual Time GetSlot() const;
+
     /**
      * Return the EIFS duration minus a DIFS.
      *
@@ -456,7 +473,6 @@ class ChannelAccessManager : public Object
     std::map<WifiChannelListType, Timespan>
         m_lastIdle;               //!< the last idle start and end time for each channel type
     Time m_lastSwitchingEnd;      //!< the last switching end time
-    bool m_usingOtherEmlsrLink;   //!< whether another EMLSR link is being used
     bool m_sleeping;              //!< flag whether it is in sleeping state
     bool m_off;                   //!< flag whether it is in off state
     Time m_eifsNoDifs;            //!< EIFS no DIFS time
@@ -465,6 +481,8 @@ class ChannelAccessManager : public Object
                                   //!< right to start a TXOP but it does not transmit any frame
                                   //!< (e.g., due to constraints associated with EMLSR operations),
                                   //!< provided that the queue is not actually empty
+    bool m_proactiveBackoff; //!< whether a new backoff value is generated when a CCA busy period
+                             //!< starts and the backoff counter is zero
 
     /// Information associated with each PHY that is going to operate on another EMLSR link
     struct EmlsrLinkSwitchInfo

@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2020 Orange Labs
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Rediet <getachew.redieteab@orange.com>
  *         Muhammad Iqbal Rochman <muhiqbalcr@uchicago.edu>
@@ -280,7 +269,7 @@ HePpdu::SetHeMuUserInfos(WifiTxVector& txVector,
             }
             const auto ruBw = HeRu::GetBandwidth(ruType);
             auto primary80 = ruAllocIndex < 4;
-            auto num20MhzSubchannelsInRu = (ruBw < 20) ? 1 : (ruBw / 20);
+            const uint8_t num20MhzSubchannelsInRu = (ruBw < 20) ? 1 : (ruBw / 20);
             auto numRuAllocsInContentChannel = std::max(1, num20MhzSubchannelsInRu / 2);
             auto ruIndexOffset = (ruBw < 20) ? (ruSpecs.size() * ruAllocIndex)
                                              : (ruAllocIndex / num20MhzSubchannelsInRu);
@@ -316,7 +305,7 @@ HePpdu::GetTxDuration() const
     Time ppduDuration = Seconds(0);
     const auto& txVector = GetTxVector();
     const auto length = m_lSig.GetLength();
-    const auto tSymbol = NanoSeconds(12800 + txVector.GetGuardInterval());
+    const auto tSymbol = HePhy::GetSymbolDuration(txVector.GetGuardInterval());
     const auto preambleDuration = WifiPhy::CalculatePhyPreambleAndHeaderDuration(txVector);
     NS_ASSERT(m_operatingChannel.IsSet());
     uint8_t sigExtension = (m_operatingChannel.GetPhyBand() == WIFI_PHY_BAND_2_4GHZ) ? 6 : 0;
@@ -414,15 +403,15 @@ HePpdu::GetStaId() const
     return m_psdus.begin()->first;
 }
 
-uint16_t
+MHz_u
 HePpdu::GetTxChannelWidth() const
 {
     if (const auto& txVector = GetTxVector();
         txVector.IsValid() && txVector.IsUlMu() && GetStaId() != SU_STA_ID)
     {
         TxPsdFlag flag = GetTxPsdFlag();
-        uint16_t ruWidth = HeRu::GetBandwidth(txVector.GetRu(GetStaId()).GetRuType());
-        uint16_t channelWidth = (flag == PSD_NON_HE_PORTION && ruWidth < 20) ? 20 : ruWidth;
+        const auto ruWidth = HeRu::GetBandwidth(txVector.GetRu(GetStaId()).GetRuType());
+        MHz_u channelWidth = (flag == PSD_NON_HE_PORTION && ruWidth < 20) ? 20 : ruWidth;
         NS_LOG_INFO("Use channelWidth=" << channelWidth << " MHz for HE TB from " << GetStaId()
                                         << " for " << flag);
         return channelWidth;
@@ -483,7 +472,7 @@ HePpdu::UpdateTxVectorForUlMu(const std::optional<WifiTxVector>& trigVector) con
 }
 
 std::pair<std::size_t, std::size_t>
-HePpdu::GetNumRusPerHeSigBContentChannel(uint16_t channelWidth,
+HePpdu::GetNumRusPerHeSigBContentChannel(MHz_u channelWidth,
                                          const RuAllocation& ruAllocation,
                                          bool sigBCompression,
                                          uint8_t numMuMimoUsers)
@@ -511,10 +500,11 @@ HePpdu::GetNumRusPerHeSigBContentChannel(uint16_t channelWidth,
     }
 
     NS_ASSERT_MSG(!ruAllocation.empty(), "RU allocation is not set");
-    NS_ASSERT_MSG(ruAllocation.size() == channelWidth / 20,
+    [[maybe_unused]] const std::size_t num20MhzSubchannels = channelWidth / 20;
+    NS_ASSERT_MSG(ruAllocation.size() == num20MhzSubchannels,
                   "RU allocation is not consistent with packet bandwidth");
 
-    switch (channelWidth)
+    switch (static_cast<uint16_t>(channelWidth))
     {
     case 40:
         chSize.second += HeRu::GetRuSpecs(ruAllocation[1]).size();
@@ -636,7 +626,7 @@ HePpdu::GetHeSigBContentChannels(const WifiTxVector& txVector, uint8_t p20Index)
 }
 
 uint32_t
-HePpdu::GetSigBFieldSize(uint16_t channelWidth,
+HePpdu::GetSigBFieldSize(MHz_u channelWidth,
                          const RuAllocation& ruAllocation,
                          bool sigBCompression,
                          std::size_t numMuMimoUsers)
@@ -692,7 +682,7 @@ HePpdu::PrintPayload() const
 }
 
 uint8_t
-HePpdu::GetChannelWidthEncodingFromMhz(uint16_t channelWidth)
+HePpdu::GetChannelWidthEncodingFromMhz(MHz_u channelWidth)
 {
     if (channelWidth == 160)
     {
@@ -712,7 +702,7 @@ HePpdu::GetChannelWidthEncodingFromMhz(uint16_t channelWidth)
     }
 }
 
-uint16_t
+MHz_u
 HePpdu::GetChannelWidthMhzFromEncoding(uint8_t bandwidth)
 {
     if (bandwidth == 3)
@@ -734,17 +724,18 @@ HePpdu::GetChannelWidthMhzFromEncoding(uint8_t bandwidth)
 }
 
 uint8_t
-HePpdu::GetGuardIntervalAndNltfEncoding(uint16_t gi, uint8_t nltf)
+HePpdu::GetGuardIntervalAndNltfEncoding(Time guardInterval, uint8_t nltf)
 {
-    if (gi == 800 && nltf == 1)
+    const auto gi = guardInterval.GetNanoSeconds();
+    if ((gi == 800) && (nltf == 1))
     {
         return 0;
     }
-    else if (gi == 800 && nltf == 2)
+    else if ((gi == 800) && (nltf == 2))
     {
         return 1;
     }
-    else if (gi == 1600 && nltf == 2)
+    else if ((gi == 1600) && (nltf == 2))
     {
         return 2;
     }
@@ -754,21 +745,21 @@ HePpdu::GetGuardIntervalAndNltfEncoding(uint16_t gi, uint8_t nltf)
     }
 }
 
-uint16_t
+Time
 HePpdu::GetGuardIntervalFromEncoding(uint8_t giAndNltfSize)
 {
     if (giAndNltfSize == 3)
     {
         // we currently do not consider DCM nor STBC fields
-        return 3200;
+        return NanoSeconds(3200);
     }
     else if (giAndNltfSize == 2)
     {
-        return 1600;
+        return NanoSeconds(1600);
     }
     else
     {
-        return 800;
+        return NanoSeconds(800);
     }
 }
 

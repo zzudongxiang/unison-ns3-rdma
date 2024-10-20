@@ -1,17 +1,6 @@
 # Copyright (c) 2017-2021 Universidade de Brasília
 #
-# This program is free software; you can redistribute it and/or modify it under
-# the terms of the GNU General Public License version 2 as published by the Free
-# Software Foundation;
-#
-# This program is distributed in the hope that it will be useful, but WITHOUT
-# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
-# details.
-#
-# You should have received a copy of the GNU General Public License along with
-# this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-# Place, Suite 330, Boston, MA  02111-1307 USA
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Author: Gabriel Ferreira <gabrielcarvfer@gmail.com>
 
@@ -92,19 +81,13 @@ macro(SUBDIRLIST result curdir)
 endmacro()
 
 macro(library_target_name libname targetname)
-  set(${targetname} lib${libname})
+  set(${targetname} ${libname})
 endmacro()
 
 macro(clear_global_cached_variables)
   # clear cache variables
   unset(build_profile CACHE)
   unset(build_profile_suffix CACHE)
-  set(lib-ns3-static-objs
-      ""
-      CACHE
-        INTERNAL
-        "list of object files from module used by NS3_STATIC and NS3_MONOLIB"
-  )
   set(ns3-contrib-libs "" CACHE INTERNAL "list of processed contrib modules")
   set(ns3-example-folders "" CACHE INTERNAL "list of example folders")
   set(ns3-execs "" CACHE INTERNAL "list of c++ executables")
@@ -121,7 +104,6 @@ macro(clear_global_cached_variables)
   mark_as_advanced(
     build_profile
     build_profile_suffix
-    lib-ns3-static-objs
     ns3-contrib-libs
     ns3-example-folders
     ns3-execs
@@ -199,7 +181,8 @@ macro(process_options)
   set(ENABLE_TESTS OFF)
   if(${NS3_TESTS} OR ${ns3rc_tests_enabled})
     set(ENABLE_TESTS ON)
-    enable_testing()
+    # CTest creates a TEST target that conflicts with ns-3 test library
+    # enable_testing()
   else()
     list(REMOVE_ITEM libs_to_build test)
   endif()
@@ -218,6 +201,13 @@ macro(process_options)
     set_property(GLOBAL PROPERTY TARGET_MESSAGES OFF)
     unset(CMAKE_FIND_DEBUG_MODE)
     unset(CMAKE_VERBOSE_MAKEFILE CACHE)
+  endif()
+
+  if(${NS3_FORCE_LOCAL_DEPENDENCIES})
+    set(CMAKE_FIND_FRAMEWORK NEVER)
+    set(CMAKE_FIND_APPBUNDLE NEVER)
+    set(CMAKE_FIND_USE_CMAKE_SYSTEM_PATH FALSE)
+    set(CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH FALSE)
   endif()
 
   # Set warning level and warning as errors
@@ -319,10 +309,17 @@ macro(process_options)
   if("${CMAKE_FORMAT_PROGRAM}" STREQUAL "CMAKE_FORMAT_PROGRAM-NOTFOUND")
     message(${HIGHLIGHTED_STATUS} "Proceeding without cmake-format")
   else()
-    file(GLOB_RECURSE MODULES_CMAKE_FILES src/**/CMakeLists.txt
-         contrib/**/CMakeLists.txt examples/**/CMakeLists.txt
-         scratch/**/CMakeLists.txt
+    file(
+      GLOB
+      MODULES_CMAKE_FILES
+      src/**/CMakeLists.txt
+      contrib/**/CMakeLists.txt
+      src/**/examples/CMakeLists.txt
+      contrib/**/examples/CMakeLists.txt
+      examples/**/CMakeLists.txt
+      scratch/**/CMakeLists.txt
     )
+    file(GLOB_RECURSE SCRATCH_CMAKE_FILES scratch/**/CMakeLists.txt)
     file(
       GLOB
       INTERNAL_CMAKE_FILES
@@ -341,7 +338,7 @@ macro(process_options)
       COMMAND
         ${CMAKE_FORMAT_PROGRAM} -c
         ${PROJECT_SOURCE_DIR}/build-support/cmake-format-modules.yaml -i
-        ${MODULES_CMAKE_FILES}
+        ${MODULES_CMAKE_FILES} ${SCRATCH_CMAKE_FILES}
     )
     add_custom_target(
       cmake-format-check
@@ -684,14 +681,6 @@ macro(process_options)
         "Bindings: python bindings require Python, but it could not be found"
       )
       set(ENABLE_PYTHON_BINDINGS_REASON "missing dependency: python")
-    elseif(APPLE AND "${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "arm64")
-      # Warn users that Cppyy on ARM Macs isn't supported yet
-      message(${HIGHLIGHTED_STATUS}
-              "Bindings: macOS silicon detected -- see issue 930"
-      )
-      set(ENABLE_PYTHON_BINDINGS_REASON
-          "macOS silicon detected -- see issue 930"
-      )
     else()
       check_deps(missing_packages PYTHON_PACKAGES cppyy)
       if(missing_packages)
@@ -1165,7 +1154,11 @@ macro(process_options)
   set(PLATFORM_UNSUPPORTED_POST "features. Continuing without them.")
   # Remove from libs_to_build all incompatible libraries or the ones that
   # dependencies couldn't be installed
-  if(APPLE OR WSLv1 OR WIN32)
+  if(APPLE
+     OR WSLv1
+     OR WIN32
+     OR BSD
+  )
     set(ENABLE_TAP OFF)
     set(ENABLE_EMU OFF)
     set(ENABLE_FDNETDEV FALSE)
@@ -1198,7 +1191,6 @@ macro(process_options)
   set(ns3-all-enabled-modules)
   set(ns3-libs-tests)
   set(ns3-contrib-libs)
-  set(lib-ns3-static-objs)
   set(ns3-external-libs)
 
   foreach(libname ${scanned_modules})
@@ -1398,8 +1390,8 @@ macro(build_example)
   set(filtered_in ON)
   if(NS3_FILTER_MODULE_EXAMPLES_AND_TESTS)
     set(filtered_in OFF)
-    foreach(filtered_module NS3_FILTER_MODULE_EXAMPLES_AND_TESTS)
-      if(${filtered_module} IN_LIST EXAMPLE_LIBRARIES_TO_LINK)
+    foreach(required_module ${EXAMPLE_LIBRARIES_TO_LINK})
+      if(${required_module} IN_LIST NS3_FILTER_MODULE_EXAMPLES_AND_TESTS)
         set(filtered_in ON)
       endif()
     endforeach()

@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2020 Universita' degli Studi di Napoli Federico II
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Stefano Avallone <stavallo@unina.it>
  */
@@ -158,7 +147,7 @@ QosFrameExchangeManager::CancelPifsRecovery()
 }
 
 bool
-QosFrameExchangeManager::StartTransmission(Ptr<Txop> edca, uint16_t allowedWidth)
+QosFrameExchangeManager::StartTransmission(Ptr<Txop> edca, MHz_u allowedWidth)
 {
     NS_LOG_FUNCTION(this << edca << allowedWidth);
 
@@ -566,7 +555,9 @@ QosFrameExchangeManager::ForwardMpduDown(Ptr<WifiMpdu> mpdu, WifiTxVector& txVec
     {
         uint8_t tid = hdr.GetQosTid();
         hdr.SetQosEosp();
-        hdr.SetQosQueueSize(m_mac->GetQosTxop(tid)->GetQosQueueSize(tid, hdr.GetAddr1()));
+        hdr.SetQosQueueSize(
+            m_mac->GetQosTxop(tid)->GetQosQueueSize(tid,
+                                                    mpdu->GetOriginal()->GetHeader().GetAddr1()));
     }
     FrameExchangeManager::ForwardMpduDown(mpdu, txVector);
 }

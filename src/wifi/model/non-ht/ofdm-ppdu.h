@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2020 Orange Labs
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Rediet <getachew.redieteab@orange.com>
  *         Muhammad Iqbal Rochman <muhiqbalcr@uchicago.edu>
@@ -59,16 +48,16 @@ class OfdmPpdu : public WifiPpdu
          * Fill the RATE field of L-SIG (in bit/s).
          *
          * \param rate the RATE field of L-SIG expressed in bit/s
-         * \param channelWidth the channel width (in MHz)
+         * \param channelWidth the channel width
          */
-        void SetRate(uint64_t rate, uint16_t channelWidth = 20);
+        void SetRate(uint64_t rate, MHz_u channelWidth = 20);
         /**
          * Return the RATE field of L-SIG (in bit/s).
          *
-         * \param channelWidth the channel width (in MHz)
+         * \param channelWidth the channel width
          * \return the RATE field of L-SIG expressed in bit/s
          */
-        uint64_t GetRate(uint16_t channelWidth = 20) const;
+        uint64_t GetRate(MHz_u channelWidth = 20) const;
         /**
          * Fill the LENGTH field of L-SIG (in bytes).
          *
@@ -137,9 +126,9 @@ class OfdmPpdu : public WifiPpdu
      */
     virtual void SetTxVectorFromLSigHeader(WifiTxVector& txVector, const LSigHeader& lSig) const;
 
-    uint16_t m_channelWidth; //!< the channel width used to transmit that PPDU in MHz (needed to
-                             //!< distinguish 5 MHz, 10 MHz or 20 MHz PPDUs)
-};                           // class OfdmPpdu
+    MHz_u m_channelWidth; //!< the channel width used to transmit that PPDU
+                          //!< (needed to distinguish 5 MHz, 10 MHz or 20 MHz PPDUs)
+};                        // class OfdmPpdu
 
 } // namespace ns3
 

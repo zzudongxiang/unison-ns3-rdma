@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2005,2006,2007 INRIA
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Mathieu Lacage <mathieu.lacage@sophia.inria.fr>
  */
@@ -297,16 +286,16 @@ WifiRemoteStationManager::GetShortGuardIntervalSupported() const
     return false;
 }
 
-uint16_t
+Time
 WifiRemoteStationManager::GetGuardInterval() const
 {
-    uint16_t gi = 0;
+    Time gi{};
     if (GetHeSupported())
     {
         Ptr<HeConfiguration> heConfiguration = m_wifiPhy->GetDevice()->GetHeConfiguration();
         NS_ASSERT(heConfiguration); // If HE is supported, we should have a HE configuration
                                     // attached
-        gi = static_cast<uint16_t>(heConfiguration->GetGuardInterval().GetNanoSeconds());
+        gi = heConfiguration->GetGuardInterval();
     }
     return gi;
 }
@@ -588,7 +577,7 @@ WifiRemoteStationManager::GetAffiliatedStaAddress(const Mac48Address& mldAddress
 }
 
 WifiTxVector
-WifiRemoteStationManager::GetDataTxVector(const WifiMacHeader& header, uint16_t allowedWidth)
+WifiRemoteStationManager::GetDataTxVector(const WifiMacHeader& header, MHz_u allowedWidth)
 {
     NS_LOG_FUNCTION(this << header << allowedWidth);
     Mac48Address address = header.GetAddr1();
@@ -601,7 +590,7 @@ WifiRemoteStationManager::GetDataTxVector(const WifiMacHeader& header, uint16_t 
             GetPreambleForTransmission(mode.GetModulationClass(), GetShortPreambleEnabled()));
         v.SetTxPowerLevel(m_defaultTxPowerLevel);
         v.SetChannelWidth(m_wifiPhy->GetTxBandwidth(mode, allowedWidth));
-        v.SetGuardInterval(ConvertGuardIntervalToNanoSeconds(mode, m_wifiPhy->GetDevice()));
+        v.SetGuardInterval(GetGuardIntervalForMode(mode, m_wifiPhy->GetDevice()));
         v.SetNTx(GetNumberOfAntennas());
         v.SetNss(1);
         v.SetNess(0);
@@ -624,10 +613,10 @@ WifiRemoteStationManager::GetDataTxVector(const WifiMacHeader& header, uint16_t 
         txVector.SetPreambleType(
             GetPreambleForTransmission(mgtMode.GetModulationClass(), GetShortPreambleEnabled()));
         txVector.SetTxPowerLevel(m_defaultTxPowerLevel);
-        uint16_t channelWidth = allowedWidth;
+        auto channelWidth = allowedWidth;
         if (!header.GetAddr1().IsGroup())
         {
-            if (uint16_t rxWidth = GetChannelWidthSupported(header.GetAddr1());
+            if (const auto rxWidth = GetChannelWidthSupported(header.GetAddr1());
                 rxWidth < channelWidth)
             {
                 channelWidth = rxWidth;
@@ -635,8 +624,7 @@ WifiRemoteStationManager::GetDataTxVector(const WifiMacHeader& header, uint16_t 
         }
 
         txVector.SetChannelWidth(m_wifiPhy->GetTxBandwidth(mgtMode, channelWidth));
-        txVector.SetGuardInterval(
-            ConvertGuardIntervalToNanoSeconds(mgtMode, m_wifiPhy->GetDevice()));
+        txVector.SetGuardInterval(GetGuardIntervalForMode(mgtMode, m_wifiPhy->GetDevice()));
     }
     else
     {
@@ -652,7 +640,8 @@ WifiRemoteStationManager::GetDataTxVector(const WifiMacHeader& header, uint16_t 
     }
     // If both the allowed width and the TXVECTOR channel width are integer multiple
     // of 20 MHz, then the TXVECTOR channel width must not exceed the allowed width
-    NS_ASSERT_MSG((txVector.GetChannelWidth() % 20 != 0) || (allowedWidth % 20 != 0) ||
+    NS_ASSERT_MSG((static_cast<uint16_t>(txVector.GetChannelWidth()) % 20 != 0) ||
+                      (static_cast<uint16_t>(allowedWidth) % 20 != 0) ||
                       (txVector.GetChannelWidth() <= allowedWidth),
                   "TXVECTOR channel width (" << txVector.GetChannelWidth()
                                              << " MHz) exceeds allowed width (" << allowedWidth
@@ -689,7 +678,7 @@ WifiRemoteStationManager::GetCtsToSelfTxVector()
     return WifiTxVector(defaultMode,
                         GetDefaultTxPowerLevel(),
                         defaultPreamble,
-                        ConvertGuardIntervalToNanoSeconds(defaultMode, m_wifiPhy->GetDevice()),
+                        GetGuardIntervalForMode(defaultMode, m_wifiPhy->GetDevice()),
                         GetNumberOfAntennas(),
                         1,
                         0,
@@ -698,7 +687,7 @@ WifiRemoteStationManager::GetCtsToSelfTxVector()
 }
 
 WifiTxVector
-WifiRemoteStationManager::GetRtsTxVector(Mac48Address address, uint16_t allowedWidth)
+WifiRemoteStationManager::GetRtsTxVector(Mac48Address address, MHz_u allowedWidth)
 {
     NS_LOG_FUNCTION(this << address << allowedWidth);
     WifiTxVector v;
@@ -710,7 +699,7 @@ WifiRemoteStationManager::GetRtsTxVector(Mac48Address address, uint16_t allowedW
             GetPreambleForTransmission(mode.GetModulationClass(), GetShortPreambleEnabled()));
         v.SetTxPowerLevel(m_defaultTxPowerLevel);
         v.SetChannelWidth(m_wifiPhy->GetTxBandwidth(mode));
-        v.SetGuardInterval(ConvertGuardIntervalToNanoSeconds(mode, m_wifiPhy->GetDevice()));
+        v.SetGuardInterval(GetGuardIntervalForMode(mode, m_wifiPhy->GetDevice()));
         v.SetNTx(GetNumberOfAntennas());
         v.SetNss(1);
         v.SetNess(0);
@@ -752,9 +741,7 @@ WifiRemoteStationManager::GetCtsTxVector(Mac48Address to, WifiMode rtsTxMode) co
         GetPreambleForTransmission(ctsMode.GetModulationClass(), GetShortPreambleEnabled()));
     v.SetTxPowerLevel(GetDefaultTxPowerLevel());
     v.SetChannelWidth(m_wifiPhy->GetTxBandwidth(ctsMode));
-    uint16_t ctsTxGuardInterval =
-        ConvertGuardIntervalToNanoSeconds(ctsMode, m_wifiPhy->GetDevice());
-    v.SetGuardInterval(ctsTxGuardInterval);
+    v.SetGuardInterval(GetGuardIntervalForMode(ctsMode, m_wifiPhy->GetDevice()));
     v.SetNss(1);
     return v;
 }
@@ -803,9 +790,7 @@ WifiRemoteStationManager::GetAckTxVector(Mac48Address to, const WifiTxVector& da
         GetPreambleForTransmission(ackMode.GetModulationClass(), GetShortPreambleEnabled()));
     v.SetTxPowerLevel(GetDefaultTxPowerLevel());
     v.SetChannelWidth(m_wifiPhy->GetTxBandwidth(ackMode));
-    uint16_t ackTxGuardInterval =
-        ConvertGuardIntervalToNanoSeconds(ackMode, m_wifiPhy->GetDevice());
-    v.SetGuardInterval(ackTxGuardInterval);
+    v.SetGuardInterval(GetGuardIntervalForMode(ackMode, m_wifiPhy->GetDevice()));
     v.SetNss(1);
     return v;
 }
@@ -822,9 +807,7 @@ WifiRemoteStationManager::GetBlockAckTxVector(Mac48Address to,
         GetPreambleForTransmission(blockAckMode.GetModulationClass(), GetShortPreambleEnabled()));
     v.SetTxPowerLevel(GetDefaultTxPowerLevel());
     v.SetChannelWidth(m_wifiPhy->GetTxBandwidth(blockAckMode));
-    uint16_t blockAckTxGuardInterval =
-        ConvertGuardIntervalToNanoSeconds(blockAckMode, m_wifiPhy->GetDevice());
-    v.SetGuardInterval(blockAckTxGuardInterval);
+    v.SetGuardInterval(GetGuardIntervalForMode(blockAckMode, m_wifiPhy->GetDevice()));
     v.SetNss(1);
     return v;
 }
@@ -1398,7 +1381,7 @@ WifiRemoteStationManager::GetInfo(Mac48Address address)
     return LookupState(address)->m_info;
 }
 
-std::optional<double>
+std::optional<dBm_u>
 WifiRemoteStationManager::GetMostRecentRssi(Mac48Address address) const
 {
     auto station = Lookup(address);
@@ -1575,12 +1558,12 @@ WifiRemoteStationManager::AddStationHeCapabilities(Mac48Address from, HeCapabili
     }
     if (heCapabilities.GetHeSuPpdu1xHeLtf800nsGi())
     {
-        state->m_guardInterval = 800;
+        state->m_guardInterval = NanoSeconds(800);
     }
     else
     {
         // todo: Using 3200ns, default value for HeConfiguration::GuardInterval
-        state->m_guardInterval = 3200;
+        state->m_guardInterval = NanoSeconds(3200);
     }
     for (const auto& mcs : m_wifiPhy->GetMcsList(WIFI_MOD_CLASS_HE))
     {
@@ -1917,7 +1900,7 @@ WifiRemoteStationManager::DoReportAmpduTxStatus(WifiRemoteStation* station,
                                                 uint16_t nFailedMpdus,
                                                 double rxSnr,
                                                 double dataSnr,
-                                                uint16_t dataChannelWidth,
+                                                MHz_u dataChannelWidth,
                                                 uint8_t dataNss)
 {
     NS_LOG_DEBUG("DoReportAmpduTxStatus received but the manager does not handle A-MPDUs!");
@@ -1973,7 +1956,7 @@ WifiRemoteStationManager::GetAddress(const WifiRemoteStation* station) const
     return station->m_state->m_address;
 }
 
-uint16_t
+MHz_u
 WifiRemoteStationManager::GetChannelWidth(const WifiRemoteStation* station) const
 {
     return station->m_state->m_channelWidth;
@@ -1991,7 +1974,7 @@ WifiRemoteStationManager::GetShortGuardIntervalSupported(const WifiRemoteStation
     return htCapabilities->GetShortGuardInterval20();
 }
 
-uint16_t
+Time
 WifiRemoteStationManager::GetGuardInterval(const WifiRemoteStation* station) const
 {
     return station->m_state->m_guardInterval;
@@ -2110,7 +2093,7 @@ WifiRemoteStationManager::GetNNonErpSupported(const WifiRemoteStation* station) 
     return size;
 }
 
-uint16_t
+MHz_u
 WifiRemoteStationManager::GetChannelWidthSupported(Mac48Address address) const
 {
     return LookupState(address)->m_channelWidth;

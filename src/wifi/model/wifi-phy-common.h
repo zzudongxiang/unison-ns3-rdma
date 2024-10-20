@@ -2,18 +2,7 @@
  * Copyright (c) 2005,2006,2007 INRIA
  * Copyright (c) 2020 Orange Labs
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Authors: Mathieu Lacage <mathieu.lacage@sophia.inria.fr>
  *          Rediet <getachew.redieteab@orange.com>
@@ -24,11 +13,13 @@
 
 #include "wifi-spectrum-value-helper.h"
 #include "wifi-standards.h"
+#include "wifi-types.h"
 
 #include "ns3/fatal-error.h"
 #include "ns3/ptr.h"
 
 #include <ostream>
+#include <vector>
 
 /**
  * \file
@@ -52,15 +43,17 @@ class Time;
 static constexpr uint8_t MAX_PROPAGATION_DELAY_USEC = 1;
 
 /**
- * typedef for a pair of start and stop frequencies in Hz to represent a band
+ * typedef for a pair of start and stop frequencies to represent a band
  */
-using WifiSpectrumBandFrequencies = std::pair<uint64_t, uint64_t>;
+using WifiSpectrumBandFrequencies = std::pair<Hz_u, Hz_u>;
 
 /// WifiSpectrumBandInfo structure containing info about a spectrum band
 struct WifiSpectrumBandInfo
 {
-    WifiSpectrumBandIndices indices;         //!< the start and stop indices of the band
-    WifiSpectrumBandFrequencies frequencies; //!< the start and stop frequencies of the band
+    std::vector<WifiSpectrumBandIndices>
+        indices; //!< the start and stop indices for each segment of the band
+    std::vector<WifiSpectrumBandFrequencies>
+        frequencies; //!< the start and stop frequencies for each segment of the band
 };
 
 /// vector of spectrum bands
@@ -72,13 +65,20 @@ using WifiSpectrumBands = std::vector<WifiSpectrumBandInfo>;
  *
  * \param lhs the band on the left of operator<
  * \param rhs the band on the right of operator<
- * \return true if the start/stop frequencies of left are lower than the start/stop frequencies of
- * right, false otherwise
+ * \return true if the start/stop frequencies of the first segment of left are lower than the
+ * start/stop frequencies of the first segment of right. If the first segment is the same for left
+ * and right, it return true if the start/stop frequencies of the second segment of left are lower
+ * than the start/stop frequencies of the second segment of right. Otherwise, the function return
+ * false.
  */
 inline bool
 operator<(const WifiSpectrumBandInfo& lhs, const WifiSpectrumBandInfo& rhs)
 {
-    return lhs.frequencies < rhs.frequencies;
+    if (lhs.frequencies.front() == rhs.frequencies.front())
+    {
+        return lhs.frequencies.back() < rhs.frequencies.back();
+    }
+    return lhs.frequencies.front() < rhs.frequencies.front();
 }
 
 /**
@@ -91,8 +91,14 @@ operator<(const WifiSpectrumBandInfo& lhs, const WifiSpectrumBandInfo& rhs)
 inline std::ostream&
 operator<<(std::ostream& os, const WifiSpectrumBandInfo& band)
 {
-    os << "indices: [" << band.indices.first << "-" << band.indices.second << "], frequencies: ["
-       << band.frequencies.first << "Hz-" << band.frequencies.second << "Hz]";
+    NS_ASSERT(band.indices.size() == band.frequencies.size());
+    for (std::size_t segmentIndex = 0; segmentIndex < band.indices.size(); ++segmentIndex)
+    {
+        os << "indices segment" << segmentIndex << ": [" << band.indices.at(segmentIndex).first
+           << "-" << band.indices.at(segmentIndex).second << "], frequencies segment"
+           << segmentIndex << ": [" << band.frequencies.at(segmentIndex).first << "Hz-"
+           << band.frequencies.at(segmentIndex).second << "Hz] ";
+    }
     return os;
 }
 
@@ -539,27 +545,61 @@ operator<<(std::ostream& os, WifiChannelListType type)
 }
 
 /**
- * Convert the guard interval to nanoseconds based on the WifiMode.
+ * \brief Stream insertion operator.
+ *
+ * \param os the stream
+ * \param width the wifi channel width type
+ * \returns a reference to the stream
+ */
+inline std::ostream&
+operator<<(std::ostream& os, WifiChannelWidthType width)
+{
+    switch (width)
+    {
+    case WifiChannelWidthType::CW_20MHZ:
+        return (os << "20MHz");
+    case WifiChannelWidthType::CW_22MHZ:
+        return (os << "22MHz");
+    case WifiChannelWidthType::CW_5MHZ:
+        return (os << "5MHz");
+    case WifiChannelWidthType::CW_10MHZ:
+        return (os << "10MHz");
+    case WifiChannelWidthType::CW_40MHZ:
+        return (os << "40MHz");
+    case WifiChannelWidthType::CW_80MHZ:
+        return (os << "80MHz");
+    case WifiChannelWidthType::CW_160MHZ:
+        return (os << "160MHz");
+    case WifiChannelWidthType::CW_80_PLUS_80MHZ:
+        return (os << "80+80MHz");
+    case WifiChannelWidthType::CW_2160MHZ:
+        return (os << "2160MHz");
+    default:
+    case WifiChannelWidthType::MAX:
+        return (os << "UNKNOWN");
+    }
+}
+
+/**
+ * Get the guard interval for a given WifiMode.
  *
  * \param mode the WifiMode
  * \param device pointer to the WifiNetDevice object
  *
- * \return the guard interval duration in nanoseconds
+ * \return the guard interval duration to use for the mode
  */
-uint16_t ConvertGuardIntervalToNanoSeconds(WifiMode mode, const Ptr<WifiNetDevice> device);
+Time GetGuardIntervalForMode(WifiMode mode, const Ptr<WifiNetDevice> device);
 
 /**
- * Convert the guard interval to nanoseconds based on the WifiMode.
+ * Get the guard interval for a given WifiMode.
  *
  * \param mode the WifiMode
  * \param htShortGuardInterval whether HT/VHT short guard interval is enabled
  * \param heGuardInterval the HE guard interval duration
  *
- * \return the guard interval duration in nanoseconds
+ * \return the guard interval duration to use for the mode
  */
-uint16_t ConvertGuardIntervalToNanoSeconds(WifiMode mode,
-                                           bool htShortGuardInterval,
-                                           Time heGuardInterval);
+Time GetGuardIntervalForMode(WifiMode mode, bool htShortGuardInterval, Time heGuardInterval);
 
 /**
  * Return the preamble to be used for the transmission.
@@ -631,18 +671,30 @@ bool IsUlMu(WifiPreamble preamble);
 /**
  * Return the modulation class corresponding to a given standard.
  *
+ * In the case of WIFI_STANDARD_80211b, two modulation classes are supported
+ * (WIFI_MOD_CLASS_DSSS and WIFI_MOD_CLASS_HR_DSSS); this method will return
+ * the latter.
+ *
  * \param standard the standard
  * \return the modulation class corresponding to the standard
  */
 WifiModulationClass GetModulationClassForStandard(WifiStandard standard);
 
 /**
- * Get the maximum channel width in MHz allowed for the given modulation class.
+ * Get the maximum channel width allowed for the given modulation class.
  *
  * \param modulation the modulation class
- * \return the maximum channel width in MHz allowed for the given modulation class
+ * \return the maximum channel width allowed for the given modulation class
  */
-uint16_t GetMaximumChannelWidth(WifiModulationClass modulation);
+MHz_u GetMaximumChannelWidth(WifiModulationClass modulation);
+
+/**
+ * Get the total channel width for the channel width type.
+ *
+ * \param width the channel width type
+ * \return the total channel width for the channel width type
+ */
+MHz_u GetChannelWidthInMhz(WifiChannelWidthType width);
 
 /**
  * Return true if a preamble corresponds to an EHT transmission.

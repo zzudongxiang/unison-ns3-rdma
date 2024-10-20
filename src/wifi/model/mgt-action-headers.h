@@ -2,18 +2,7 @@
  * Copyright (c) 2006 INRIA
  * Copyright (c) 2009 MIRKO BANCHI
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Authors: Mathieu Lacage <mathieu.lacage@sophia.inria.fr>
  *          Mirko Banchi <mk.banchi@gmail.com>
@@ -752,12 +741,12 @@ class FilsDiscHeader : public Header
 
         /**
          * \brief Set the BSS Operating Channel Width field based on the operating channel width
-         * \param width the operating channel width in MHz
+         * \param width the operating channel width
          */
-        void SetOpChannelWidth(uint16_t width);
+        void SetOpChannelWidth(MHz_u width);
 
         /// \return the operating channel width encoded in the BSS Operating Channel Width field
-        uint16_t GetOpChannelWidth() const;
+        MHz_u GetOpChannelWidth() const;
 
         /**
          * \brief Set the Maximum Number of Spatial Streams field

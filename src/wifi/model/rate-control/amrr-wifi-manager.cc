@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2003,2007 INRIA
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Mathieu Lacage <mathieu.lacage@sophia.inria.fr>
  */
@@ -177,7 +166,7 @@ AmrrWifiManager::DoReportDataOk(WifiRemoteStation* st,
                                 double ackSnr,
                                 WifiMode ackMode,
                                 double dataSnr,
-                                uint16_t dataChannelWidth,
+                                MHz_u dataChannelWidth,
                                 uint8_t dataNss)
 {
     NS_LOG_FUNCTION(this << st << ackSnr << ackMode << dataSnr << dataChannelWidth << +dataNss);
@@ -331,7 +320,7 @@ AmrrWifiManager::UpdateMode(AmrrWifiRemoteStation* station)
 }
 
 WifiTxVector
-AmrrWifiManager::DoGetDataTxVector(WifiRemoteStation* st, uint16_t allowedWidth)
+AmrrWifiManager::DoGetDataTxVector(WifiRemoteStation* st, MHz_u allowedWidth)
 {
     NS_LOG_FUNCTION(this << st << allowedWidth);
     auto station = static_cast<AmrrWifiRemoteStation*>(st);
@@ -375,7 +364,7 @@ AmrrWifiManager::DoGetDataTxVector(WifiRemoteStation* st, uint16_t allowedWidth)
             rateIndex = station->m_txrate;
         }
     }
-    uint16_t channelWidth = GetChannelWidth(station);
+    auto channelWidth = GetChannelWidth(station);
     if (channelWidth > 20 && channelWidth != 22)
     {
         channelWidth = 20;
@@ -391,7 +380,7 @@ AmrrWifiManager::DoGetDataTxVector(WifiRemoteStation* st, uint16_t allowedWidth)
         mode,
         GetDefaultTxPowerLevel(),
         GetPreambleForTransmission(mode.GetModulationClass(), GetShortPreambleEnabled()),
-        800,
+        NanoSeconds(800),
         1,
         1,
         0,
@@ -404,7 +393,7 @@ AmrrWifiManager::DoGetRtsTxVector(WifiRemoteStation* st)
 {
     NS_LOG_FUNCTION(this << st);
     auto station = static_cast<AmrrWifiRemoteStation*>(st);
-    uint16_t channelWidth = GetChannelWidth(station);
+    auto channelWidth = GetChannelWidth(station);
     if (channelWidth > 20 && channelWidth != 22)
     {
         channelWidth = 20;
@@ -423,7 +412,7 @@ AmrrWifiManager::DoGetRtsTxVector(WifiRemoteStation* st)
         mode,
         GetDefaultTxPowerLevel(),
         GetPreambleForTransmission(mode.GetModulationClass(), GetShortPreambleEnabled()),
-        800,
+        NanoSeconds(800),
         1,
         1,
         0,

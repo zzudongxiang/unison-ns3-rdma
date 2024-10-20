@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2020 University of Washington
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Authors: Rohan Patidar <rpatidar@uw.edu>
  *          Sébastien Deronne <sebastien.deronne@gmail.com>
@@ -25,7 +14,8 @@
 #ifndef ERROR_RATE_TABLES_H
 #define ERROR_RATE_TABLES_H
 
-#include <cstdint>
+#include "ns3/wifi-units.h"
+
 #include <utility>
 #include <vector>
 
@@ -40,8 +30,8 @@ const uint16_t ERROR_TABLE_LDPC_FRAME_SIZE = 1458; //!< reference size (bytes) f
 const uint8_t ERROR_TABLE_BCC_MAX_NUM_MCS = 10;    //!< maximum number of MCSs for BCC
 const uint8_t ERROR_TABLE_LDPC_MAX_NUM_MCS = 12;   //!< maximum number of MCSs for LDPC
 
-/// Table of SNR (dB) and PER pairs
-typedef std::vector<std::pair<double /* SNR (dB) */, double /* PER */>> SnrPerTable;
+/// Table of SNR and PER pairs
+typedef std::vector<std::pair<dB_u /* SNR */, double /* PER */>> SnrPerTable;
 
 /// AWGN error table for BCC with reference size of 32 bytes
 extern const SnrPerTable AwgnErrorTableBcc32[ERROR_TABLE_BCC_MAX_NUM_MCS];

@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2017 Orange Labs
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Rediet <getachew.redieteab@orange.com>
  */
@@ -53,15 +42,15 @@ SendPacket(Ptr<NetDevice> sourceDevice, Address& destination)
 int
 main(int argc, char** argv)
 {
-    std::string standard = "11a";
-    int bw = 20;
-    double pow = 23; // dBm
+    std::string standardStr = "11a";
+    MHz_u bw = 20;
+    dBm_u pow = 23;
     bool verbose = false;
     CommandLine cmd(__FILE__);
     cmd.AddValue("standard",
                  "OFDM-based Wi-Fi standard [11a, 11p_10MHZ, 11p_5MHZ, 11n_2_4GHZ, 11n_5GHZ, 11ac, "
                  "11ax_2_4GHZ, 11ax_5GHZ]",
-                 standard);
+                 standardStr);
     cmd.AddValue("bw", "Bandwidth (consistent with standard, in MHz)", bw);
     cmd.AddValue("txPower", "Transmit power (dBm)", pow);
     cmd.AddValue("verbose",
@@ -72,14 +61,19 @@ main(int argc, char** argv)
     WifiHelper wifi;
     Ssid ssid;
     std::string dataRate;
-    int freq;
+    MHz_u freq;
     Time dataStartTime =
         MicroSeconds(800); // leaving enough time for beacon and association procedure
     Time dataDuration =
         MicroSeconds(300); // leaving enough time for data transfer (+ acknowledgment)
-    if (standard == "11a")
+    WifiStandard standard{WifiStandard::WIFI_STANDARD_UNSPECIFIED};
+    WifiPhyBand phyBand{WIFI_PHY_BAND_UNSPECIFIED};
+    std::string channelBand;
+    if (standardStr == "11a")
     {
-        wifi.SetStandard(WIFI_STANDARD_80211a);
+        standard = WIFI_STANDARD_80211a;
+        phyBand = WIFI_PHY_BAND_5GHZ;
+        channelBand = "BAND_5GHZ";
         ssid = Ssid("ns380211a");
         dataRate = "OfdmRate6Mbps";
         freq = 5180;
@@ -89,9 +83,11 @@ main(int argc, char** argv)
             return 1;
         }
     }
-    else if (standard == "11p_10MHZ")
+    else if (standardStr == "11p_10MHZ")
     {
-        wifi.SetStandard(WIFI_STANDARD_80211p);
+        standard = WIFI_STANDARD_80211p;
+        phyBand = WIFI_PHY_BAND_5GHZ;
+        channelBand = "BAND_5GHZ";
         ssid = Ssid("ns380211p_10MHZ");
         dataRate = "OfdmRate3MbpsBW10MHz";
         freq = 5860;
@@ -103,9 +99,11 @@ main(int argc, char** argv)
             return 1;
         }
     }
-    else if (standard == "11p_5MHZ")
+    else if (standardStr == "11p_5MHZ")
     {
-        wifi.SetStandard(WIFI_STANDARD_80211p);
+        standard = WIFI_STANDARD_80211p;
+        phyBand = WIFI_PHY_BAND_5GHZ;
+        channelBand = "BAND_5GHZ";
         ssid = Ssid("ns380211p_5MHZ");
         dataRate = "OfdmRate1_5MbpsBW5MHz";
         freq = 5860;
@@ -117,9 +115,11 @@ main(int argc, char** argv)
             return 1;
         }
     }
-    else if (standard == "11n_2_4GHZ")
+    else if (standardStr == "11n_2_4GHZ")
     {
-        wifi.SetStandard(WIFI_STANDARD_80211n);
+        standard = WIFI_STANDARD_80211n;
+        phyBand = WIFI_PHY_BAND_2_4GHZ;
+        channelBand = "BAND_2_4GHZ";
         ssid = Ssid("ns380211n_2_4GHZ");
         dataRate = "HtMcs0";
         freq = 2402 + (bw / 2); // so as to have 2412/2422 for 20/40
@@ -131,9 +131,11 @@ main(int argc, char** argv)
             return 1;
         }
     }
-    else if (standard == "11n_5GHZ")
+    else if (standardStr == "11n_5GHZ")
     {
-        wifi.SetStandard(WIFI_STANDARD_80211n);
+        standard = WIFI_STANDARD_80211n;
+        phyBand = WIFI_PHY_BAND_5GHZ;
+        channelBand = "BAND_5GHZ";
         ssid = Ssid("ns380211n_5GHZ");
         dataRate = "HtMcs0";
         freq = 5170 + (bw / 2); // so as to have 5180/5190 for 20/40
@@ -144,9 +146,11 @@ main(int argc, char** argv)
             return 1;
         }
     }
-    else if (standard == "11ac")
+    else if (standardStr == "11ac")
     {
-        wifi.SetStandard(WIFI_STANDARD_80211ac);
+        standard = WIFI_STANDARD_80211ac;
+        phyBand = WIFI_PHY_BAND_5GHZ;
+        channelBand = "BAND_5GHZ";
         ssid = Ssid("ns380211ac");
         dataRate = "VhtMcs0";
         freq = 5170 + (bw / 2); // so as to have 5180/5190/5210/5250 for 20/40/80/160
@@ -158,9 +162,11 @@ main(int argc, char** argv)
             return 1;
         }
     }
-    else if (standard == "11ax_2_4GHZ")
+    else if (standardStr == "11ax_2_4GHZ")
     {
-        wifi.SetStandard(WIFI_STANDARD_80211ax);
+        standard = WIFI_STANDARD_80211ax;
+        phyBand = WIFI_PHY_BAND_2_4GHZ;
+        channelBand = "BAND_2_4GHZ";
         ssid = Ssid("ns380211ax_2_4GHZ");
         dataRate = "HeMcs0";
         freq = 2402 + (bw / 2); // so as to have 2412/2422/2442 for 20/40/80
@@ -172,9 +178,11 @@ main(int argc, char** argv)
             return 1;
         }
     }
-    else if (standard == "11ax_5GHZ")
+    else if (standardStr == "11ax_5GHZ")
     {
-        wifi.SetStandard(WIFI_STANDARD_80211ax);
+        standard = WIFI_STANDARD_80211ax;
+        phyBand = WIFI_PHY_BAND_5GHZ;
+        channelBand = "BAND_5GHZ";
         ssid = Ssid("ns380211ax_5GHZ");
         dataRate = "HeMcs0";
         freq = 5170 + (bw / 2); // so as to have 5180/5190/5210/5250 for 20/40/80/160
@@ -226,12 +234,15 @@ main(int argc, char** argv)
     SpectrumWifiPhyHelper spectrumPhy;
     spectrumPhy.SetChannel(channel);
     spectrumPhy.SetErrorRateModel("ns3::NistErrorRateModel");
-    spectrumPhy.Set("Frequency", UintegerValue(freq));
-    spectrumPhy.Set("ChannelWidth", UintegerValue(bw));
     spectrumPhy.Set("TxPowerStart", DoubleValue(pow)); // dBm
     spectrumPhy.Set("TxPowerEnd", DoubleValue(pow));
+    auto channelNumber = WifiPhyOperatingChannel::FindFirst(0, freq, bw, standard, phyBand)->number;
+    std::ostringstream channelSettings;
+    channelSettings << "{" << +channelNumber << ", " << bw << ", " << channelBand << ", 0}";
+    spectrumPhy.Set("ChannelSettings", StringValue(channelSettings.str()));
 
     WifiMacHelper mac;
+    wifi.SetStandard(standard);
     wifi.SetRemoteStationManager("ns3::ConstantRateWifiManager",
                                  "DataMode",
                                  StringValue(dataRate),
@@ -285,7 +296,7 @@ main(int argc, char** argv)
         TimeValue(MicroSeconds(4))); // enough resolution to distinguish OFDM symbols (default 1ms
                                      // too long even for PPDUs)
     std::ostringstream ossFileName;
-    ossFileName << "spectrum-analyzer-wifi-" << standard << "-" << bw << "MHz";
+    ossFileName << "spectrum-analyzer-wifi-" << standardStr << "-" << bw << "MHz";
     spectrumAnalyzerHelper.EnableAsciiAll(ossFileName.str());
     NetDeviceContainer spectrumAnalyzerDevices =
         spectrumAnalyzerHelper.Install(spectrumAnalyzerNodes);

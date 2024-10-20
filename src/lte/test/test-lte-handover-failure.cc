@@ -2,18 +2,7 @@
  * Copyright (c) 2013 Magister Solutions (original test-lte-handover-delay.cc)
  * Copyright (c) 2021 University of Washington (handover failure cases)
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Sachin Nayak <sachinnn@uw.edu>
  */
@@ -29,6 +18,7 @@
 #include <ns3/ipv4-static-routing.h>
 #include <ns3/log.h>
 #include <ns3/lte-helper.h>
+#include <ns3/lte-ue-net-device.h>
 #include <ns3/mobility-helper.h>
 #include <ns3/net-device-container.h>
 #include <ns3/node-container.h>
@@ -266,6 +256,10 @@ LteHandoverFailureTestCase::DoRun()
      */
     auto enbDevs = lteHelper->InstallEnbDevice(enbNodes);
     auto ueDev = lteHelper->InstallUeDevice(ueNode).Get(0);
+    auto castedUeDev = DynamicCast<LteUeNetDevice>(ueDev);
+    // Working value from before we started resetting g_nextStreamIndex. For more details
+    // see https://gitlab.com/nsnam/ns-3-dev/-/merge_requests/2178#note_2143793903
+    castedUeDev->GetPhy()->GetDlSpectrumPhy()->AssignStreams(175);
 
     /*
      * Network layer.

@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2020 Orange Labs
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Authors: Rediet <getachew.redieteab@orange.com>
  *          Sébastien Deronne <sebastien.deronne@gmail.com> (for logic ported from wifi-phy)
@@ -160,10 +149,10 @@ class DsssPhy : public PhyEntity
 
   private:
     PhyFieldRxStatus DoEndReceiveField(WifiPpduField field, Ptr<Event> event) override;
-    Ptr<SpectrumValue> GetTxPowerSpectralDensity(double txPowerW,
+    Ptr<SpectrumValue> GetTxPowerSpectralDensity(Watt_u txPower,
                                                  Ptr<const WifiPpdu> ppdu) const override;
-    uint16_t GetRxChannelWidth(const WifiTxVector& txVector) const override;
-    uint16_t GetMeasurementChannelWidth(const Ptr<const WifiPpdu> ppdu) const override;
+    MHz_u GetRxChannelWidth(const WifiTxVector& txVector) const override;
+    MHz_u GetMeasurementChannelWidth(const Ptr<const WifiPpdu> ppdu) const override;
 
     /**
      * \param txVector the transmission parameters

@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2020 University of Washington
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Authors: Rohan Patidar <rpatidar@uw.edu>
  *          Sébastien Deronne <sebastien.deronne@gmail.com>
@@ -67,13 +56,13 @@ class TableBasedErrorRateModel : public ErrorRateModel
                                  uint16_t staId) const override;
 
     /**
-     * Round SNR (in dB) to the specified precision
+     * Round SNR to the specified precision
      *
-     * \param snr the SNR to round  (in dB)
+     * \param snr the SNR to round
      * \param precision the precision to use
-     * \return the rounded SNR (in dB) to the specified precision
+     * \return the rounded SNR to the specified precision
      */
-    double RoundSnr(double snr, double precision) const;
+    dB_u RoundSnr(dB_u snr, double precision) const;
 
     /**
      * Fetch the frame success rate for a given Wi-Fi mode, TXVECTOR, SNR and frame size.

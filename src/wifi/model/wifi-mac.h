@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2008 INRIA
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Mathieu Lacage <mathieu.lacage@sophia.inria.fr>
  */
@@ -58,6 +47,7 @@ class ExtendedCapabilities;
 class OriginatorBlockAckAgreement;
 class RecipientBlockAckAgreement;
 class UniformRandomVariable;
+enum class WifiIcfDrop : uint8_t; // opaque enum declaration
 
 /**
  * \ingroup wifi
@@ -363,6 +353,22 @@ class WifiMac : public Object
                                  const std::set<uint8_t>& linkIds);
 
     /**
+     * Check whether the transmission of the packets in the given container queue of the given
+     * Access Category are blocked on the given link for the given reason (if any).
+     *
+     * \param ac the given Access Category
+     * \param queueId the given container queue
+     * \param linkId the ID of the given link
+     * \param reason the reason to block transmissions (REASONS_COUNT indicate no reason)
+     * \return whether transmission is blocked
+     */
+    bool GetTxBlockedOnLink(
+        AcIndex ac,
+        const WifiContainerQueueId& queueId,
+        uint8_t linkId,
+        WifiQueueBlockedReason reason = WifiQueueBlockedReason::REASONS_COUNT) const;
+
+    /**
      * Return true if packets can be forwarded to the given destination,
      * false otherwise.
      *
@@ -370,27 +376,43 @@ class WifiMac : public Object
      * \return whether packets can be forwarded to the given destination
      */
     virtual bool CanForwardPacketsTo(Mac48Address to) const = 0;
+
+    /**
+     * \param packet the packet to send.
+     * \param to the address to which the packet should be sent.
+     *
+     * The packet should be enqueued in a TX queue, and should be
+     * dequeued as soon as the DCF/EDCA function determines that
+     * access is granted to this MAC.
+     */
+    void Enqueue(Ptr<Packet> packet, Mac48Address to);
+
     /**
      * \param packet the packet to send.
      * \param to the address to which the packet should be sent.
      * \param from the address from which the packet should be sent.
      *
      * The packet should be enqueued in a TX queue, and should be
-     * dequeued as soon as the DCF function determines that
-     * access it granted to this MAC. The extra parameter "from" allows
+     * dequeued as soon as the DCF/EDCA function determines that
+     * access is granted to this MAC. The extra parameter "from" allows
      * this device to operate in a bridged mode, forwarding received
      * frames without altering the source address.
      */
-    virtual void Enqueue(Ptr<Packet> packet, Mac48Address to, Mac48Address from);
+    void Enqueue(Ptr<Packet> packet, Mac48Address to, Mac48Address from);
+
     /**
      * \param packet the packet to send.
      * \param to the address to which the packet should be sent.
+     * \param from the address from which the packet should be sent.
+     * \param tid the TID to use to send this packet
      *
      * The packet should be enqueued in a TX queue, and should be
-     * dequeued as soon as the DCF function determines that
-     * access it granted to this MAC.
+     * dequeued as soon as the DCF/EDCA function determines that
+     * access is granted to this MAC. The extra parameter "tid" allows
+     * to specify the TID to use in case QoS is supported.
      */
-    virtual void Enqueue(Ptr<Packet> packet, Mac48Address to) = 0;
+    void Enqueue(Ptr<Packet> packet, Mac48Address to, Mac48Address from, uint8_t tid);
+
     /**
      * \return if this MAC supports sending from arbitrary address.
      *
@@ -1115,6 +1137,24 @@ class WifiMac : public Object
     void SetBkBlockAckInactivityTimeout(uint16_t timeout);
 
     /**
+     * \param mpdu the MPDU to send.
+     * \param to the address to which the packet should be sent.
+     * \param from the address from which the packet should be sent.
+     *
+     * Subclasses need to implement this method to finalize the MAC header of the MPDU
+     * (MAC addresses and ToDS/FromDS flags) and enqueue the MPDU in a TX queue.
+     */
+    virtual void Enqueue(Ptr<WifiMpdu> mpdu, Mac48Address to, Mac48Address from) = 0;
+
+    /**
+     * Allow subclasses to take actions when a packet to enqueue has been dropped.
+     *
+     * \param packet the dropped packet
+     * \param to the address to which the packet should have been sent
+     */
+    virtual void NotifyDropPacketToEnqueue(Ptr<Packet> packet, Mac48Address to);
+
+    /**
      * This Boolean is set \c true iff this WifiMac is to model
      * 802.11e/WMM style Quality of Service. It is exposed through the
      * attribute system.
@@ -1295,6 +1335,19 @@ class WifiMac : public Object
      * This trace source is fed by a WifiTxTimer object.
      */
     PsduMapResponseTimeoutTracedCallback m_psduMapResponseTimeoutCallback;
+
+    /**
+     * TracedCallback signature for ICF drop events.
+     *
+     * \param reason the reason why the ICF was dropped by the EMLSR client
+     * \param linkId the ID of the link on which the ICF was dropped
+     */
+    typedef void (*IcfDropCallback)(WifiIcfDrop reason, uint8_t linkId);
+
+    /// TracedCallback for ICF drop events typedef
+    using IcfDropTracedCallback = TracedCallback<WifiIcfDrop, uint8_t>;
+
+    IcfDropTracedCallback m_icfDropCallback; //!< traced callback for ICF drop events
 };
 
 } // namespace ns3

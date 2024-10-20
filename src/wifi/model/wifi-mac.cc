@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2008 INRIA
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Mathieu Lacage <mathieu.lacage@sophia.inria.fr>
  */
@@ -34,9 +23,11 @@
 #include "ns3/he-configuration.h"
 #include "ns3/ht-configuration.h"
 #include "ns3/log.h"
+#include "ns3/object-vector.h"
 #include "ns3/packet.h"
 #include "ns3/pointer.h"
 #include "ns3/shuffle.h"
+#include "ns3/socket.h"
 #include "ns3/string.h"
 #include "ns3/vht-configuration.h"
 
@@ -135,6 +126,18 @@ WifiMac::GetTypeId()
                           PointerValue(),
                           MakePointerAccessor(&WifiMac::GetBKQueue, &WifiMac::SetBkQueue),
                           MakePointerChecker<QosTxop>())
+            .AddAttribute(
+                "ChannelAccessManagers",
+                "The Channel Access Manager(s) attached to this device.",
+                ObjectVectorValue(),
+                MakeObjectVectorAccessor(&WifiMac::GetChannelAccessManager, &WifiMac::GetNLinks),
+                MakeObjectVectorChecker<ChannelAccessManager>())
+            .AddAttribute(
+                "FrameExchangeManagers",
+                "The Frame Exchange Manager(s) attached to this device.",
+                ObjectVectorValue(),
+                MakeObjectVectorAccessor(&WifiMac::GetFrameExchangeManager, &WifiMac::GetNLinks),
+                MakeObjectVectorChecker<FrameExchangeManager>())
             .AddAttribute(
                 "MpduBufferSize",
                 "The size (in number of MPDUs) of the buffer used for each BlockAck "
@@ -356,7 +359,14 @@ WifiMac::GetTypeId()
                 "a SU frame or aggregated to PSDUs in the DL MU PPDU), a Basic Trigger Frame or "
                 "a BSRP Trigger Frame.",
                 MakeTraceSourceAccessor(&WifiMac::m_psduMapResponseTimeoutCallback),
-                "ns3::WifiMac::PsduMapResponseTimeoutCallback");
+                "ns3::WifiMac::PsduMapResponseTimeoutCallback")
+            .AddTraceSource("IcfDropReason",
+                            "An ICF is dropped by an EMLSR client for the given reason on the "
+                            "link with the given ID. This trace source is actually fed by the "
+                            "EHT Frame Exchange Manager through the m_icfDropCallback member "
+                            "variable.",
+                            MakeTraceSourceAccessor(&WifiMac::m_icfDropCallback),
+                            "ns3::WifiMac::IcfDropCallback");
     return tid;
 }
 
@@ -972,6 +982,11 @@ WifiMac::SetFrameExchangeManagers(const std::vector<Ptr<FrameExchangeManager>>& 
             MakeCallback(&DroppedMpduTracedCallback::operator(), &m_droppedMpduCallback));
         link->feManager->SetAckedMpduCallback(
             MakeCallback(&MpduTracedCallback::operator(), &m_ackedMpduCallback));
+        if (auto ehtFem = DynamicCast<EhtFrameExchangeManager>(link->feManager))
+        {
+            ehtFem->m_icfDropCallback.ConnectWithoutContext(
+                MakeCallback(&IcfDropTracedCallback::operator(), &m_icfDropCallback));
+        }
     }
 
     CompleteConfig();
@@ -1135,7 +1150,12 @@ WifiMac::SwapLinks(std::map<uint8_t, uint8_t> links)
 {
     NS_LOG_FUNCTION(this);
 
-    std::map<uint8_t, uint8_t> actualPairs;
+    // save the initial mapping between link IDs and link Entities
+    std::map<uint8_t, std::reference_wrapper<const LinkEntity>> origLinkRefMap;
+    for (const auto& [id, link] : m_links)
+    {
+        origLinkRefMap.insert_or_assign(id, *link.get());
+    }
 
     while (!links.empty())
     {
@@ -1159,8 +1179,6 @@ WifiMac::SwapLinks(std::map<uint8_t, uint8_t> links)
             auto [it, inserted] =
                 m_links.emplace(to, nullptr); // insert an element with key to if not present
             m_links[to].swap(linkToMove);     // to is the link to move now
-            actualPairs.emplace(from, to);
-            UpdateLinkId(to);
             links.erase(from);
             if (!linkToMove)
             {
@@ -1176,7 +1194,6 @@ WifiMac::SwapLinks(std::map<uint8_t, uint8_t> links)
             {
                 // no new position specified for 'to', use the current empty cell
                 m_links[empty].swap(linkToMove);
-                actualPairs.emplace(to, empty);
                 break;
             }
 
@@ -1190,6 +1207,22 @@ WifiMac::SwapLinks(std::map<uint8_t, uint8_t> links)
     {
         m_linkIds.insert(id);
     }
+
+    std::map<uint8_t, uint8_t> actualPairs;
+    for (const auto& [from, ref] : origLinkRefMap)
+    {
+        // find the pointer in the current link map
+        for (const auto& [to, link] : m_links)
+        {
+            if (link.get() == &ref.get())
+            {
+                actualPairs[from] = to; // link 'from' became link 'to'
+                UpdateLinkId(to);
+                break;
+            }
+        }
+    }
+    NS_ASSERT_MSG(actualPairs.size() == m_links.size(), "Missing some link(s)");
 
     if (m_txop)
     {
@@ -1617,15 +1650,99 @@ WifiMac::UnblockUnicastTxOnLinks(WifiQueueBlockedReason reason,
     }
 }
 
+bool
+WifiMac::GetTxBlockedOnLink(AcIndex ac,
+                            const WifiContainerQueueId& queueId,
+                            uint8_t linkId,
+                            WifiQueueBlockedReason reason) const
+{
+    auto mask = m_scheduler->GetQueueLinkMask(ac, queueId, linkId);
+
+    if (!mask.has_value())
+    {
+        return true; // the link may have not been setup
+    }
+    if (reason == WifiQueueBlockedReason::REASONS_COUNT)
+    {
+        return mask->any();
+    }
+    return mask->test(static_cast<std::size_t>(reason));
+}
+
+void
+WifiMac::Enqueue(Ptr<Packet> packet, Mac48Address to)
+{
+    NS_LOG_FUNCTION(this << packet << to);
+    // We're sending this packet with a from address that is our own. We
+    // get that address from the lower MAC and make use of the
+    // from-spoofing Enqueue() method to avoid duplicated code.
+    Enqueue(packet, to, GetAddress());
+}
+
 void
 WifiMac::Enqueue(Ptr<Packet> packet, Mac48Address to, Mac48Address from)
 {
-    // We expect WifiMac subclasses which do support forwarding (e.g.,
-    // AP) to override this method. Therefore, we throw a fatal error if
-    // someone tries to invoke this method on a class which has not done
-    // this.
-    NS_FATAL_ERROR("This MAC entity (" << this << ", " << GetAddress()
-                                       << ") does not support Enqueue() with from address");
+    NS_LOG_FUNCTION(this << packet << to << from);
+
+    // If we are not a QoS AP then we definitely want to use AC_BE to
+    // transmit the packet. A TID of zero will map to AC_BE (through \c
+    // QosUtilsMapTidToAc()), so we use that as our default here.
+    uint8_t tid = 0;
+
+    SocketPriorityTag qos;
+    if (packet->RemovePacketTag(qos) && qos.GetPriority() < 8)
+    {
+        tid = qos.GetPriority();
+    }
+
+    Enqueue(packet, to, from, tid);
+}
+
+void
+WifiMac::Enqueue(Ptr<Packet> packet, Mac48Address to, Mac48Address from, uint8_t tid)
+{
+    NS_LOG_FUNCTION(this << packet << to << from << tid);
+
+    NS_ABORT_MSG_IF(!SupportsSendFrom() && from != GetAddress(),
+                    "This Mac does not support forwarding frames");
+
+    if (!CanForwardPacketsTo(to))
+    {
+        NotifyTxDrop(packet);
+        NotifyDropPacketToEnqueue(packet, to);
+        return;
+    }
+
+    WifiMacHeader hdr;
+
+    // For now, an AP that supports QoS does not support non-QoS
+    // associations, and vice versa. In future the AP model should
+    // support simultaneously associated QoS and non-QoS STAs, at which
+    // point there will need to be per-association QoS state maintained
+    // by the association state machine, and consulted here.
+    if (GetQosSupported())
+    {
+        hdr.SetType(WIFI_MAC_QOSDATA);
+        hdr.SetQosAckPolicy(WifiMacHeader::NORMAL_ACK);
+        hdr.SetQosNoEosp();
+        hdr.SetQosNoAmsdu();
+        hdr.SetQosTid(tid);
+        hdr.SetNoOrder(); // explicitly set to 0 for the time being since HT control field is not
+                          // yet implemented (set it to 1 when implemented)
+    }
+    else
+    {
+        hdr.SetType(WIFI_MAC_DATA);
+    }
+
+    // create an MPDU and pass it to subclasses to finalize MAC header
+    Enqueue(Create<WifiMpdu>(packet, hdr), to, from);
+}
+
+void
+WifiMac::NotifyDropPacketToEnqueue(Ptr<Packet> packet, Mac48Address to)
+{
+    NS_LOG_FUNCTION(this << packet << to);
 }
 
 void
@@ -1640,11 +1757,10 @@ WifiMac::Receive(Ptr<const WifiMpdu> mpdu, uint8_t linkId)
 {
     NS_LOG_FUNCTION(this << *mpdu << linkId);
 
-    const WifiMacHeader* hdr = &mpdu->GetOriginal()->GetHeader();
-    Mac48Address to = hdr->GetAddr1();
-    Mac48Address from = hdr->GetAddr2();
-    auto myAddr = hdr->IsData() ? Mac48Address::ConvertFrom(GetDevice()->GetAddress())
-                                : GetFrameExchangeManager(linkId)->GetAddress();
+    const auto& hdr = mpdu->GetOriginal()->GetHeader();
+    const auto to = hdr.GetAddr1();
+    const auto myAddr = hdr.IsData() ? Mac48Address::ConvertFrom(GetDevice()->GetAddress())
+                                     : GetFrameExchangeManager(linkId)->GetAddress();
 
     // We don't know how to deal with any frame that is not addressed to
     // us (and odds are there is nothing sensible we could do anyway),
@@ -1657,105 +1773,13 @@ WifiMac::Receive(Ptr<const WifiMpdu> mpdu, uint8_t linkId)
         return;
     }
 
-    // Nothing to do with (QoS) Null Data frames
-    if (hdr->IsData() && !hdr->HasData())
+    // Nothing to do with (QoS) Null Data frames or management frames
+    if ((hdr.IsData() && !hdr.HasData()) || hdr.IsMgt())
     {
         return;
     }
 
-    if (hdr->IsMgt() && hdr->IsAction())
-    {
-        // There is currently only any reason for Management Action
-        // frames to be flying about if we are a QoS STA.
-        NS_ASSERT(GetQosSupported());
-
-        auto& link = GetLink(linkId);
-        WifiActionHeader actionHdr;
-        Ptr<Packet> packet = mpdu->GetPacket()->Copy();
-        packet->RemoveHeader(actionHdr);
-
-        switch (actionHdr.GetCategory())
-        {
-        case WifiActionHeader::BLOCK_ACK:
-
-            switch (actionHdr.GetAction().blockAck)
-            {
-            case WifiActionHeader::BLOCK_ACK_ADDBA_REQUEST: {
-                MgtAddBaRequestHeader reqHdr;
-                packet->RemoveHeader(reqHdr);
-
-                // We've received an ADDBA Request. Our policy here is
-                // to automatically accept it, so we get the ADDBA
-                // Response on it's way immediately.
-                NS_ASSERT(link.feManager);
-                auto htFem = DynamicCast<HtFrameExchangeManager>(link.feManager);
-                if (htFem)
-                {
-                    htFem->SendAddBaResponse(&reqHdr, from);
-                }
-                // This frame is now completely dealt with, so we're done.
-                return;
-            }
-            case WifiActionHeader::BLOCK_ACK_ADDBA_RESPONSE: {
-                MgtAddBaResponseHeader respHdr;
-                packet->RemoveHeader(respHdr);
-
-                // We've received an ADDBA Response. We assume that it
-                // indicates success after an ADDBA Request we have
-                // sent (we could, in principle, check this, but it
-                // seems a waste given the level of the current model)
-                // and act by locally establishing the agreement on
-                // the appropriate queue.
-                auto recipientMld = link.stationManager->GetMldAddress(from);
-                auto recipient = (recipientMld ? *recipientMld : from);
-                GetQosTxop(respHdr.GetTid())->GotAddBaResponse(respHdr, recipient);
-                auto htFem = DynamicCast<HtFrameExchangeManager>(link.feManager);
-                if (htFem)
-                {
-                    GetQosTxop(respHdr.GetTid())
-                        ->GetBaManager()
-                        ->SetBlockAckInactivityCallback(
-                            MakeCallback(&HtFrameExchangeManager::SendDelbaFrame, htFem));
-                }
-                // This frame is now completely dealt with, so we're done.
-                return;
-            }
-            case WifiActionHeader::BLOCK_ACK_DELBA: {
-                MgtDelBaHeader delBaHdr;
-                packet->RemoveHeader(delBaHdr);
-                auto recipientMld = link.stationManager->GetMldAddress(from);
-                auto recipient = (recipientMld ? *recipientMld : from);
-
-                if (delBaHdr.IsByOriginator())
-                {
-                    // This DELBA frame was sent by the originator, so
-                    // this means that an ingoing established
-                    // agreement exists in BlockAckManager and we need to
-                    // destroy it.
-                    GetQosTxop(delBaHdr.GetTid())
-                        ->GetBaManager()
-                        ->DestroyRecipientAgreement(recipient, delBaHdr.GetTid());
-                }
-                else
-                {
-                    // We must have been the originator. We need to
-                    // tell the correct queue that the agreement has
-                    // been torn down
-                    GetQosTxop(delBaHdr.GetTid())->GotDelBaFrame(&delBaHdr, recipient);
-                }
-                // This frame is now completely dealt with, so we're done.
-                return;
-            }
-            default:
-                NS_FATAL_ERROR("Unsupported Action field in Block Ack Action frame");
-                return;
-            }
-        default:
-            NS_FATAL_ERROR("Unsupported Action frame received");
-            return;
-        }
-    }
-    NS_FATAL_ERROR("Don't know how to handle frame (type=" << hdr->GetType());
+    NS_FATAL_ERROR("Don't know how to handle frame (type=" << hdr.GetType());
 }
 
 void
@@ -1807,7 +1831,7 @@ WifiMac::GetLocalAddress(const Mac48Address& remoteAddr) const
         // this is a single link device
         return m_address;
     }
-    // this is an MLD (hence the remote device is single link)
+    // this is an MLD (hence the remote device is single link or unknown)
     return DoGetLocalAddress(remoteAddr);
 }
 
@@ -2093,8 +2117,6 @@ WifiMac::GetExtendedCapabilities() const
 {
     NS_LOG_FUNCTION(this);
     ExtendedCapabilities capabilities;
-    capabilities.SetHtSupported(GetHtSupported(SINGLE_LINK_OP_ID));
-    capabilities.SetVhtSupported(GetVhtSupported(SINGLE_LINK_OP_ID));
     // TODO: to be completed
     return capabilities;
 }
@@ -2139,7 +2161,7 @@ WifiMac::GetHtCapabilities(uint8_t linkId) const
         uint8_t nss = (mcs.GetMcsValue() / 8) + 1;
         NS_ASSERT(nss > 0 && nss < 5);
         uint64_t dataRate = mcs.GetDataRate(htConfiguration->Get40MHzOperationSupported() ? 40 : 20,
-                                            sgiSupported ? 400 : 800,
+                                            NanoSeconds(sgiSupported ? 400 : 800),
                                             nss);
         if (dataRate > maxSupportedRate)
         {
@@ -2216,7 +2238,7 @@ WifiMac::GetVhtCapabilities(uint8_t linkId) const
         capabilities.SetTxMcsMap(maxMcs, nss);
     }
     uint64_t maxSupportedRateLGI = 0; // in bit/s
-    uint16_t maxWidth = vhtConfiguration->Get160MHzOperationSupported() ? 160 : 80;
+    MHz_u maxWidth = vhtConfiguration->Get160MHzOperationSupported() ? 160 : 80;
     for (const auto& mcs : phy->GetMcsList(WIFI_MOD_CLASS_VHT))
     {
         if (!mcs.IsAllowed(maxWidth, 1))
@@ -2269,7 +2291,7 @@ WifiMac::GetHeCapabilities(uint8_t linkId) const
     }
     capabilities.SetChannelWidthSet(channelWidthSet);
     capabilities.SetLdpcCodingInPayload(htConfiguration->GetLdpcSupported());
-    if (heConfiguration->GetGuardInterval() == NanoSeconds(800))
+    if (heConfiguration->GetGuardInterval().GetNanoSeconds() == 800)
     {
         // todo: We assume for now that if we support 800ns GI then 1600ns GI is supported as well
         // todo: Assuming reception support for both 1x HE LTF and 4x HE LTF 800 ns

@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2009 University of Washington
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Leonard Tracy <lentracy@gmail.com>
  */
@@ -314,6 +303,91 @@ UanTest::DoRun()
  * \ingroup uan-test
  * \ingroup tests
  *
+ * \brief UanModesList Test
+ */
+class UanModesListTest : public TestCase
+{
+  public:
+    UanModesListTest();
+
+    void DoRun() override;
+};
+
+UanModesListTest::UanModesListTest()
+    : TestCase("UanModesListTest")
+{
+}
+
+void
+UanModesListTest::DoRun()
+{
+    // operator >> (std::istream &is, UanModesList &ml)
+    std::string inputStr;
+    std::istringstream iss;
+    UanModesList ml;
+
+    inputStr = "3|0|1|1|";
+    iss.str(inputStr);
+    iss >> ml;
+    NS_TEST_ASSERT_MSG_EQ(ml.GetNModes(), 3, "Expected 3 modes in the list");
+    NS_TEST_ASSERT_MSG_EQ(iss.eof(), true, "Expected end of file state");
+    NS_TEST_ASSERT_MSG_EQ(iss.fail(), false, "Expected no fail state");
+
+    inputStr = "3|0|1|";
+    iss.str(inputStr);
+    iss.clear();
+    iss >> ml;
+    NS_TEST_ASSERT_MSG_EQ(iss.fail(), true, "Expected fail state due to incomplete input");
+
+    inputStr = "|3|0|1|1|";
+    iss.str(inputStr);
+    iss.clear();
+    iss >> ml;
+    NS_TEST_ASSERT_MSG_EQ(iss.fail(), true, "Expected fail state due to leading delimiter");
+
+    inputStr = "3|0|1|1|0|";
+    iss.str(inputStr);
+    iss.clear();
+    iss >> ml;
+    NS_TEST_ASSERT_MSG_EQ(iss.eof(), false, "Expected no end of file state");
+
+    inputStr = "0|";
+    iss.str(inputStr);
+    iss.clear();
+    iss >> ml;
+    NS_TEST_ASSERT_MSG_EQ(ml.GetNModes(), 0, "Expected 0 modes in the list");
+    NS_TEST_ASSERT_MSG_EQ(iss.eof(), true, "Expected end of file state");
+    NS_TEST_ASSERT_MSG_EQ(iss.fail(), false, "Expected no fail state");
+
+    inputStr = "0|1|0|";
+    iss.str(inputStr);
+    iss.clear();
+    iss >> ml;
+    NS_TEST_ASSERT_MSG_EQ(iss.eof(), false, "Expected end of file state");
+
+    inputStr = "a|1|2|";
+    iss.str(inputStr);
+    iss.clear();
+    iss >> ml;
+    NS_TEST_ASSERT_MSG_EQ(iss.fail(), true, "Expected fail state due to non-numeric input");
+
+    inputStr = "a|b|c|";
+    iss.str(inputStr);
+    iss.clear();
+    iss >> ml;
+    NS_TEST_ASSERT_MSG_EQ(iss.fail(), true, "Expected fail state due to non-numeric input");
+
+    inputStr = "3|a|b|c|";
+    iss.str(inputStr);
+    iss.clear();
+    iss >> ml;
+    NS_TEST_ASSERT_MSG_EQ(iss.fail(), true, "Expected fail state due to non-numeric input");
+}
+
+/**
+ * \ingroup uan-test
+ * \ingroup tests
+ *
  * \brief Uan Test Suite
  */
 class UanTestSuite : public TestSuite
@@ -326,6 +400,7 @@ UanTestSuite::UanTestSuite()
     : TestSuite("devices-uan", Type::UNIT)
 {
     AddTestCase(new UanTest, TestCase::Duration::QUICK);
+    AddTestCase(new UanModesListTest, TestCase::Duration::QUICK);
 }
 
 static UanTestSuite g_uanTestSuite; ///< the test suite

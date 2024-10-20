@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2013 Universita' di Firenze, Italy
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Tommaso Pecorella <tommaso.pecorella@unifi.it>
  *         Michele Muccio <michelemuccio@virgilio.it>
@@ -178,6 +167,7 @@ class SixLowPanNetDevice : public NetDevice
      * is deprecated and will be changed to \c Ptr<const SixLowPanNetDevice>
      * in a future release.
      */
+    // NS_DEPRECATED() - tag for future removal
     typedef void (*RxTxTracedCallback)(Ptr<const Packet> packet,
                                        Ptr<SixLowPanNetDevice> sixNetDevice,
                                        uint32_t ifindex);
@@ -193,6 +183,7 @@ class SixLowPanNetDevice : public NetDevice
      * is deprecated and will be changed to \c Ptr<const SixLowPanNetDevice>
      * in a future release.
      */
+    // NS_DEPRECATED() - tag for future removal
     typedef void (*DropTracedCallback)(DropReason reason,
                                        Ptr<const Packet> packet,
                                        Ptr<SixLowPanNetDevice> sixNetDevice,
@@ -320,6 +311,7 @@ class SixLowPanNetDevice : public NetDevice
      * is deprecated and will be changed to \c Ptr<const SixLowPanNetDevice>
      * in a future release.
      */
+    // NS_DEPRECATED() - tag for future removal
     TracedCallback<Ptr<const Packet>, Ptr<SixLowPanNetDevice>, uint32_t> m_txTrace;
 
     /**
@@ -333,6 +325,7 @@ class SixLowPanNetDevice : public NetDevice
      * is deprecated and will be changed to \c Ptr<const SixLowPanNetDevice>
      * in a future release.
      */
+    // NS_DEPRECATED() - tag for future removal
     TracedCallback<Ptr<const Packet>, Ptr<SixLowPanNetDevice>, uint32_t> m_rxTrace;
 
     /**
@@ -347,6 +340,7 @@ class SixLowPanNetDevice : public NetDevice
      * is deprecated and will be changed to \c Ptr<const SixLowPanNetDevice>
      * in a future release.
      */
+    // NS_DEPRECATED() - tag for future removal
     TracedCallback<DropReason, Ptr<const Packet>, Ptr<SixLowPanNetDevice>, uint32_t> m_dropTrace;
 
     /**

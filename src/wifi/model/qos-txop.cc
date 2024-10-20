@@ -2,18 +2,7 @@
  * Copyright (c) 2006, 2009 INRIA
  * Copyright (c) 2009 MIRKO BANCHI
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Authors: Mathieu Lacage <mathieu.lacage@sophia.inria.fr>
  *          Mirko Banchi <mk.banchi@gmail.com>
@@ -664,16 +653,16 @@ QosTxop::GotAddBaResponse(const MgtAddBaResponseHeader& respHdr, Mac48Address re
     if (respHdr.GetStatusCode().IsSuccess())
     {
         NS_LOG_DEBUG("block ack agreement established with " << recipient << " tid " << +tid);
-        // A (destination, TID) pair is "blocked" (i.e., no more packets are sent)
-        // when an Add BA Request is sent to the destination. However, when the
-        // Add BA Request timer expires, the (destination, TID) pair is "unblocked"
-        // and packets to the destination are sent again (under normal ack policy).
-        // Thus, there may be a packet needing to be retransmitted when the
-        // Add BA Response is received. In this case, the starting sequence number
-        // shall be set equal to the sequence number of such packet.
+        // A (destination, TID) pair is "blocked" (i.e., no more packets are sent) when an
+        // Add BA Request is sent to the destination. However, when the Add BA Request timer
+        // expires, the (destination, TID) pair is "unblocked" and packets to the destination are
+        // sent again (under normal ack policy). Thus, there may be a packet with a sequence number
+        // already assigned waiting to be retransmitted (or being transmitted on another link)
+        // when the Add BA Response is received. In this case, the starting sequence number shall
+        // be set equal to the sequence number of such packet.
         uint16_t startingSeq = m_txMiddle->GetNextSeqNumberByTidAndAddress(tid, recipient);
         auto peekedItem = m_queue->PeekByTidAndAddress(tid, recipient);
-        if (peekedItem && peekedItem->GetHeader().IsRetry())
+        if (peekedItem && peekedItem->HasSeqNoAssigned())
         {
             startingSeq = peekedItem->GetHeader().GetSequenceNumber();
         }
