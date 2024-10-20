@@ -104,7 +104,7 @@ class MtpTestSuite : public TestSuite
                  const std::string dataDir,
                  const std::string args = "",
                  const std::string postCmd = "",
-                 const TestDuration duration = QUICK,
+                 const Duration duration = Duration::QUICK,
                  const bool shouldNotErr = true)
         : TestSuite(name, EXAMPLE)
     {
@@ -118,14 +118,14 @@ static MtpTestSuite g_mtpFatTree1("mtp-fat-tree",
                                   NS_TEST_SOURCEDIR,
                                   "--bandwidth=100Mbps --thread=4 --flowmon=true",
                                   "| grep -v 'Simulation time'",
-                                  TestCase::TestDuration::QUICK);
+                                  TestCase::Duration::QUICK);
 
 static MtpTestSuite g_mtpFatTree2("mtp-fat-tree-incast",
                                   "fat-tree-mtp",
                                   NS_TEST_SOURCEDIR,
                                   "--bandwidth=100Mbps --incast=1 --thread=4 --flowmon=true",
                                   "| grep -v 'Simulation time'",
-                                  TestCase::TestDuration::QUICK);
+                                  TestCase::Duration::QUICK);
 
 static MtpTestSuite g_mtpTcpValidation1("mtp-tcp-validation-dctcp-10ms",
                                         "tcp-validation-mtp",
@@ -133,7 +133,7 @@ static MtpTestSuite g_mtpTcpValidation1("mtp-tcp-validation-dctcp-10ms",
                                         "--firstTcpType=dctcp --linkRate=50Mbps --baseRtt=10ms "
                                         "--queueUseEcn=1 --stopTime=15s --validate=dctcp-10ms",
                                         "",
-                                        TestCase::TestDuration::QUICK);
+                                        TestCase::Duration::QUICK);
 
 static MtpTestSuite g_mtpTcpValidation2("mtp-tcp-validation-dctcp-80ms",
                                         "tcp-validation-mtp",
@@ -141,7 +141,7 @@ static MtpTestSuite g_mtpTcpValidation2("mtp-tcp-validation-dctcp-80ms",
                                         "--firstTcpType=dctcp --linkRate=50Mbps --baseRtt=80ms "
                                         "--queueUseEcn=1 --stopTime=40s --validate=dctcp-80ms",
                                         "",
-                                        TestCase::TestDuration::QUICK);
+                                        TestCase::Duration::QUICK);
 
 static MtpTestSuite g_mtpTcpValidation3(
     "mtp-tcp-validation-cubic-50ms-no-ecn",
@@ -150,7 +150,7 @@ static MtpTestSuite g_mtpTcpValidation3(
     "--firstTcpType=cubic --linkRate=50Mbps --baseRtt=50ms --queueUseEcn=0 --stopTime=20s "
     "--validate=cubic-50ms-no-ecn",
     "",
-    TestCase::TestDuration::QUICK);
+    TestCase::Duration::QUICK);
 
 static MtpTestSuite g_mtpTcpValidation4("mtp-tcp-validation-cubic-50ms-ecn",
                                         "tcp-validation-mtp",
@@ -158,4 +158,4 @@ static MtpTestSuite g_mtpTcpValidation4("mtp-tcp-validation-cubic-50ms-ecn",
                                         "--firstTcpType=cubic --linkRate=50Mbps --baseRtt=50ms "
                                         "--queueUseEcn=1 --stopTime=20s --validate=cubic-50ms-ecn",
                                         "",
-                                        TestCase::TestDuration::QUICK);
+                                        TestCase::Duration::QUICK);

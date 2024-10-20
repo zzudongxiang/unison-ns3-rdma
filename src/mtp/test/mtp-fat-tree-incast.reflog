@@ -38,16 +38,16 @@
   Progressed to 0.8s
   Progressed to 0.9s
   Detected #flow = 66
-  Finished #flow = 55
-  Average FCT (all) = 219106us
-  Average FCT (finished) = 164425us
-  Average end to end delay = 8988.1us
-  Average flow throughput = 0.00591008Gbps
-  Network throughput = 0.0975597Gbps
-  Total Tx packets = 12216
-  Total Rx packets = 12108
+  Finished #flow = 56
+  Average FCT (all) = 224669us
+  Average FCT (finished) = 177315us
+  Average end to end delay = 8970.54us
+  Average flow throughput = 0.00587946Gbps
+  Network throughput = 0.0975372Gbps
+  Total Tx packets = 12217
+  Total Rx packets = 12111
   Dropped packets = 0
 
 - Done!
-  Event count = 234204
+  Event count = 234220
 
