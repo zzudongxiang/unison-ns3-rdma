@@ -19,8 +19,7 @@ class SimSetting
         // write port_speed
         uint32_t len = 0;
         for (auto i : port_speed)
-            for (auto j : i.second)
-                len++;
+            len += i.second.size();
         fwrite(&len, sizeof(len), 1, file);
         for (auto i : port_speed)
             for (auto j : i.second)

@@ -22,7 +22,6 @@ build_lib(
   SOURCE_FILES
     ${mpi_sources}
     helper/point-to-point-helper.cc
-    model/point-to-point-remote-channel.cc
     model/cn-header.cc
     model/nvswitch-node.cc
     model/pause-header.cc
@@ -43,7 +42,6 @@ build_lib(
     ${mpi_headers}
     helper/point-to-point-helper.h
     helper/sim-setting.h
-    model/point-to-point-remote-channel.h
     model/cn-header.h
     model/nvswitch-node.h
     model/pause-header.h

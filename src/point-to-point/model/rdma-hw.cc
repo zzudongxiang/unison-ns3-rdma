@@ -1378,7 +1378,7 @@ RdmaHw::UpdateRateHp(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch, boo
             }
 
             DataRate new_rate;
-            int32_t new_incStage;
+            int32_t new_incStage = 0;
             DataRate new_rate_per_hop[IntHeader::maxHop];
             int32_t new_incStage_per_hop[IntHeader::maxHop];
             if (!m_multipleRate)
@@ -1741,7 +1741,7 @@ RdmaHw::UpdateRateHpPint(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch,
         double U = Pint::decode_u(ih.GetPower());
 
         DataRate new_rate;
-        int32_t new_incStage;
+        int32_t new_incStage = 0;
         double max_c = U / m_targetUtil;
 
         if (max_c >= 1 || qp->hpccPint.m_incStage >= m_miThresh)

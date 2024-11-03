@@ -160,13 +160,13 @@ class QbbHelper : public PcapHelperForDevice, public AsciiTraceHelperForDevice
                                    Ptr<QbbNetDevice>,
                                    Ptr<const Packet> p,
                                    uint32_t qidx,
-                                   Event event,
+                                   EventEnum event,
                                    bool hasL2);
     static void PacketEventCallback(FILE* file,
                                     Ptr<QbbNetDevice>,
                                     Ptr<const Packet>,
                                     uint32_t qidx,
-                                    Event event,
+                                    EventEnum event,
                                     bool hasL2);
     static void MacRxDetailCallback(FILE* file, Ptr<QbbNetDevice>, Ptr<const Packet> p);
     static void EnqueueDetailCallback(FILE* file,

@@ -10,7 +10,7 @@
 namespace ns3
 {
 
-enum Event
+enum EventEnum
 {
     Recv = 0,
     Enqu = 1,
@@ -94,7 +94,7 @@ struct TraceFormat
 };
 
 static inline const char*
-EventToStr(enum Event e)
+EventToStr(enum EventEnum e)
 {
     switch (e)
     {
