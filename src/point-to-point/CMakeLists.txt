@@ -5,9 +5,11 @@ set(mpi_libraries)
 if(${ENABLE_MPI})
   set(mpi_sources
       model/point-to-point-remote-channel.cc
+      helper/qbb-helper.cc
   )
   set(mpi_headers
       model/point-to-point-remote-channel.h
+      helper/qbb-helper.h
   )
   set(mpi_libraries
       ${libmpi}
@@ -20,12 +22,42 @@ build_lib(
   SOURCE_FILES
     ${mpi_sources}
     helper/point-to-point-helper.cc
+    model/point-to-point-remote-channel.cc
+    model/cn-header.cc
+    model/nvswitch-node.cc
+    model/pause-header.cc
+    model/pint.cc
+    model/qbb-channel.cc
+    model/qbb-header.cc
+    model/qbb-net-device.cc
+    model/qbb-remote-channel.cc
+    model/rdma-driver.cc
+    model/rdma-hw.cc
+    model/rdma-queue-pair.cc
+    model/switch-mmu.cc
+    model/switch-node.cc
     model/point-to-point-channel.cc
     model/point-to-point-net-device.cc
     model/ppp-header.cc
   HEADER_FILES
     ${mpi_headers}
     helper/point-to-point-helper.h
+    helper/sim-setting.h
+    model/point-to-point-remote-channel.h
+    model/cn-header.h
+    model/nvswitch-node.h
+    model/pause-header.h
+    model/pint.h
+    model/qbb-channel.h
+    model/qbb-header.h
+    model/qbb-net-device.h
+    model/qbb-remote-channel.h
+    model/rdma-driver.h
+    model/rdma-hw.h
+    model/rdma-queue-pair.h
+    model/switch-mmu.h
+    model/switch-node.h
+    model/trace-format.h
     model/point-to-point-channel.h
     model/point-to-point-net-device.h
     model/ppp-header.h

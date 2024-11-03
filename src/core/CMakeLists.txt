@@ -134,6 +134,7 @@ set(source_files
     helper/csv-reader.cc
     helper/random-variable-stream-helper.cc
     helper/event-garbage-collector.cc
+    model/random-variable.cc
     model/time.cc
     model/event-id.cc
     model/scheduler.cc
@@ -207,6 +208,7 @@ set(header_files
     helper/csv-reader.h
     helper/event-garbage-collector.h
     helper/random-variable-stream-helper.h
+    model/random-variable.h
     model/abort.h
     model/ascii-file.h
     model/ascii-test.h

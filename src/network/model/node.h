@@ -12,6 +12,7 @@
 #include "net-device.h"
 
 #include "ns3/callback.h"
+#include "ns3/custom-header.h"
 #include "ns3/object.h"
 #include "ns3/ptr.h"
 
@@ -209,6 +210,14 @@ class Node : public Object
      */
     static bool ChecksumEnabled();
 
+    /**
+     * \returns Get the type of the current node
+     */
+    uint32_t GetNodeType();
+
+  protected:
+    uint32_t m_node_type;
+
   protected:
     /**
      * The dispose method. Subclasses must override this method
@@ -300,6 +309,12 @@ class Node : public Object
     std::vector<Ptr<Application>> m_applications;         //!< Applications associated to this node
     ProtocolHandlerList m_handlers;                       //!< Protocol handlers in the node
     DeviceAdditionListenerList m_deviceAdditionListeners; //!< Device addition listeners in the node
+
+  public:
+    virtual bool SwitchReceiveFromDevice(Ptr<NetDevice> device,
+                                         Ptr<Packet> packet,
+                                         CustomHeader& ch);
+    virtual void SwitchNotifyDequeue(uint32_t ifIndex, uint32_t qIndex, Ptr<Packet> p);
 };
 
 } // namespace ns3

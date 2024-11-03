@@ -7,6 +7,9 @@ build_lib(
     helper/three-gpp-http-helper.cc
     helper/udp-client-server-helper.cc
     helper/udp-echo-helper.cc
+    helper/rdma-client-helper.cc
+    model/rdma-client.cc
+    model/simple-seq-ts-header.cc
     model/application-packet-probe.cc
     model/bulk-send-application.cc
     model/onoff-application.cc
@@ -31,6 +34,9 @@ build_lib(
     helper/three-gpp-http-helper.h
     helper/udp-client-server-helper.h
     helper/udp-echo-helper.h
+    helper/rdma-client-helper.h
+    model/rdma-client.h
+    model/simple-seq-ts-header.h
     model/application-packet-probe.h
     model/bulk-send-application.h
     model/onoff-application.h

@@ -223,6 +223,14 @@ class NetDevice : public Object
      * \return value of m_isPointToPoint flag
      */
     virtual bool IsPointToPoint() const = 0;
+
+    /**
+     * \brief Return true if the net device is qbb.
+     *
+     * \return default return false
+     */
+    virtual bool IsQbb(void) const;
+
     /**
      * \param packet packet sent from above down to Network Device
      * \param dest mac address of the destination (already resolved)

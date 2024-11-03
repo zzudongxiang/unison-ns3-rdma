@@ -145,6 +145,7 @@ set(header_files
     helper/neighbor-cache-helper.h
     helper/rip-helper.h
     helper/ripng-helper.h
+    model/rdma.h
     model/arp-cache.h
     model/arp-header.h
     model/arp-l3-protocol.h

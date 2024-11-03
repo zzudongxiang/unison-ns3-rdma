@@ -400,6 +400,10 @@ SimpleNetDevice::IsPointToPoint() const
     return m_pointToPointMode;
 }
 
+bool NetDevice::IsQbb(void) const {
+    return false;
+}
+
 bool
 SimpleNetDevice::IsBridge() const
 {
